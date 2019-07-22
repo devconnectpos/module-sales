@@ -342,7 +342,8 @@ class OrderManagement extends ServiceAbstract
 
         if ($isSaveOrder === true) {
             $this->checkOrderCount()
-                 ->checkXRefNumCardKnox();
+                 ->checkXRefNumCardKnox()
+                 ->checkTransactionIDAuthorize();
         }
 
         try {
@@ -1516,6 +1517,22 @@ class OrderManagement extends ServiceAbstract
      * @return $this
      * @throws \Exception
      */
+    protected function checkTransactionIDAuthorize()
+    {
+        // need reference number Authorize for report
+        $transId = $this->getRequest()->getParam('transId');
+        if (!!$transId) {
+            $this->registry->unregister('transId');
+            $this->registry->register('transId', $transId);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     * @throws \Exception
+     */
     protected function checkOrderCount()
     {
         $orderCount = $this->getRequest()->getParam('retail_id');
@@ -1780,6 +1797,7 @@ class OrderManagement extends ServiceAbstract
         if ($this->getRequest()->getParam('reward_point')) {
             $reward_point_data = $this->getRequest()->getParam('reward_point');
             $order->setData('reward_points_earned', $reward_point_data['reward_point_earn']);
+            $order->setData('reward_points_earned_amount', $reward_point_data['reward_point_earn_amount']);
             $order->setData('reward_points_redeemed', $reward_point_data['reward_point_spent']);
             $order->setData('previous_reward_points_balance', $reward_point_data['customer_balance']);
             $order->save();

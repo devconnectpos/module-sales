@@ -277,7 +277,8 @@ class OrderHistoryManagement extends ServiceAbstract
                     'previous_reward_points_balance'    => floatval($order->getData('previous_reward_points_balance')),
                     'reward_points_redeemed'        => floatval($order->getData('reward_points_redeemed')),
                     'reward_points_earned'          => floatval($order->getData('reward_points_earned')),
-                    'reward_points_refunded'          => floatval($order->getData('reward_points_refunded')),
+                    'reward_points_earned_amount'   => floatval($order->getData('reward_points_earned_amount')),
+                    'reward_points_refunded'        => floatval($order->getData('reward_points_refunded')),
                 ];
 
                 if ($this->integrateHelperData->isIntegrateRP()

@@ -393,6 +393,7 @@ class CreditmemoManagement extends ServiceAbstract
         $data['total_paid']          = $creditmemo->getOrder()->getData('total_paid');
         $data['total_refunded']      = $creditmemo->getOrder()->getData('total_refunded');
         $data['xRefNum']             = $creditmemo->getOrder()->getData('xRefNum');
+        $data['transId']             = $creditmemo->getOrder()->getData('transId');
 
         return $data;
     }

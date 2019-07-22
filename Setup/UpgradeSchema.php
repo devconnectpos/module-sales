@@ -73,6 +73,12 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.2.6', '<')) {
             $this->addRewardPointsAndStoreCreditInfoToOrder($setup);
         }
+        if (version_compare($context->getVersion(), '0.2.8', '<')) {
+            $this->addTransactionIdNumOrderAuthorize($setup);
+        }
+        if (version_compare($context->getVersion(), '0.2.9', '<')) {
+            $this->addRewardPointsEarnAmountToOrder($setup);
+        }
     }
 
     /**
@@ -777,6 +783,89 @@ class UpgradeSchema implements UpgradeSchemaInterface
             [
                 'type'    => Table::TYPE_INTEGER,
                 'comment' => 'Reward Points Refunded',
+            ]
+        );
+    }
+
+    /**
+     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
+     */
+    protected function addTransactionIdNumOrderAuthorize(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'transId')) {
+            $installer->getConnection()->dropColumn($installer->getTable('quote'), 'transId');
+        }
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'transId')) {
+            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'transId');
+        }
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'transId')) {
+            $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'transId');
+        }
+
+        $installer->getConnection()->addColumn(
+            $installer->getTable('quote'),
+            'transId',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'transId',
+            ]
+        );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order'),
+            'transId',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'transId',
+            ]
+        );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order_grid'),
+            'transId',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'transId',
+            ]
+        );
+    }
+
+    protected function addRewardPointsEarnAmountToOrder(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+
+        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'reward_points_earned_amount');
+        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'reward_points_earned_amount');
+        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'reward_points_earned_amount');
+
+        $installer->getConnection()->addColumn(
+            $installer->getTable('quote'),
+            'reward_points_earned_amount',
+            [
+                'type'    => Table::TYPE_DECIMAL,
+                'length'   => '12,4',
+                'nullable' => true,
+                'comment' => 'Reward Points Earned Amount',
+            ]
+        );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order'),
+            'reward_points_earned_amount',
+            [
+                'type'    => Table::TYPE_DECIMAL,
+                'length'   => '12,4',
+                'nullable' => true,
+                'comment' => 'Reward Points Earned Amount',
+            ]
+        );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order_grid'),
+            'reward_points_earned_amount',
+            [
+                'type'    => Table::TYPE_DECIMAL,
+                'length'   => '12,4',
+                'nullable' => true,
+                'comment' => 'Reward Points Earned Amount',
             ]
         );
     }

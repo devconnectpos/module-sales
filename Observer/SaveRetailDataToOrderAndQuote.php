@@ -121,5 +121,11 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
             $quote->setData('pickup_outlet_id', $pickup_outlet_id);
             $order->setData('pickup_outlet_id', $pickup_outlet_id);
         }
+
+        $transId = $this->registry->registry('transId');
+        if (!!$transId) {
+            $quote->setData('transId', $transId);
+            $order->setData('transId', $transId);
+        }
     }
 }
