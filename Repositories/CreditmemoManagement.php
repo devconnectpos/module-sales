@@ -264,6 +264,12 @@ class CreditmemoManagement extends ServiceAbstract
             );
 
             if (isset($data['refund_to_store_credit'])) {
+                if (isset($data['store_credit'])) {
+                    $storeCredit = $data['store_credit'];
+                    $payments    = $data['payment_data'];
+                    $storeCreditData = $this->getStoreCreditData($storeCredit, $payments);
+                    $order->setData('store_credit_balance', $storeCreditData)->save();
+                }
                 $eventData = [
                     'creditmemo'             => $creditmemo,
                     'refund_to_store_credit' => $data['refund_to_store_credit']
@@ -413,4 +419,36 @@ class CreditmemoManagement extends ServiceAbstract
 
         return $this->currentRate;
     }
+
+    /**
+     * @param $payments
+     * @return float|int
+     */
+    public function getStoreCreditByPayments($payments)
+    {
+        $storeCredit = 0;
+        foreach ($payments as $payment) {
+            if ('refund_to_store_credit' === $payment['type']) {
+                $storeCredit += $payment['refund_amount'] / $this->getCurrentRate();
+            }
+        }
+        return $storeCredit;
+    }
+
+    /**
+     * @param $storeCredit
+     * @param $payments
+     * @return float|int
+     */
+    public function getStoreCreditData($storeCredit, $payments)
+    {
+        if (isset($storeCredit['customer_balance_base_currency'])) {
+            $storeCreditData = $storeCredit['customer_balance_base_currency'] + $this->getStoreCreditByPayments($payments);
+        } else {
+            $storeCreditData = $this->getStoreCreditByPayments($payments);
+        }
+        return $storeCreditData;
+
+    }
+
 }
