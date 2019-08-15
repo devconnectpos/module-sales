@@ -79,6 +79,13 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.2.9', '<')) {
             $this->addRewardPointsEarnAmountToOrder($setup);
         }
+        if (version_compare($context->getVersion(), '0.3.0', '<')) {
+            $this->addPrintTimeCounter($setup);
+        }
+        if (version_compare($context->getVersion(), '0.3.1', '<')) {
+            $this->modifyOutletRewardPointAndStoreCreditInfoToOrder($setup);
+        }
+
     }
 
     /**
@@ -869,4 +876,66 @@ class UpgradeSchema implements UpgradeSchemaInterface
             ]
         );
     }
+
+    /**
+     * @param SchemaSetupInterface $setup
+     */
+    protected function addPrintTimeCounter (SchemaSetupInterface $setup)
+    {
+        $setup->startSetup();
+        if (!$setup->getConnection()->tableColumnExists($setup->getTable('sales_order'), 'print_time_counter')) {
+            $setup->getConnection()->addColumn(
+                $setup->getTable('sales_order'),
+                'print_time_counter',
+                [
+                    'type'      => Table::TYPE_INTEGER,
+                    'comment'   => 'Print time counter',
+                    'default'   => 0
+                ]
+            );
+        }
+        $setup->endSetup();
+    }
+
+    protected function modifyOutletRewardPointAndStoreCreditInfoToOrder(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+        $installer->startSetup();
+
+        $installer
+            ->getConnection()
+            ->modifyColumn(
+                $installer->getTable('quote'),
+                'store_credit_balance',
+                [
+                    'type' => Table::TYPE_DECIMAL,
+                    'length' => '12,2',
+                    'comment' => 'Store Credit Balance',
+                ]
+            );
+        $installer
+            ->getConnection()
+            ->modifyColumn(
+                $installer->getTable('sales_order'),
+                'store_credit_balance',
+                [
+                    'type' => Table::TYPE_DECIMAL,
+                    'length' => '12,2',
+                    'comment' => 'Store Credit Balance',
+                ]
+            );
+        $installer
+            ->getConnection()
+            ->modifyColumn(
+                $installer->getTable('sales_order_grid'),
+                'store_credit_balance',
+                [
+                    'type' => Table::TYPE_DECIMAL,
+                    'length' => '12,2',
+                    'comment' => 'Store Credit Balance',
+                ]
+            );
+        $installer->endSetup();
+    }
+
 }

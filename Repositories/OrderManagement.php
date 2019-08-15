@@ -396,6 +396,36 @@ class OrderManagement extends ServiceAbstract
     /**
      * @throws \Exception
      */
+    public function updatePrintTime()
+    {
+        $printTimeCounter = $this->getRequest()->getParam('printTimeCounter');
+        $order_id = $this->getRequest()->getParam('order_id');
+
+        $dataOrder = $this->getPrintTimeCollection($order_id);
+
+        if ($dataOrder->getId()) {
+            $dataOrder->setData('print_time_counter', $printTimeCounter);
+            $dataOrder->save();
+        }
+        $criteria = new DataObject(
+            ['entity_id' => $dataOrder->getEntityId(), 'storeId' => $dataOrder->getStoreId()]
+        );
+
+        return $this->orderHistoryManagement->loadOrders($criteria);
+    }
+
+    /**
+     * @param $order_id
+     * @return DataObject
+     */
+    public function getPrintTimeCollection($order_id) {
+        $collection = $this->orderCollectionFactory->create();
+        $collection->addAttributeToFilter('entity_id', $order_id);
+
+        return $collection->getFirstItem();
+    }
+
+
     public function saveOrder()
     {
         $retailId = $this->getRequest()->getParam('retail_id');
@@ -403,6 +433,7 @@ class OrderManagement extends ServiceAbstract
         $userId = $this->getRequest()->getParam('user_id');
         $registerId = $this->getRequest()->getParam('register_id');
         $customerId = $this->getRequest()->getParam('customer_id');
+        $printTimeCounter = $this->getRequest()->getParam('print_time_counter');
         if ($this->getRequest()->getParam('orderOffline')) {
             $grandTotal = $this->getRequest()->getParam('orderOffline')['totals']['grand_total'];
             if ($retailId && $this->checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal)) {
@@ -417,6 +448,7 @@ class OrderManagement extends ServiceAbstract
                           ->createOrder();
             $this->savePaymentTransaction($order);
             $this->saveNoteToOrderAlso($order);
+            $this->savePrintTimeCounter($order,$printTimeCounter);
         } catch (Exception $e) {
             if (isset($order) && !!$order->getId()) {
                 $order->setData('retail_note', $order->getData('retail_note') . ' - ' . $e->getMessage());
@@ -1722,6 +1754,17 @@ class OrderManagement extends ServiceAbstract
     }
 
     /**
+     * @param $order
+     * @param $printTimeCounter
+     */
+    protected function savePrintTimeCounter($order, $printTimeCounter)
+    {
+        /** @var \SM\Sales\Model\AdminOrder\Create $order */
+        $order->setData('print_time_counter', $printTimeCounter)
+            ->save();
+    }
+
+    /**
      * @throws \Exception
      */
     public function calculateShippingRates()
@@ -1780,8 +1823,9 @@ class OrderManagement extends ServiceAbstract
     public function addStoreCreditData($order)
     {
         if ($this->getRequest()->getParam('store_credit')) {
-            $store_credit_data = $this->getRequest()->getParam('store_credit');
-            $order->setData('store_credit_balance', $store_credit_data['customer_balance_base_currency']);
+            $storeCredit = $this->getRequest()->getParam('store_credit');
+            $storeCreditData   = $storeCredit['customer_balance_base_currency'] - ($storeCredit['store_credit_discount_amount'] / $this->getCurrentRate());
+            $order->setData('store_credit_balance', $storeCreditData);
             $order->save();
         }
     }
