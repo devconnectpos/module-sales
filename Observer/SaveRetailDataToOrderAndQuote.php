@@ -127,5 +127,11 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
             $quote->setData('transId', $transId);
             $order->setData('transId', $transId);
         }
+
+        $username = $this->registry->registry('user_name');
+        if (!!$username) {
+            $quote->setData('user_name', $username);
+            $order->setData('user_name', $username);
+        }
     }
 }

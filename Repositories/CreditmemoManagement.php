@@ -311,6 +311,7 @@ class CreditmemoManagement extends ServiceAbstract
                     'order_id'     => $this->getRequest()->getParam('order_id'),
                     "outlet_id"    => $this->getRequest()->getParam('outlet_id'),
                     "register_id"  => $this->getRequest()->getParam('register_id'),
+                    "user_name"    => $this->getRequest()->getParam('user_name'),
                     'store_id'     => $storeId
                 ],
                 true
