@@ -28,6 +28,8 @@ use SM\Payment\Helper\PaymentHelper;
 use SM\Payment\Model\RetailMultiple;
 use SM\Payment\Model\RetailPayment;
 use SM\Payment\Model\RetailPaymentFactory;
+use SM\RefundWithoutReceipt\Model\RefundWithoutReceiptTransactionFactory;
+use SM\RefundWithoutReceipt\Model\ResourceModel\RefundWithoutReceiptTransaction\CollectionFactory as RefundWithoutReceiptTransactionCollectionFactory;
 use SM\Sales\Model\OrderSyncErrorFactory;
 use SM\Sales\Model\FeedbackFactory;
 use SM\Sales\Model\ResourceModel\Feedback\CollectionFactory as feedbackCollectionFactory;
@@ -143,6 +145,14 @@ class OrderManagement extends ServiceAbstract
      */
     protected $rpIntegrateManagement;
     /**
+     * @var \SM\RefundWithoutReceipt\Model\ResourceModel\RefundWithoutReceiptTransaction\CollectionFactory
+     */
+    protected $refundWithoutReceiptCollectionFactory;
+    /**
+     * @var \SM\RefundWithoutReceipt\Model\RefundWithoutReceiptTransactionFactory
+     */
+    protected $refundWithoutReceiptTransactionFactory;
+    /**
      * @var \SM\Shift\Helper\Data
      */
     private $shiftHelper;
@@ -222,36 +232,38 @@ class OrderManagement extends ServiceAbstract
     /**
      * OrderManagement constructor.
      *
-     * @param \SM\XRetail\Helper\DataConfig                              $dataConfig
-     * @param \SM\XRetail\Helper\Data                                    $retailHelper
-     * @param \Magento\Store\Model\StoreManagerInterface                 $storeManager
-     * @param \Magento\Backend\App\Action\Context                        $context
-     * @param \Magento\Framework\Registry                                $registry
-     * @param \SM\XRetail\Model\UserOrderCounterFactory                  $userOrderCounterFactory
-     * @param \SM\Sales\Repositories\ShipmentManagement                  $shipmentManagement
-     * @param \SM\Sales\Repositories\InvoiceManagement                   $invoiceManagement
-     * @param \Magento\Catalog\Helper\Product                            $cataglogProduct
-     * @param \Magento\Customer\Model\Session                            $customerSession
-     * @param \SM\Payment\Model\RetailPaymentFactory                     $retailPaymentFactory
-     * @param \SM\Payment\Helper\PaymentHelper                           $paymentHelper
-     * @param \SM\Shift\Model\RetailTransactionFactory                   $retailTransactionFactory
-     * @param \SM\Shift\Helper\Data                                      $shiftHelper
-     * @param \SM\Integrate\Helper\Data                                  $integrateHelperData
-     * @param \SM\Integrate\Model\RPIntegrateManagement                  $RPIntegrateManagement
-     * @param \SM\Integrate\Model\StoreCreditIntegrateManagement         $storeCreditIntegrateManagement ,
-     * @param \SM\Integrate\Model\GCIntegrateManagement                  $GCIntegrateManagement
-     * @param \SM\Sales\Model\OrderSyncErrorFactory                      $orderSyncErrorFactory
-     * @param \SM\Sales\Model\FeedbackFactory                            $feedbackFactory
-     * @param \SM\Sales\Model\ResourceModel\Feedback\CollectionFactory   $feedbackCollectionFactory
-     * @param \SM\Sales\Repositories\OrderHistoryManagement              $orderHistoryManagement
-     * @param \Magento\Tax\Helper\Data                                   $taxHelper
-     * @param \Magento\Sales\Model\ResourceModel\Order\CollectionFactory $collectionFactory
-     * @param \Magento\Framework\App\ResourceConnection                  $resourceConnection
-     * @param \Magento\Sales\Model\OrderFactory                          $orderFactory
-     * @param \Magento\Framework\EntityManager\MetadataPool              $metadataPool
-     * @param \Magento\Shipping\Model\Shipping                           $shippingModel
-     * @param \SM\Performance\Helper\RealtimeManager                     $realtimeManager
-     * @param \SM\Integrate\Model\WarehouseIntegrateManagement           $warehouseIntegrateManagement
+     * @param \SM\XRetail\Helper\DataConfig                                                                  $dataConfig
+     * @param \SM\XRetail\Helper\Data                                                                        $retailHelper
+     * @param \Magento\Store\Model\StoreManagerInterface                                                     $storeManager
+     * @param \Magento\Backend\App\Action\Context                                                            $context
+     * @param \Magento\Framework\Registry                                                                    $registry
+     * @param \SM\XRetail\Model\UserOrderCounterFactory                                                      $userOrderCounterFactory
+     * @param \SM\Sales\Repositories\ShipmentManagement                                                      $shipmentManagement
+     * @param \SM\Sales\Repositories\InvoiceManagement                                                       $invoiceManagement
+     * @param \Magento\Catalog\Helper\Product                                                                $cataglogProduct
+     * @param \Magento\Customer\Model\Session                                                                $customerSession
+     * @param \SM\Payment\Model\RetailPaymentFactory                                                         $retailPaymentFactory
+     * @param \SM\Payment\Helper\PaymentHelper                                                               $paymentHelper
+     * @param \SM\Shift\Model\RetailTransactionFactory                                                       $retailTransactionFactory
+     * @param \SM\Shift\Helper\Data                                                                          $shiftHelper
+     * @param \SM\Integrate\Helper\Data                                                                      $integrateHelperData
+     * @param \SM\Integrate\Model\RPIntegrateManagement                                                      $RPIntegrateManagement
+     * @param \SM\Integrate\Model\StoreCreditIntegrateManagement                                             $storeCreditIntegrateManagement ,
+     * @param \SM\Integrate\Model\GCIntegrateManagement                                                      $GCIntegrateManagement
+     * @param \SM\Sales\Model\OrderSyncErrorFactory                                                          $orderSyncErrorFactory
+     * @param \SM\Sales\Model\FeedbackFactory                                                                $feedbackFactory
+     * @param \SM\Sales\Model\ResourceModel\Feedback\CollectionFactory                                       $feedbackCollectionFactory
+     * @param \SM\Sales\Repositories\OrderHistoryManagement                                                  $orderHistoryManagement
+     * @param \Magento\Tax\Helper\Data                                                                       $taxHelper
+     * @param \Magento\Sales\Model\ResourceModel\Order\CollectionFactory                                     $collectionFactory
+     * @param \Magento\Framework\App\ResourceConnection                                                      $resourceConnection
+     * @param \Magento\Sales\Model\OrderFactory                                                              $orderFactory
+     * @param \Magento\Framework\EntityManager\MetadataPool                                                  $metadataPool
+     * @param \Magento\Shipping\Model\Shipping                                                               $shippingModel
+     * @param \SM\Performance\Helper\RealtimeManager                                                         $realtimeManager
+     * @param \SM\Integrate\Model\WarehouseIntegrateManagement                                               $warehouseIntegrateManagement
+     * @param \SM\RefundWithoutReceipt\Model\ResourceModel\RefundWithoutReceiptTransaction\CollectionFactory $refundWithoutReceiptCollectionFactory
+     * @param \SM\RefundWithoutReceipt\Model\RefundWithoutReceiptTransactionFactory                          $refundWithoutReceiptTransactionFactory
      */
     public function __construct(
         DataConfig $dataConfig,
@@ -283,7 +295,9 @@ class OrderManagement extends ServiceAbstract
         MetadataPool $metadataPool,
         Shipping $shippingModel,
         RealtimeManager $realtimeManager,
-        WarehouseIntegrateManagement $warehouseIntegrateManagement
+        WarehouseIntegrateManagement $warehouseIntegrateManagement,
+        RefundWithoutReceiptTransactionCollectionFactory $refundWithoutReceiptCollectionFactory,
+        RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory
     )
     {
         $this->retailTransactionFactory       = $retailTransactionFactory;
@@ -318,6 +332,9 @@ class OrderManagement extends ServiceAbstract
         $this->paymentHelper      = $paymentHelper;
         $this->shippingModel = $shippingModel;
         $this->warehouseIntegrateManagement = $warehouseIntegrateManagement;
+
+        $this->refundWithoutReceiptCollectionFactory = $refundWithoutReceiptCollectionFactory;
+        $this->refundWithoutReceiptTransactionFactory = $refundWithoutReceiptTransactionFactory;
         parent::__construct($context->getRequest(), $dataConfig, $storeManager);
     }
 
@@ -343,6 +360,7 @@ class OrderManagement extends ServiceAbstract
         if ($isSaveOrder === true) {
             $this->checkOrderCount()
                  ->checkXRefNumCardKnox()
+                 ->checkUserName()
                  ->checkTransactionIDAuthorize();
         }
 
@@ -449,6 +467,10 @@ class OrderManagement extends ServiceAbstract
             $this->savePaymentTransaction($order);
             $this->saveNoteToOrderAlso($order);
             $this->savePrintTimeCounter($order,$printTimeCounter);
+
+            if ($this->getRequest()->getParam('refund_transaction_id')) {
+                $this->updateRefundWithoutReceiptTransaction($order, $this->getRequest()->getParam('refund_transaction_id'));
+            }
         } catch (Exception $e) {
             if (isset($order) && !!$order->getId()) {
                 $order->setData('retail_note', $order->getData('retail_note') . ' - ' . $e->getMessage());
@@ -486,8 +508,6 @@ class OrderManagement extends ServiceAbstract
                 } catch (Exception $e) {
 // invoice error
                 }
-
-
 
                 $this->saveOrderTaxInTableShift($order);
             }
@@ -674,7 +694,8 @@ class OrderManagement extends ServiceAbstract
                             'amount'        => $payment_datum['amount'],
                             'is_purchase'   => 1,
                             "created_at"    => $created_at,
-                            'order_id'      => $orderData->getData('entity_id')
+                            'order_id'      => $orderData->getData('entity_id'),
+                            'user_name'       => $data['user_name']
                         ]
                     )->save();
                 }
@@ -1533,6 +1554,21 @@ class OrderManagement extends ServiceAbstract
      * @return $this
      * @throws \Exception
      */
+    protected function checkUserName()
+    {
+        $username = $this->getRequest()->getParam('user_name');
+        if (!!$username) {
+            $this->registry->unregister('user_name');
+            $this->registry->register('user_name', $username);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     * @throws \Exception
+     */
     protected function checkXRefNumCardKnox()
     {
         // need reference number CardKnox for report
@@ -1820,7 +1856,7 @@ class OrderManagement extends ServiceAbstract
      * @return $this
      * @throws \Exception
      */
-    public function addStoreCreditData($order)
+    protected function addStoreCreditData($order)
     {
         if ($this->getRequest()->getParam('store_credit')) {
             $storeCredit = $this->getRequest()->getParam('store_credit');
@@ -1836,7 +1872,7 @@ class OrderManagement extends ServiceAbstract
      * @return $this
      * @throws \Exception
      */
-    public function addRewardPointData($order)
+    protected function addRewardPointData($order)
     {
         if ($this->getRequest()->getParam('reward_point')) {
             $reward_point_data = $this->getRequest()->getParam('reward_point');
@@ -1847,7 +1883,6 @@ class OrderManagement extends ServiceAbstract
             $order->save();
         }
     }
-
 
     /**
      * function get shipping method allowed
@@ -1896,6 +1931,27 @@ class OrderManagement extends ServiceAbstract
                 return "done_collection";
             default:
                 return "other_status";
+        }
+    }
+
+    /**
+     * @param \Magento\Sales\Model\Order $order
+     * @param $transactionId
+     *
+     * @throws \Exception
+     */
+    protected function updateRefundWithoutReceiptTransaction($order, $transactionId)
+    {
+        /** @var \SM\RefundWithoutReceipt\Model\RefundWithoutReceiptTransaction $transaction */
+        $transaction = $this->refundWithoutReceiptTransactionFactory->create()->load($transactionId);
+        if ($transaction->getId()) {
+            try {
+                $transaction->setExchangeOrderId($order->getEntityId());
+                $transaction->setExchangeOrderIncrementId($order->getIncrementId());
+                $transaction->save();
+            } catch (Exception $exception) {
+                throw new Exception($exception->getMessage());
+            }
         }
     }
 }

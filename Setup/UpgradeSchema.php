@@ -85,6 +85,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.3.1', '<')) {
             $this->modifyOutletRewardPointAndStoreCreditInfoToOrder($setup);
         }
+        if (version_compare($context->getVersion(), '0.3.2', '<')) {
+            $this->upgradeUserNameToOrderAndQuote($setup);
+        }
 
     }
 
@@ -936,6 +939,33 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 ]
             );
         $installer->endSetup();
+    }
+    protected function upgradeUserNameToOrderAndQuote(SchemaSetupInterface $setup)
+    {
+        $setup->startSetup();
+        if (!$setup->getConnection()->tableColumnExists($setup->getTable('quote'), 'user_name')) {
+            $setup->getConnection()->addColumn(
+                $setup->getTable('quote'),
+                'user_name',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'size'    => 255,
+                    'comment' => 'User name',
+                ]
+            );
+        }
+        if (!$setup->getConnection()->tableColumnExists($setup->getTable('sales_order'), 'user_name')) {
+            $setup->getConnection()->addColumn(
+                $setup->getTable('sales_order'),
+                'user_name',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'size'    => 255,
+                    'comment' => 'User name',
+                ]
+            );
+        }
+        $setup->endSetup();
     }
 
 }
