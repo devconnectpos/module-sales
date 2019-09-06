@@ -249,11 +249,13 @@ class InvoiceManagement extends ServiceAbstract
     }
 
     /**
-     * @param $order
+     * @param      $order
+     *
+     * @param bool $isPendingOrder
      *
      * @throws \Exception
      */
-    public function checkPayment($order)
+    public function checkPayment($order, $isPendingOrder = false)
     {
         if ($order instanceof Order) {
         } else {
@@ -280,7 +282,7 @@ class InvoiceManagement extends ServiceAbstract
 
                 if ((abs($totalPaid - floatval($order->getGrandTotal())) < 0.07) || !!$order->getData('is_exchange')) {
                     // FULL PAID
-                    if ($order->canInvoice()) {
+                    if ($order->canInvoice() && !$isPendingOrder) {
                         $order = $this->invoice($order->getId());
                     }
                     if (!$order->hasCreditmemos()) {
@@ -306,7 +308,11 @@ class InvoiceManagement extends ServiceAbstract
                             }
                         } else {
                             if (!$order->getData('is_exchange')) {
-                                $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE);
+                                if(!$order->hasShipments()) {
+                                    $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE_NOT_SHIPPED);
+                                } else {
+                                    $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE);
+                                }
                             } else {
                                 $order->setData('retail_status', OrderManagement::RETAIL_ORDER_EXCHANGE);
                             }

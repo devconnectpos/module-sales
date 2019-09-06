@@ -133,5 +133,11 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
             $quote->setData('user_name', $username);
             $order->setData('user_name', $username);
         }
+
+        $isPWA = $this->registry->registry('is_pwa');
+        if(!!$isPWA){
+            $quote->setData('is_pwa', $isPWA);
+            $order->setData('is_pwa', $isPWA);
+        }
     }
 }

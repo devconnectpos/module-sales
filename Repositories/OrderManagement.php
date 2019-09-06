@@ -230,6 +230,11 @@ class OrderManagement extends ServiceAbstract
 
 
     /**
+     * @var \SM\Product\Helper\ProductHelper
+     */
+    private $productHelper;
+
+    /**
      * OrderManagement constructor.
      *
      * @param \SM\XRetail\Helper\DataConfig                                                                  $dataConfig
@@ -296,6 +301,7 @@ class OrderManagement extends ServiceAbstract
         Shipping $shippingModel,
         RealtimeManager $realtimeManager,
         WarehouseIntegrateManagement $warehouseIntegrateManagement,
+        \SM\Product\Helper\ProductHelper $productHelper,
         RefundWithoutReceiptTransactionCollectionFactory $refundWithoutReceiptCollectionFactory,
         RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory
     )
@@ -321,6 +327,7 @@ class OrderManagement extends ServiceAbstract
         $this->orderCollectionFactory         = $collectionFactory;
         $this->orderFactory                   = $orderFactory;
         $this->feedbackFactory                = $feedbackFactory;
+        $this->productHelper                = $productHelper;
         $this->feedbackCollectionFactory      = $feedbackCollectionFactory;
 
         $this->resourceConnection = $resourceConnection;
@@ -346,16 +353,25 @@ class OrderManagement extends ServiceAbstract
         // see XRT-388: not collect all selection of bundle product because it not salable
         $this->catalogProduct->setSkipSaleableCheck(true);
 
-        $this->transformData()
-             ->checkShift()
-             ->checkCustomerGroup()
-             ->checkOutlet()
-             ->checkRegister()
-             ->checkRetailAdditionData()
-             ->checkOfflineMode()
-             ->checkIntegrateMagentoInventory()
-             ->checkIntegrateWh()
-             ->checkFeedback();
+        $data         = $this->getRequest()->getParams();
+        if(isset($data['is_pwa']) && $data['is_pwa'] === true){
+            $this->transformData()
+                ->checkIsPWAOrder()
+                ->checkCustomerGroup()
+                ->checkOutlet();
+//                ->checkIntegrateWh();
+        } else {
+            $this->transformData()
+                 ->checkShift()
+                 ->checkCustomerGroup()
+                 ->checkOutlet()
+                 ->checkRegister()
+                 ->checkRetailAdditionData()
+                 ->checkOfflineMode()
+                 ->checkIntegrateMagentoInventory()
+                 ->checkIntegrateWh()
+                 ->checkFeedback();
+        }
 
         if ($isSaveOrder === true) {
             $this->checkOrderCount()
@@ -377,8 +393,11 @@ class OrderManagement extends ServiceAbstract
 
         $data = null;
         if (!$isSaveOrder) {
+            $this->getQuote()->setIsActive(true)->save();
             $data = $this->getOutputLoadData();
             $this->clear();
+        } else {
+            $this->getQuote()->setIsActive(false)->save();
         }
 
         return $data;
@@ -452,6 +471,7 @@ class OrderManagement extends ServiceAbstract
         $registerId = $this->getRequest()->getParam('register_id');
         $customerId = $this->getRequest()->getParam('customer_id');
         $printTimeCounter = $this->getRequest()->getParam('print_time_counter');
+        $isPendingOrder = $this->getRequest()->getParam('isPendingOrder');
         if ($this->getRequest()->getParam('orderOffline')) {
             $grandTotal = $this->getRequest()->getParam('orderOffline')['totals']['grand_total'];
             if ($retailId && $this->checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal)) {
@@ -464,9 +484,11 @@ class OrderManagement extends ServiceAbstract
             $order = $this->getOrderCreateModel()
                           ->setIsValidate(true)
                           ->createOrder();
-            $this->savePaymentTransaction($order);
-            $this->saveNoteToOrderAlso($order);
-            $this->savePrintTimeCounter($order,$printTimeCounter);
+            if($this->getRequest()->getParam('is_pwa') !== true) {
+                $this->savePaymentTransaction($order);
+                $this->saveNoteToOrderAlso($order);
+                $this->savePrintTimeCounter($order, $printTimeCounter);
+            }
 
             if ($this->getRequest()->getParam('refund_transaction_id')) {
                 $this->updateRefundWithoutReceiptTransaction($order, $this->getRequest()->getParam('refund_transaction_id'));
@@ -484,10 +506,13 @@ class OrderManagement extends ServiceAbstract
         finally {
             $this->clear();
             if (isset($order) && !!$order->getId()) {
-                if (!$this->getRequest()->getParam('retail_has_shipment') && !$this->getQuote()->isVirtual()) {
+                if (!$this->getRequest()->getParam('retail_has_shipment') && !$this->getQuote()->isVirtual() && !$isPendingOrder) {
                     try {
-                        $this->shipmentDataManagement->ship($order->getId());
-                    } catch (Exception $e) {
+                        if (!$this->getRequest()->getParam('is_pwa') === true) {
+                             $this->shipmentDataManagement->ship($order->getId());
+                        }
+                    }
+                    catch (\Exception $e) {
 // ship error
                         if ($e->getMessage() === 'Negative quantity is not allowed, stock movement can not be created'
                             || $e->getMessage()
@@ -504,12 +529,18 @@ class OrderManagement extends ServiceAbstract
                 }
 
                 try {
-                    $this->invoiceManagement->checkPayment($order);
-                } catch (Exception $e) {
+                    if (($this->getRequest()->getParam('is_pwa') === true || $this->getRequest()->getParam('is_pwa') === 1) && !$this->getRequest()->getParam('is_use_paypal')) {
+                    }
+                    else {
+                        $this->invoiceManagement->checkPayment($order, $isPendingOrder);
+
+                    }
+                } catch (\Exception $e) {
 // invoice error
                 }
-
-                $this->saveOrderTaxInTableShift($order);
+                if($this->getRequest()->getParam('is_pwa') !== true) {
+                    $this->saveOrderTaxInTableShift($order);
+                }
             }
         }
 
@@ -550,14 +581,19 @@ class OrderManagement extends ServiceAbstract
             return $this->orderHistoryManagement->loadOrders($criteria);
         }
 
-        $criteria = new DataObject(
-            [
-                'entity_id' => $order->getEntityId(),
-                'storeId'   => $this->requestOrderData['store_id'],
-                'outletId'  => $this->requestOrderData['outlet_id']
-            ]
-        );
 
+        if($this->getRequest()->getParam('is_pwa') === true) {
+            $criteria = new DataObject(
+                [
+                    'entity_id' => $order->getEntityId(),
+                    'storeId' => $this->requestOrderData['store_id']]);
+        } else {
+            $criteria = new DataObject(
+                [
+                    'entity_id' => $order->getEntityId(),
+                    'storeId' => $this->requestOrderData['store_id'],
+                    'outletId' => $this->requestOrderData['outlet_id']]);
+        }
         return $this->orderHistoryManagement->loadOrders($criteria);
     }
 
@@ -1744,6 +1780,22 @@ class OrderManagement extends ServiceAbstract
         }
 
         return $this->isRefundToGC;
+    }
+
+    protected function checkIsPWAOrder() {
+        $isPWA = $this->getRequest()->getParam('is_pwa');
+        if (!!$isPWA) {
+            $this->registry->unregister('is_pwa');
+            $this->registry->register('is_pwa', 1);
+        }
+        $storeId = $this->getRequest()->getParam('store_id');
+        if ($this->productHelper->getPWAOutOfStockStatus($storeId) === 'no') {
+        }
+        else {
+            $this->registry->unregister('is_connectpos');
+            $this->registry->register('is_connectpos', true);
+        }
+        return $this;
     }
 
     public function rateOrder()
