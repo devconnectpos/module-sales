@@ -22,6 +22,10 @@ use SM\XRetail\Repositories\Contract\ServiceAbstract;
 use Magento\Sales\Model\Order\Shipment\Validation\QuantityValidator;
 use SM\Integrate\Helper\Data;
 use SM\Email\Helper\EmailSender;
+use SM\XRetail\Helper\Data as RetailHelper;
+use SM\Shift\Model\RetailTransactionFactory;
+use SM\Shift\Helper\Data as ShiftHelper;
+
 /**
  * Class ShipmentManagement
  *
@@ -63,6 +67,18 @@ class ShipmentManagement extends ServiceAbstract
     * @var \SM\Email\Helper\EmailSender
      */
     private $emailSender;
+    /**
+     * @var \SM\XRetail\Helper\Data
+     */
+    private $retailHelper;
+    /**
+     * @var \SM\Shift\Model\RetailTransactionFactory
+     */
+    protected $retailTransactionFactory;
+    /**
+     * @var \SM\Shift\Helper\Data
+     */
+    private $shiftHelper;
 
     /**
      * ShipmentManagement constructor.
@@ -89,16 +105,22 @@ class ShipmentManagement extends ServiceAbstract
         InvoiceManagement $invoiceManagement,
         OrderHistoryManagement $orderHistoryManagement,
         Data $integrateData,
-        EmailSender $emailSender
+        EmailSender $emailSender,
+        ShiftHelper $shiftHelper,
+        RetailHelper $retailHelper,
+        RetailTransactionFactory $retailTransactionFactory
     ) {
-        $this->orderFactory           = $orderFactory;
-        $this->invoiceManagement      = $invoiceManagement;
-        $this->shipmentSender         = $shipmentSender;
-        $this->shipmentLoader         = $shipmentLoader;
-        $this->objectManager          = $objectManager;
-        $this->orderHistoryManagement = $orderHistoryManagement;
-        $this->integrateData          = $integrateData;
-        $this->emailSender            = $emailSender;
+        $this->orderFactory             = $orderFactory;
+        $this->invoiceManagement        = $invoiceManagement;
+        $this->shipmentSender           = $shipmentSender;
+        $this->shipmentLoader           = $shipmentLoader;
+        $this->objectManager            = $objectManager;
+        $this->orderHistoryManagement   = $orderHistoryManagement;
+        $this->integrateData            = $integrateData;
+        $this->emailSender              = $emailSender;
+        $this->shiftHelper              = $shiftHelper;
+        $this->retailHelper             = $retailHelper;
+        $this->retailTransactionFactory = $retailTransactionFactory;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -119,8 +141,15 @@ class ShipmentManagement extends ServiceAbstract
         if (!($outletId = $this->getRequest()->getParam('outlet_id'))) {
             throw new Exception("Must have param Outlet Id");
         }
-        $this->pick($orderId);
-        $this->invoiceManagement->invoice($orderId);
+        $is_pwa = $this->getRequest()->getParam('is_pwa');
+        if ($is_pwa !== null && (int) $is_pwa === 1) {
+            $order = $this->ship($orderId);
+            $this->invoiceManagement->checkPayment($order);
+            $this->savePaymentTransaction();
+        } else {
+            $this->pick($orderId);
+            $this->invoiceManagement->invoice($orderId);
+        }
         $criteria = new DataObject(
             [
                 'entity_id' => $orderId,
@@ -297,5 +326,46 @@ class ShipmentManagement extends ServiceAbstract
         }
 
         return $this->shipmentValidator;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    protected function savePaymentTransaction()
+    {
+        $data  = $this->getRequest()->getParams();
+        $order = $data['order'];
+        if ($order['payment'] !== null) {
+            $openingShift = $this->shiftHelper->getShiftOpening($data['outlet_id'], $data['register_id']);
+            if ($order['payment'] !== null
+                && is_array($order['payment'])
+                && count($order['payment']) > 0) {
+                foreach ($order['payment'] as $payment_datum) {
+                    if (!is_array($payment_datum)) {
+                        continue;
+                    }
+                    if (!isset($payment_datum['id']) || !$payment_datum['id']) {
+                        throw new Exception("Payment data not valid");
+                    }
+                    $created_at = $this->retailHelper->getCurrentTime();
+                    $_p         = $this->retailTransactionFactory->create();
+                    $_p->addData(
+                        [
+                            'outlet_id'     => $data['outlet_id'],
+                            'register_id'   => $data['register_id'],
+                            'shift_id'      => $openingShift->getData('id'),
+                            'payment_id'    => $payment_datum['id'],
+                            'payment_title' => $payment_datum['title'],
+                            'payment_type'  => $payment_datum['type'],
+                            'amount'        => $payment_datum['amount'],
+                            'is_purchase'   => 1,
+                            "created_at"    => $created_at,
+                            'order_id'      => $order['order_id'],
+                            'user_name'     => $data['user_name']
+                        ]
+                    )->save();
+                }
+            }
+        }
     }
 }

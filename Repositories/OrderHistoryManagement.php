@@ -79,6 +79,15 @@ class OrderHistoryManagement extends ServiceAbstract
      * @var \Magento\Quote\Api\CartRepositoryInterface
      */
     private $quoteRepository;
+    /**
+     * @var \Magento\Catalog\Api\ProductRepositoryInterface
+     */
+    protected $productRepository;
+
+    /**
+     * @var \SM\Product\Repositories\ProductManagement
+     */
+    protected $productManagement;
 
     /**
      * OrderHistoryManagement constructor.
@@ -100,6 +109,7 @@ class OrderHistoryManagement extends ServiceAbstract
     public function __construct(
         RequestInterface $requestInterface,
         DataConfig $dataConfig,
+        \Magento\Catalog\Api\ProductRepositoryInterface $productRepository,
         Data $retailHelper,
         StoreManagerInterface $storeManager,
         CollectionFactory $collectionFactory,
@@ -109,9 +119,11 @@ class OrderHistoryManagement extends ServiceAbstract
         CustomerFactory $customerFactory,
         OrderSyncErrorCollectionFactory $orderErrorCollectionFactory,
         CartRepositoryInterface $quoteRepository,
-        OrderFactory $orderFactory
+        OrderFactory $orderFactory,
+        \SM\Product\Repositories\ProductManagement $productManagement
     ) {
         $this->productMediaConfig          = $productMediaConfig;
+        $this->productRepository           = $productRepository;
         $this->customerHelper              = $customerHelper;
         $this->orderCollectionFactory      = $collectionFactory;
         $this->integrateHelperData         = $integrateHelperData;
@@ -120,6 +132,7 @@ class OrderHistoryManagement extends ServiceAbstract
         $this->orderErrorCollectionFactory = $orderErrorCollectionFactory;
         $this->quoteRepository             = $quoteRepository;
         $this->orderFactory                = $orderFactory;
+        $this->productManagement           = $productManagement;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -265,7 +278,7 @@ class OrderHistoryManagement extends ServiceAbstract
                 $xOrder->setData('can_ship', $order->canShip());
                 $xOrder->setData('can_invoice', $order->canInvoice());
                 $xOrder->setData('is_order_virtual', $order->getIsVirtual());
-
+                $xOrder->setData('is_pwa', $order->getData('is_pwa'));
                 $totals = [
                     'shipping_incl_tax'              => floatval($order->getShippingInclTax()),
                     'shipping'                       => floatval($order->getShippingAmount()),
@@ -376,13 +389,13 @@ class OrderHistoryManagement extends ServiceAbstract
         if (!$searchCriteria->getData('isSearchOnline')) {
             $outletId = $searchCriteria->getData('outletId');
             if (!!$outletId && !$searchCriteria->getData('searchString')) {
-                // $collection->getSelect()->where(new Zend_Db_Expr("1"));
                 $collection->addFieldToFilter(
-                    ['outlet_id', 'shipping_method', 'pickup_outlet_id'],
+                    ['outlet_id', 'shipping_method', 'pickup_outlet_id', 'is_pwa'],
                     [
                         ['eq' => $outletId],
                         ['eq' => 'smstorepickup_smstorepickup'],
                         ['eq' => $outletId],
+                        ['eq' => 1],
                     ]
                 );
             }
@@ -390,13 +403,7 @@ class OrderHistoryManagement extends ServiceAbstract
             if (is_null($storeId)) {
                 throw new Exception("Please define storeId when pull order");
             } else {
-                $collection->addFieldToFilter(
-                    ['store_id', 'shipping_method'],
-                    [
-                        ['eq' => $storeId],
-                        ['eq' => 'smstorepickup_smstorepickup']
-                    ]
-                );
+                $collection->getSelect()->where('(store_id = ? AND is_pwa = 1) OR (outlet_id = ? AND is_pwa != 1) OR shipping_method = "smstorepickup_smstorepickup"', $storeId, $outletId);
             }
         }
         if ($entityId = $searchCriteria->getData('entity_id')) {
@@ -500,14 +507,18 @@ class OrderHistoryManagement extends ServiceAbstract
     }
 
     /**
-     * @param $items
+     * @param      $items
+     *
+     * @param null $storeId
      *
      * @return array
      * @throws \ReflectionException
      */
-    public function getOrderItemData($items)
+    public function getOrderItemData($items, $storeId = null)
     {
-        $storeId = $this->getRequest()->getParam('store_id');
+        if (!$storeId) {
+            $storeId  = $this->getRequest()->getParam('store_id');
+        }
         $itemData = [];
         /** @var \Magento\Sales\Model\Order\Item $item */
         foreach ($items as $item) {
@@ -554,6 +565,15 @@ class OrderHistoryManagement extends ServiceAbstract
                 }
             }
 
+            if ($storeId !== null) {
+                $searchCriteria = new \Magento\Framework\DataObject(
+                    [
+                        'storeId'   => $storeId,
+                        'entity_id' => $item->getProductId()
+                    ]);
+
+                $_item->setData('product', $this->productManagement->loadPWAProducts($searchCriteria)->getItems()[0]);
+            }
             $_item->setData('children', $children);
             $_item->setData('buy_request', $item->getBuyRequest()->getData());
             $itemData[] = $_item->getOutput();
