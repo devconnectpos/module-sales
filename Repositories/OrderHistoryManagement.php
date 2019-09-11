@@ -572,7 +572,10 @@ class OrderHistoryManagement extends ServiceAbstract
                         'entity_id' => $item->getProductId()
                     ]);
 
-                $_item->setData('product', $this->productManagement->loadPWAProducts($searchCriteria)->getItems()[0]);
+                $products = $this->productManagement->loadPWAProducts($searchCriteria)->getItems();
+                if (count($products) > 0) {
+                    $_item->setData('product', $products[0]);
+                }
             }
             $_item->setData('children', $children);
             $_item->setData('buy_request', $item->getBuyRequest()->getData());
