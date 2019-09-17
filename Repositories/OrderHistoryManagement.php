@@ -319,7 +319,8 @@ class OrderHistoryManagement extends ServiceAbstract
                     $totals['store_credit_discount_amount'] = -$order->getData('customer_balance_amount');
                 }
 
-                if ($this->integrateHelperData->isIntegrateGC()
+                if (($this->integrateHelperData->isIntegrateGC() ||
+                     ($this->integrateHelperData->isIntegrateGCInPWA() && $order->getData('is_pwa') === '1'))
                     && $this->integrateHelperData->isAHWGiftCardxist()) {
                     $orderGiftCards = [];
                     if ($order->getExtensionAttributes()) {
@@ -403,7 +404,11 @@ class OrderHistoryManagement extends ServiceAbstract
             if (is_null($storeId)) {
                 throw new Exception("Please define storeId when pull order");
             } else {
-                $collection->getSelect()->where('(store_id = ? AND is_pwa = 1) OR (outlet_id = ? AND is_pwa != 1) OR shipping_method = "smstorepickup_smstorepickup"', $storeId, $outletId);
+                if (!!$outletId) {
+                    $collection->getSelect()->where(sprintf('(store_id = %s AND is_pwa = 1) OR (outlet_id = %s AND is_pwa != 1) OR shipping_method = "smstorepickup_smstorepickup"', $storeId, $outletId));
+                } else {
+                    $collection->getSelect()->where(sprintf('(store_id = %s AND is_pwa = 1) OR shipping_method = "smstorepickup_smstorepickup"', $storeId));
+                }
             }
         }
         if ($entityId = $searchCriteria->getData('entity_id')) {

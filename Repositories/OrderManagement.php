@@ -731,7 +731,7 @@ class OrderManagement extends ServiceAbstract
                             'is_purchase'   => 1,
                             "created_at"    => $created_at,
                             'order_id'      => $orderData->getData('entity_id'),
-                            'user_name'       => $data['user_name']
+                            "user_name"     => isset($data['user_name']) ? $data['user_name'] : ''
                         ]
                     )->save();
                 }
@@ -1185,9 +1185,8 @@ class OrderManagement extends ServiceAbstract
             $data['reward_point'] = $this->rpIntegrateManagement->getQuoteRPData();
         }
 
-
-
-        if ($this->integrateHelperData->isIntegrateGC()) {
+        if ($this->integrateHelperData->isIntegrateGC() ||
+            ($this->integrateHelperData->isIntegrateGCInPWA() && $this->getRequest()->getParam('is_pwa') === true)) {
             $giftCardRequest = $this->getRequest()->getParam('gift_card');
             if ($giftCardRequest) {
                 $data['gift_card'] = $this->gcIntegrateManagement->getQuoteGCData();
@@ -1702,7 +1701,9 @@ class OrderManagement extends ServiceAbstract
      */
     protected function checkIntegrateGC()
     {
-        if ($this->integrateHelperData->isIntegrateGC() && $this->getRequest()->getParam('gift_card')) {
+        if (($this->integrateHelperData->isIntegrateGC() ||
+             ($this->integrateHelperData->isIntegrateGCInPWA() && $this->getRequest()->getParam('is_pwa') === true))
+            && $this->getRequest()->getParam('gift_card')) {
             $this->gcIntegrateManagement->saveGCDataBeforeQuoteCollect($this->getRequest()->getParam('gift_card'));
         }
 
@@ -1727,7 +1728,8 @@ class OrderManagement extends ServiceAbstract
     protected function isIntegrateGC()
     {
         if ($this->integrateHelperData->isAHWGiftCardxist()
-            && $this->integrateHelperData->isIntegrateGC()
+            && ($this->integrateHelperData->isIntegrateGC() ||
+                ($this->integrateHelperData->isIntegrateGCInPWA() && $this->getRequest()->getParam('is_pwa') === true))
             && $this->getRequest()->getParam('gift_card')) {
             return true;
         }

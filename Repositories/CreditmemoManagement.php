@@ -284,7 +284,9 @@ class CreditmemoManagement extends ServiceAbstract
             // for case refund using only giftcard
             if ($data['payment_data'] == null
                 && $this->integrateHelperData->isAHWGiftCardxist()
-                && $this->integrateHelperData->isIntegrateGC()) {
+                && ($this->integrateHelperData->isIntegrateGC()
+                    || ($order->getData('is_pwa') == 1
+                        && $this->integrateHelperData->isIntegrateGCInPWA()))) {
                 $created_at              = $this->retailHelper->getCurrentTime();
                 $giftCardPaymentId       = $this->paymentHelper->getPaymentIdByType(
                     RetailPayment::GIFT_CARD_PAYMENT_TYPE
@@ -401,6 +403,7 @@ class CreditmemoManagement extends ServiceAbstract
         $data['total_refunded']      = $creditmemo->getOrder()->getData('total_refunded');
         $data['xRefNum']             = $creditmemo->getOrder()->getData('xRefNum');
         $data['transId']             = $creditmemo->getOrder()->getData('transId');
+        $data['is_pwa']             = $creditmemo->getOrder()->getData('is_pwa');
 
         return $data;
     }
