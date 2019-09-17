@@ -130,6 +130,7 @@ class ShipmentManagement extends ServiceAbstract
      */
     public function createClickAndCollectInvoice()
     {
+        self:: $FROM_API = true;
         if (!($orderId = $this->getRequest()->getParam('order_id'))) {
             throw new Exception("Must have param Order Id");
         }

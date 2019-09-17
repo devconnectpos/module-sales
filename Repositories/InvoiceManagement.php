@@ -456,7 +456,7 @@ class InvoiceManagement extends ServiceAbstract
                 }
                 // within cash rounding payment
                 foreach ($data['payment_data'] as $payment_datum) {
-                    if (!($payment_datum['title'] === null)) {
+                    if (isset($payment_datum['title']) && !($payment_datum['title'] === null)) {
                         $created_at       = $this->retailHelper->getCurrentTime();
                         $transactionData  = [
                             "payment_id"    => isset($payment_datum['id']) ? $payment_datum['id'] : null,
@@ -468,8 +468,8 @@ class InvoiceManagement extends ServiceAbstract
                             "amount"        => floatval($payment_datum['amount']),
                             "is_purchase"   => 0,
                             "created_at"    => $created_at,
-                            "order_id"      => $data['order_id'],
-                            "user_name"     => $data['user_name']
+                            "order_id"      => isset($data['order_id']) ? $data['order_id'] : '',
+                            "user_name"     => isset($data['user_name']) ? $data['user_name'] : ''
                         ];
                         $transactionModel = $this->getRetailTransactionModel();
                         $transactionModel->addData($transactionData)->save();
@@ -479,22 +479,24 @@ class InvoiceManagement extends ServiceAbstract
                 $this->deductRewardPointWhenRefund($order);
             } else {
                 foreach ($data['payment_data'] as $payment_datum) {
-                    $created_at       = $this->retailHelper->getCurrentTime();
-                    $transactionData  = [
-                        "payment_id"    => isset($payment_datum['id']) ? $payment_datum['id'] : null,
-                        "shift_id"      => $shiftId,
-                        "outlet_id"     => $data['outlet_id'],
-                        "register_id"   => $data['register_id'],
-                        "payment_title" => $payment_datum['title'],
-                        "payment_type"  => $payment_datum['type'],
-                        "amount"        => floatval($payment_datum['amount']),
-                        "is_purchase"   => 1,
-                        "created_at"    => $created_at,
-                        "order_id"      => $data['order_id'],
-                        'user_name'       => $data['user_name']
-                    ];
-                    $transactionModel = $this->getRetailTransactionModel();
-                    $transactionModel->addData($transactionData)->save();
+                    if (isset($payment_datum['title']) && !($payment_datum['title'] === null)) {
+                        $created_at       = $this->retailHelper->getCurrentTime();
+                        $transactionData  = [
+                            "payment_id"    => isset($payment_datum['id']) ? $payment_datum['id'] : null,
+                            "shift_id"      => $shiftId,
+                            "outlet_id"     => $data['outlet_id'],
+                            "register_id"   => $data['register_id'],
+                            "payment_title" => $payment_datum['title'],
+                            "payment_type"  => $payment_datum['type'],
+                            "amount"        => floatval($payment_datum['amount']),
+                            "is_purchase"   => 1,
+                            "created_at"    => $created_at,
+                            "order_id"      => isset($data['order_id']) ? $data['order_id'] : '',
+                            "user_name"     => isset($data['user_name']) ? $data['user_name'] : ''
+                        ];
+                        $transactionModel = $this->getRetailTransactionModel();
+                        $transactionModel->addData($transactionData)->save();
+                    }
                 }
             }
 
