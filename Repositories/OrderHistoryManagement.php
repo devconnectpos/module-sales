@@ -327,15 +327,15 @@ class OrderHistoryManagement extends ServiceAbstract
                         $orderGiftCards = $order->getExtensionAttributes()
                                                 ->getAwGiftcardCodes();
                     }
-                    if (count($orderGiftCards) > 0) {
+                    if (is_array($orderGiftCards) && count($orderGiftCards) > 0) {
                         $totals['gift_card'] = [];
                         foreach ($orderGiftCards as $giftcard) {
                             array_push(
                                 $totals['gift_card'],
                                 [
                                     'gift_code'            => $giftcard->getGiftcardCode(),
-                                    'giftcard_amount'      => floatval(abs($giftcard->getGiftcardAmount())),
-                                    'base_giftcard_amount' => floatval(abs($giftcard->getBaseGiftcardAmount()))
+                                    'giftcard_amount'      => -floatval(abs($giftcard->getGiftcardAmount())),
+                                    'base_giftcard_amount' => -floatval(abs($giftcard->getBaseGiftcardAmount()))
                                 ]
                             );
                         }
@@ -347,15 +347,15 @@ class OrderHistoryManagement extends ServiceAbstract
                     if ($order->getData('gift_cards')) {
                         $orderGiftCards = $this->retailHelper->unserialize($order->getData('gift_cards'));
                     }
-                    if (count($orderGiftCards) > 0) {
+                    if (is_array($orderGiftCards) && count($orderGiftCards) > 0) {
                         $totals['gift_card'] = [];
                         foreach ($orderGiftCards as $giftCard) {
                             array_push(
                                 $totals['gift_card'],
                                 [
                                     'gift_code'            => $giftCard['c'],
-                                    'giftcard_amount'      => floatval(abs($giftCard['a'])),
-                                    'base_giftcard_amount' => floatval(abs($giftCard['ba']))
+                                    'giftcard_amount'      => -floatval(abs($giftCard['a'])),
+                                    'base_giftcard_amount' => -floatval(abs($giftCard['ba']))
                                 ]
                             );
                         }

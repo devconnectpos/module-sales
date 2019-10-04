@@ -54,7 +54,7 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
         }
         $items = $this->getQuote()->getAllItems();
 
-        if (count($items) == 0) {
+        if (is_array($items) && count($items) == 0) {
             $this->_errors[] = __('Please specify order items.');
         }
 

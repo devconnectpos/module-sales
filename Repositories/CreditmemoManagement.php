@@ -75,6 +75,10 @@ class CreditmemoManagement extends ServiceAbstract
      * @var
      */
     private $currentRate;
+    /**
+     * @var \Magento\Customer\Model\CustomerFactory
+     */
+    protected $customerFactory;
 
     /**
      * @var \SM\XRetail\Helper\Data
@@ -132,7 +136,8 @@ class CreditmemoManagement extends ServiceAbstract
         IntegrateHelper $integrateHelperData,
         OrderHistoryManagement $orderHistoryManagement,
         ManagerInterface $eventManagement,
-        InvoiceFactory $invoiceFactory
+        InvoiceFactory $invoiceFactory,
+        \Magento\Customer\Model\CustomerFactory $customerFactory
     ) {
         $this->taxConfig              = $taxConfig;
         $this->invoiceManagement      = $invoiceManagement;
@@ -147,6 +152,7 @@ class CreditmemoManagement extends ServiceAbstract
         $this->integrateHelperData    = $integrateHelperData;
         $this->eventManagement        = $eventManagement;
         $this->invoiceFactory         = $invoiceFactory;
+        $this->customerFactory                = $customerFactory;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -264,12 +270,6 @@ class CreditmemoManagement extends ServiceAbstract
             );
 
             if (isset($data['refund_to_store_credit'])) {
-                if (isset($data['store_credit'])) {
-                    $storeCredit = $data['store_credit'];
-                    $payments    = $data['payment_data'];
-                    $storeCreditData = $this->getStoreCreditData($storeCredit, $payments);
-                    $order->setData('store_credit_balance', $storeCreditData)->save();
-                }
                 $eventData = [
                     'creditmemo'             => $creditmemo,
                     'refund_to_store_credit' => $data['refund_to_store_credit']
@@ -279,10 +279,22 @@ class CreditmemoManagement extends ServiceAbstract
                     $eventData
                 );
                 $this->eventManagement->dispatch('order_cancel_after', ['order' => $order]);
+                if ($this->integrateHelperData->isIntegrateStoreCredit()
+                    && $this->integrateHelperData->isExistStoreCreditMagento2EE()) {
+                    $storeCreditData = $this->integrateHelperData
+                        ->getStoreCreditIntegrateManagement()
+                        ->getCurrentIntegrateModel()
+                        ->getStoreCreditCollection(
+                            $this->getCustomerModel()->load($creditmemo->getOrder()->getCustomerId()),
+                            $this->storeManager->getStore($storeId)->getWebsiteId()
+                        );
+                    $order->setData('store_credit_balance', $storeCreditData)->save();
+                }
             }
 
             // for case refund using only giftcard
             if ($data['payment_data'] == null
+                && $data['refund_to_gift_card'] == true
                 && $this->integrateHelperData->isAHWGiftCardxist()
                 && ($this->integrateHelperData->isIntegrateGC()
                     || ($order->getData('is_pwa') == 1
@@ -453,6 +465,14 @@ class CreditmemoManagement extends ServiceAbstract
         }
         return $storeCreditData;
 
+    }
+
+    /**
+     * @return \Magento\Customer\Model\Customer
+     */
+    protected function getCustomerModel()
+    {
+        return $this->customerFactory->create();
     }
 
 }
