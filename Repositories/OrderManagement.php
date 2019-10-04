@@ -42,6 +42,7 @@ use SM\XRetail\Model\UserOrderCounterFactory;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
 use Magento\Sales\Model\Order;
 use SM\Performance\Helper\RealtimeManager;
+use Magento\Config\Model\Config\Loader;
 
 /**
  * Class OrderManagement
@@ -228,6 +229,10 @@ class OrderManagement extends ServiceAbstract
      */
     private $warehouseIntegrateManagement;
 
+    /**
+     * @var \Magento\Config\Model\Config\Loader
+     */
+    protected $configLoader;
 
     /**
      * @var \SM\Product\Helper\ProductHelper
@@ -303,7 +308,8 @@ class OrderManagement extends ServiceAbstract
         WarehouseIntegrateManagement $warehouseIntegrateManagement,
         \SM\Product\Helper\ProductHelper $productHelper,
         RefundWithoutReceiptTransactionCollectionFactory $refundWithoutReceiptCollectionFactory,
-        RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory
+        RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory,
+        Loader $loader
     )
     {
         $this->retailTransactionFactory       = $retailTransactionFactory;
@@ -338,6 +344,7 @@ class OrderManagement extends ServiceAbstract
         $this->metadataPool       = $metadataPool;
         $this->paymentHelper      = $paymentHelper;
         $this->shippingModel = $shippingModel;
+        $this->configLoader                = $loader;
         $this->warehouseIntegrateManagement = $warehouseIntegrateManagement;
 
         $this->refundWithoutReceiptCollectionFactory = $refundWithoutReceiptCollectionFactory;
@@ -356,9 +363,9 @@ class OrderManagement extends ServiceAbstract
         $data         = $this->getRequest()->getParams();
         if(isset($data['is_pwa']) && $data['is_pwa'] === true){
             $this->transformData()
-                ->checkIsPWAOrder()
-                ->checkCustomerGroup()
-                ->checkOutlet();
+                 ->checkIsPWAOrder()
+                 ->checkCustomerGroup()
+                 ->checkOutlet();
 //                ->checkIntegrateWh();
         } else {
             $this->transformData()
@@ -509,7 +516,7 @@ class OrderManagement extends ServiceAbstract
                 if (!$this->getRequest()->getParam('retail_has_shipment') && !$this->getQuote()->isVirtual() && !$isPendingOrder) {
                     try {
                         if (!$this->getRequest()->getParam('is_pwa') === true) {
-                             $this->shipmentDataManagement->ship($order->getId());
+                            $this->shipmentDataManagement->ship($order->getId());
                         }
                     }
                     catch (\Exception $e) {
@@ -544,6 +551,8 @@ class OrderManagement extends ServiceAbstract
             }
         }
 
+        $configData = $this->getConfigLoaderData();
+
         if ($this->isRefundToGC && !!$this->getRequest()->getParam('order_refund_id')) {
             /** @var \Magento\Sales\Model\Order $order */
             $refundOrder = $this->orderFactory->create();
@@ -557,10 +566,14 @@ class OrderManagement extends ServiceAbstract
                             && $paymentData['is_purchase'] == 0) {
                             $gcProduct = $order->getItemsCollection()->getFirstItem();
                             if ($this->integrateHelperData->isAHWGiftCardxist()
+                                && isset($configData['xretail/pos/integrate_gc'])
+                                && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
                                 && $this->integrateHelperData->isIntegrateGC()) {
                                 $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['aw_gc_created_codes'][0];
                                 $paymentData['gc_amount']        = $gcProduct->getData('product_options')['aw_gc_amount'];
                             } elseif ($this->integrateHelperData->isGiftCardMagento2EE()
+                                      && isset($configData['xretail/pos/integrate_gc'])
+                                      && $configData['xretail/pos/integrate_gc']['value'] === 'mage2_ee'
                                       && $this->integrateHelperData->isIntegrateGC()) {
                                 $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['giftcard_created_codes'][0];
                                 $paymentData['gc_amount']        = $paymentData['amount'];
@@ -1223,10 +1236,13 @@ class OrderManagement extends ServiceAbstract
     }
 
     /**
+     * @param null $configData
+     *
      * @return $this
      */
-    private function transformData()
+    private function transformData($configData = null)
     {
+        $configData = $this->getConfigLoaderData();
         $this->requestOrderData = $data = $this->getRequest()->getParams();
         $order                   = $this->getRequest()->getParam('order');
         $items                   = $this->getRequest()->getParam('items');
@@ -1305,6 +1321,8 @@ class OrderManagement extends ServiceAbstract
                 'product'    => null,
             ];
             if ($this->integrateHelperData->isAHWGiftCardxist()
+                && isset($configData['xretail/pos/integrate_gc'])
+                && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
                 && $this->integrateHelperData->isIntegrateGC()) {
                 $giftCardItems['gift_card'] = [
                     'aw_gc_amount'        => "custom",
@@ -1317,6 +1335,8 @@ class OrderManagement extends ServiceAbstract
                     'aw_gc_recipient_name'  => $order['payment_data'][0]['recipient_name']
                 ];
             } else if ($this->integrateHelperData->isGiftCardMagento2EE()
+                       && isset($configData['xretail/pos/integrate_gc'])
+                       && $configData['xretail/pos/integrate_gc']['value'] === 'mage2_ee'
                        && $this->integrateHelperData->isIntegrateGC()) {
                 $giftCardItems['gift_card'] = [
                     'giftcard_amount'        => "custom",
@@ -1727,7 +1747,10 @@ class OrderManagement extends ServiceAbstract
 
     protected function isIntegrateGC()
     {
+        $configData = $this->getConfigLoaderData();
         if ($this->integrateHelperData->isAHWGiftCardxist()
+            && isset($configData['xretail/pos/integrate_gc'])
+            && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
             && ($this->integrateHelperData->isIntegrateGC() ||
                 ($this->integrateHelperData->isIntegrateGCInPWA() && $this->getRequest()->getParam('is_pwa') === true))
             && $this->getRequest()->getParam('gift_card')) {
@@ -1859,9 +1882,10 @@ class OrderManagement extends ServiceAbstract
      */
     public function calculateShippingRates()
     {
+        $configData = $this->getConfigLoaderData();
         $this->catalogProduct->setSkipSaleableCheck(true);
 
-        $this->transformData()
+        $this->transformData($configData)
             ->checkShift()
             ->checkCustomerGroup()
             ->checkOutlet()
@@ -2007,5 +2031,12 @@ class OrderManagement extends ServiceAbstract
                 throw new Exception($exception->getMessage());
             }
         }
+    }
+
+    /**
+     * @return mixed
+     */
+    private function getConfigLoaderData() {
+        return $this->configLoader->getConfigByPath('xretail/pos', 'default', 0);
     }
 }

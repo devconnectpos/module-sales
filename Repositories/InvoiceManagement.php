@@ -308,7 +308,7 @@ class InvoiceManagement extends ServiceAbstract
                             }
                         } else {
                             if (!$order->getData('is_exchange')) {
-                                if(!$order->hasShipments()) {
+                                if(!$order->hasShipments() && !$order->getIsVirtual()) {
                                     $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE_NOT_SHIPPED);
                                 } else {
                                     $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE);
@@ -451,7 +451,7 @@ class InvoiceManagement extends ServiceAbstract
             }
 
             if ($isRefunding) {
-                if (count($data['payment_data']) > 2) {
+                if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 2) {
                     throw new Exception("Refund only accept one payment method");
                 }
                 // within cash rounding payment
