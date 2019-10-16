@@ -13,4 +13,20 @@
     <type name="Magento\Quote\Model\Quote\Item\Processor">
         <plugin name="allowZeroCustomPrice" type="\SM\Sales\Plugin\AllowZeroCustomPrice"/>
     </type>
+
+    <virtualType name="Magento\Sales\Model\ResourceModel\Order\Grid">
+        <arguments>
+            <argument name="columns" xsi:type="array">
+                <item name="retail_id" xsi:type="string">sales_order.retail_id</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
+    <virtualType name="Magento\SalesArchive\Model\ResourceModel\Order\Grid">
+        <arguments>
+            <argument name="columns" xsi:type="array">
+                <item name="retail_id" xsi:type="string">sales_order.retail_id</item>
+            </argument>
+        </arguments>
+    </virtualType>
 </config>

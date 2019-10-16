@@ -88,6 +88,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.3.2', '<')) {
             $this->upgradeUserNameToOrderAndQuote($setup);
         }
+        if (version_compare($context->getVersion(), '0.3.3', '<')) {
+            $this->addIndexForRetailId($setup);
+        }
 
     }
 
@@ -940,6 +943,7 @@ class UpgradeSchema implements UpgradeSchemaInterface
             );
         $installer->endSetup();
     }
+
     protected function upgradeUserNameToOrderAndQuote(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
@@ -968,4 +972,38 @@ class UpgradeSchema implements UpgradeSchemaInterface
         $setup->endSetup();
     }
 
+    protected function addIndexForRetailId(SchemaSetupInterface $setup)
+    {
+        $table = $setup->getTable('sales_order_grid');
+
+        $setup->getConnection()
+              ->addIndex(
+                  $table,
+                  $setup->getIdxName(
+                      $table,
+                      [
+                          'increment_id',
+                          'billing_name',
+                          'shipping_name',
+                          'shipping_address',
+                          'billing_address',
+                          'customer_email',
+                          'customer_name',
+                          'retail_id'
+                      ],
+                      \Magento\Framework\DB\Adapter\AdapterInterface::INDEX_TYPE_FULLTEXT
+                  ),
+                  [
+                      'increment_id',
+                      'billing_name',
+                      'shipping_name',
+                      'shipping_address',
+                      'billing_address',
+                      'customer_email',
+                      'customer_name',
+                      'retail_id'
+                  ],
+                  \Magento\Framework\DB\Adapter\AdapterInterface::INDEX_TYPE_FULLTEXT
+              );
+    }
 }
