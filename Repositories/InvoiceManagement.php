@@ -30,6 +30,7 @@ use SM\Shift\Model\RetailTransactionFactory;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
+use Magento\Directory\Model\Currency;
 
 /**
  * Class InvoiceManagement
@@ -90,27 +91,32 @@ class InvoiceManagement extends ServiceAbstract
      * @var \Magento\Framework\App\Config\ScopeConfigInterface
      */
     private $scopeConfig;
+    /**
+     * @var Currency
+     */
+    private $currencyModel;
 
 
     /**
      * InvoiceManagement constructor.
-     *
-     * @param \Magento\Framework\App\RequestInterface                $requestInterface
-     * @param \SM\XRetail\Helper\DataConfig                          $dataConfig
-     * @param \SM\XRetail\Helper\Data                                $retailHelper
-     * @param \Magento\Store\Model\StoreManagerInterface             $storeManager
-     * @param \Magento\Framework\ObjectManagerInterface              $objectManager
-     * @param \Magento\Sales\Model\Service\InvoiceService            $invoiceService
-     * @param \Magento\Framework\Registry                            $registry
-     * @param \Magento\Sales\Model\Order\Email\Sender\InvoiceSender  $invoiceSender
-     * @param \Magento\Sales\Model\Order\Email\Sender\ShipmentSender $shipmentSender
-     * @param \Magento\Sales\Model\OrderFactory                      $orderFactory
-     * @param \SM\Sales\Repositories\OrderHistoryManagement          $orderHistoryManagement
-     * @param \SM\Shift\Model\RetailTransactionFactory               $retailTransactionFactory
-     * @param \SM\Shift\Helper\Data                                  $shiftHelper
-     * @param \SM\Integrate\Helper\Data                              $integrateHelper
-     * @param \Magento\Config\Model\Config\Loader                    $configLoader
-     * @param \Magento\Customer\Model\CustomerFactory                $customerFactory
+     * @param RequestInterface $requestInterface
+     * @param DataConfig $dataConfig
+     * @param Data $retailHelper
+     * @param StoreManagerInterface $storeManager
+     * @param ObjectManagerInterface $objectManager
+     * @param InvoiceService $invoiceService
+     * @param Registry $registry
+     * @param InvoiceSender $invoiceSender
+     * @param ShipmentSender $shipmentSender
+     * @param OrderFactory $orderFactory
+     * @param OrderHistoryManagement $orderHistoryManagement
+     * @param RetailTransactionFactory $retailTransactionFactory
+     * @param ShiftHelper $shiftHelper
+     * @param IntegrateHelper $integrateHelper
+     * @param Loader $configLoader
+     * @param CustomerFactory $customerFactory
+     * @param ScopeConfigInterface $scopeConfig
+     * @param Currency $currencyModel
      */
     public function __construct(
         RequestInterface $requestInterface,
@@ -129,7 +135,8 @@ class InvoiceManagement extends ServiceAbstract
         IntegrateHelper $integrateHelper,
         Loader $configLoader,
         CustomerFactory $customerFactory,
-        ScopeConfigInterface $scopeConfig
+        ScopeConfigInterface $scopeConfig,
+        Currency $currencyModel
     ) {
         $this->orderHistoryManagement   = $orderHistoryManagement;
         $this->orderFactory             = $orderFactory;
@@ -145,6 +152,7 @@ class InvoiceManagement extends ServiceAbstract
         $this->configLoader             = $configLoader;
         $this->customerFactory          = $customerFactory;
         $this->scopeConfig              = $scopeConfig;
+        $this->currencyModel            = $currencyModel;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -422,6 +430,9 @@ class InvoiceManagement extends ServiceAbstract
      */
     public function addPayment($data = null, $isRefunding = false)
     {
+        $baseCurrencyCode = $this->storeManager->getStore()->getBaseCurrencyCode();
+        $allowedCurrencies = $this->storeManager->getStore()->getAvailableCurrencyCodes();
+        $rates = $this->currencyModel->getCurrencyRates($baseCurrencyCode, array_values($allowedCurrencies));
         if (is_null($data)) {
             $data = $this->getRequest()->getParams();
         }
@@ -429,7 +440,9 @@ class InvoiceManagement extends ServiceAbstract
             /** @var \Magento\Sales\Model\Order $order */
             $order = $this->orderFactory->create();
             $order->load($data['order_id']);
-
+            $allowedCurrencies = $this->storeManager->getStore($order->getData('store_id'))->getAvailableCurrencyCodes();
+            $rates = $this->currencyModel->getCurrencyRates($baseCurrencyCode, array_values($allowedCurrencies));
+            $currentCurrencyCode = $this->storeManager->getStore($order->getData('store_id'))->getCurrentCurrencyCode();
             if (!$order->getId()) {
                 throw new Exception("Can not find order");
             }
@@ -469,7 +482,8 @@ class InvoiceManagement extends ServiceAbstract
                             "is_purchase"   => 0,
                             "created_at"    => $created_at,
                             "order_id"      => isset($data['order_id']) ? $data['order_id'] : '',
-                            "user_name"     => isset($data['user_name']) ? $data['user_name'] : ''
+                            "user_name"     => isset($data['user_name']) ? $data['user_name'] : '',
+                            "base_amount"   => isset($rates[$currentCurrencyCode]) && $rates[$currentCurrencyCode] != 0 ? $payment_datum['amount']/$rates[$currentCurrencyCode] : null,
                         ];
                         $transactionModel = $this->getRetailTransactionModel();
                         $transactionModel->addData($transactionData)->save();
@@ -492,7 +506,8 @@ class InvoiceManagement extends ServiceAbstract
                             "is_purchase"   => 1,
                             "created_at"    => $created_at,
                             "order_id"      => isset($data['order_id']) ? $data['order_id'] : '',
-                            "user_name"     => isset($data['user_name']) ? $data['user_name'] : ''
+                            "user_name"     => isset($data['user_name']) ? $data['user_name'] : '',
+                            "base_amount"   => isset($rates[$currentCurrencyCode]) && $rates[$currentCurrencyCode] != 0 ? $payment_datum['amount']/$rates[$currentCurrencyCode] : null,
                         ];
                         $transactionModel = $this->getRetailTransactionModel();
                         $transactionModel->addData($transactionData)->save();
