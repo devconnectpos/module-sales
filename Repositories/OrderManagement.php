@@ -10,7 +10,9 @@ namespace SM\Sales\Repositories;
 use Exception;
 use Magento\Backend\App\Action\Context;
 use Magento\Catalog\Helper\Product;
+use Magento\Config\Model\Config\Loader;
 use Magento\Customer\Model\Session;
+use Magento\Directory\Model\Currency;
 use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\App\Response\Http\FileFactory;
@@ -20,7 +22,7 @@ use Magento\Framework\EntityManager\MetadataPool;
 use Magento\Framework\Filesystem;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\Framework\Registry;
-use Magento\Framework\UrlInterface;
+use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\InvoiceRepository;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
@@ -36,11 +38,12 @@ use SM\Payment\Helper\PaymentHelper;
 use SM\Payment\Model\RetailMultiple;
 use SM\Payment\Model\RetailPayment;
 use SM\Payment\Model\RetailPaymentFactory;
+use SM\Performance\Helper\RealtimeManager;
 use SM\Product\Helper\ProductHelper;
 use SM\RefundWithoutReceipt\Model\RefundWithoutReceiptTransactionFactory;
 use SM\RefundWithoutReceipt\Model\ResourceModel\RefundWithoutReceiptTransaction\CollectionFactory as RefundWithoutReceiptTransactionCollectionFactory;
-use SM\Sales\Model\OrderSyncErrorFactory;
 use SM\Sales\Model\FeedbackFactory;
+use SM\Sales\Model\OrderSyncErrorFactory;
 use SM\Sales\Model\ResourceModel\Feedback\CollectionFactory as feedbackCollectionFactory;
 use SM\Shift\Helper\Data as ShiftHelper;
 use SM\Shift\Model\RetailTransactionFactory;
@@ -48,13 +51,8 @@ use SM\Shipping\Model\Carrier\RetailShipping;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Model\UserOrderCounterFactory;
-use SM\XRetail\Repositories\Contract\ServiceAbstract;
-use Magento\Sales\Model\Order;
-use SM\Performance\Helper\RealtimeManager;
-use Magento\Config\Model\Config\Loader;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-use Magento\Directory\Model\Currency;
+use SM\XRetail\Repositories\Contract\ServiceAbstract;
 
 /**
  * Class OrderManagement
@@ -63,7 +61,6 @@ use Magento\Directory\Model\Currency;
  */
 class OrderManagement extends ServiceAbstract
 {
-
     public static $IS_COLLECT_RULE       = true;
     public static $ALLOW_BACK_ORDER      = true;
     public static $FROM_API              = false;
@@ -486,7 +483,6 @@ class OrderManagement extends ServiceAbstract
         }
     }
 
-
     /**
      * @throws \Exception
      */
@@ -520,7 +516,6 @@ class OrderManagement extends ServiceAbstract
 
         return $collection->getFirstItem();
     }
-
 
     public function saveOrder()
     {
@@ -561,8 +556,7 @@ class OrderManagement extends ServiceAbstract
             }
 
             throw new Exception($e->getMessage());
-        }
-        finally {
+        } finally {
             $this->clear();
             if (isset($order) && !!$order->getId()) {
                 if (!$this->getRequest()->getParam('retail_has_shipment') && !$this->getQuote()->isVirtual() && !$isPendingOrder) {
@@ -571,7 +565,7 @@ class OrderManagement extends ServiceAbstract
                             $this->shipmentDataManagement->ship($order->getId());
                         }
                     } catch (\Exception $e) {
-// ship error
+                        // ship error
                         if ($e->getMessage() === 'Negative quantity is not allowed, stock movement can not be created'
                             || $e->getMessage()
                                === 'Negative quantity is not allowed'
@@ -590,13 +584,13 @@ class OrderManagement extends ServiceAbstract
                     if (($this->getRequest()->getParam('is_pwa') === true || $this->getRequest()->getParam('is_pwa') === 1)
                         && !$this->getRequest()
                                  ->getParam(
-                                     'is_use_paypal')) {
+                                     'is_use_paypal'
+                                 )) {
                     } else {
                         $this->invoiceManagement->checkPayment($order, $isPendingOrder);
-
                     }
                 } catch (\Exception $e) {
-// invoice error
+                    // invoice error
                 }
                 if ($this->getRequest()->getParam('is_pwa') !== true) {
                     $this->saveOrderTaxInTableShift($order);
@@ -647,18 +641,19 @@ class OrderManagement extends ServiceAbstract
             return $this->orderHistoryManagement->loadOrders($criteria);
         }
 
-
         if ($this->getRequest()->getParam('is_pwa') === true) {
             $criteria = new DataObject(
                 [
                     'entity_id' => $order->getEntityId(),
-                    'storeId'   => $this->requestOrderData['store_id']]);
+                    'storeId'   => $this->requestOrderData['store_id']]
+            );
         } else {
             $criteria = new DataObject(
                 [
                     'entity_id' => $order->getEntityId(),
                     'storeId'   => $this->requestOrderData['store_id'],
-                    'outletId'  => $this->requestOrderData['outlet_id']]);
+                    'outletId'  => $this->requestOrderData['outlet_id']]
+            );
         }
 
         return $this->orderHistoryManagement->loadOrders($criteria);
@@ -812,7 +807,6 @@ class OrderManagement extends ServiceAbstract
         }
     }
 
-
     /**
      * save total tax into shift table when create order
      *
@@ -836,7 +830,6 @@ class OrderManagement extends ServiceAbstract
         if (!$openingShift) {
             throw new Exception("No shift are opening");
         }
-
 
         $currentTax     = floatval($openingShift->getData('total_order_tax')) + floatval($tax_amount);
         $currentBaseTax = floatval($openingShift->getData('base_total_order_tax')) + floatval($base_tax_amount);
@@ -865,7 +858,6 @@ class OrderManagement extends ServiceAbstract
             } else {
                 $currentPoint_spent += floatval($balance ? $balance : 0);
             }
-
         }
 
         if (count($taxClassAmount) > 0) {
@@ -1261,14 +1253,14 @@ class OrderManagement extends ServiceAbstract
         if ($this->integrateHelperData->isIntegrateGC()
             || ($this->integrateHelperData->isIntegrateGCInPWA()
                 && $this->getRequest()->getParam(
-                    'is_pwa') === true)) {
+                    'is_pwa'
+                ) === true)) {
             $giftCardRequest = $this->getRequest()->getParam('gift_card');
             if ($giftCardRequest) {
                 $data['gift_card'] = $this->gcIntegrateManagement->getQuoteGCData();
             } else {
                 $data['gift_card'] = [];
             }
-
         }
 
         return $data;
@@ -1356,7 +1348,6 @@ class OrderManagement extends ServiceAbstract
         if ($order['billing_address']['region_id'] == "*") {
             $order['billing_address']['region_id'] = null;
         }
-
 
         if (isset($order['shipping_address']['first_name'])) {
             $order['shipping_address']['firstname'] = $order['shipping_address']['first_name'];
@@ -1473,10 +1464,9 @@ class OrderManagement extends ServiceAbstract
                     'middlename' => 'Bla',
                     'lastname'   => 'Costello',
                     'company'    => 'Taxa',
-                    'street'     =>
-                        [
-                            0 => '6146 Honey Bluff Parkway',
-                        ],
+                    'street'     => [
+                        0 => '6146 Honey Bluff Parkway',
+                    ],
                     'city'       => 'Calder',
                     'country_id' => 'US',
                     'region_id'  => '43',
@@ -1489,10 +1479,9 @@ class OrderManagement extends ServiceAbstract
                     'middlename' => 'Bla',
                     'lastname'   => 'Costello',
                     'company'    => 'Taxa',
-                    'street'     =>
-                        [
-                            0 => '6146 Honey Bluff Parkway',
-                        ],
+                    'street'     => [
+                        0 => '6146 Honey Bluff Parkway',
+                    ],
                     'city'       => 'Calder',
                     'country_id' => 'US',
                     'region_id'  => '43',
@@ -1515,13 +1504,11 @@ class OrderManagement extends ServiceAbstract
         ];
         if ($isExchange) {
             $data['creditmemo'] = [
-                'items'               =>
-                    [
-                        1128 =>
-                            [
-                                'qty' => '1',
-                            ],
+                'items'               => [
+                    1128 => [
+                        'qty' => '1',
                     ],
+                ],
                 'order_id'            => 281,
                 'do_offline'          => '1',
                 'comment_text'        => '',
@@ -1786,7 +1773,8 @@ class OrderManagement extends ServiceAbstract
         if (($this->integrateHelperData->isIntegrateGC()
              || ($this->integrateHelperData->isIntegrateGCInPWA()
                  && $this->getRequest()->getParam(
-                        'is_pwa') === true))
+                        'is_pwa'
+                    ) === true))
             && $this->getRequest()->getParam('gift_card')) {
             $this->gcIntegrateManagement->saveGCDataBeforeQuoteCollect($this->getRequest()->getParam('gift_card'));
         }
@@ -1818,7 +1806,8 @@ class OrderManagement extends ServiceAbstract
             && ($this->integrateHelperData->isIntegrateGC()
                 || ($this->integrateHelperData->isIntegrateGCInPWA()
                     && $this->getRequest()->getParam(
-                        'is_pwa') === true))
+                        'is_pwa'
+                    ) === true))
             && $this->getRequest()->getParam('gift_card')) {
             return true;
         }
@@ -1961,7 +1950,6 @@ class OrderManagement extends ServiceAbstract
              ->checkOfflineMode()
              ->checkIntegrateWh();
 
-
         try {
             $this->initSession()
                 // We must get quote after session has been created
@@ -2053,7 +2041,7 @@ class OrderManagement extends ServiceAbstract
         return $orderModel->getSize() > 0;
     }
 
-    static function checkClickAndCollectOrderByCode($code)
+    public static function checkClickAndCollectOrderByCode($code)
     {
         $code = intval($code);
         switch ($code) {
@@ -2136,6 +2124,7 @@ class OrderManagement extends ServiceAbstract
      */
     protected function generatePdfInvoice($invoice)
     {
+        $this->registry->register('print_magento_invoice_from_cpos', true);
         $pdf           = $this->objectManager->create(\Magento\Sales\Model\Order\Pdf\Invoice::class)->getPdf([$invoice]);
         $date          = $this->objectManager->get(\Magento\Framework\Stdlib\DateTime\DateTime::class)->date('Y-m-d_H-i-s');
         $baseDir       = DirectoryList::MEDIA;
