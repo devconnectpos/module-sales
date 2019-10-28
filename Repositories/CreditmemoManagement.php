@@ -256,6 +256,7 @@ class CreditmemoManagement extends ServiceAbstract
             $creditmemoManagement = $this->objectManager->create(
                 'Magento\Sales\Api\CreditmemoManagementInterface'
             );
+            $creditmemo->setAutomaticallyCreated(true);
             $creditmemoManagement->refund($creditmemo, (bool)$data['do_offline']);
 
             if (!empty($data['send_email'])) {
@@ -293,7 +294,9 @@ class CreditmemoManagement extends ServiceAbstract
             }
 
             // for case refund using only giftcard
-            if ($data['payment_data'] == null
+            if (isset($data['payment_data'])
+                && $data['payment_data'] == null
+                && isset($data['refund_to_gift_card'])
                 && $data['refund_to_gift_card'] == true
                 && $this->integrateHelperData->isAHWGiftCardxist()
                 && ($this->integrateHelperData->isIntegrateGC()
