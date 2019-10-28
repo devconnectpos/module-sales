@@ -27,7 +27,7 @@ use SM\Sales\Model\ResourceModel\OrderSyncError\CollectionFactory as OrderSyncEr
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
-
+use Magento\Quote\Model\Quote\Item;
 /**
  * Class OrderHistoryManagement
  *
@@ -536,6 +536,19 @@ class OrderHistoryManagement extends ServiceAbstract
 
             $_item = new XOrder\XOrderItem($item->getData());
             $_item->setData('isChildrenCalculated', $item->isChildrenCalculated());
+            if ($item instanceof Item) {
+                $stockItemToCheck = [];
+                $childItems = $item->getChildren();
+                if (count($childItems)) {
+                    foreach ($childItems as $childItem) {
+                        $stockItemToCheck[] = $childItem->getProduct()->getId();
+                    }
+                } else {
+                    $stockItemToCheck[] = $item->getProduct()->getId();
+                }
+                $_item->setData('stockItemToCheck', $stockItemToCheck);
+
+            }
             if (!$item->getProduct()
                 || is_null($item->getProduct()->getImage())
                 || $item->getProduct()->getImage() == 'no_selection'

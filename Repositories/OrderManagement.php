@@ -53,7 +53,7 @@ use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Model\UserOrderCounterFactory;
 
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
-
+use Magento\Catalog\Api\Data\ProductCustomOptionInterface;
 /**
  * Class OrderManagement
  *
@@ -304,11 +304,9 @@ class OrderManagement extends ServiceAbstract
      * @param \SM\RefundWithoutReceipt\Model\ResourceModel\RefundWithoutReceiptTransaction\CollectionFactory $refundWithoutReceiptCollectionFactory
      * @param \SM\RefundWithoutReceipt\Model\RefundWithoutReceiptTransactionFactory                          $refundWithoutReceiptTransactionFactory
      * @param \Magento\Config\Model\Config\Loader                                                            $loader
-     * @param \Magento\Framework\ObjectManagerInterface                                                      $objectManager
      * @param \Magento\Framework\App\Response\Http\FileFactory                                               $fileFactory
      * @param Currency                                                                                       $currencyModel
      * @param \Magento\Framework\Filesystem                                                                  $filesystem
-     * @param \Magento\Framework\App\ResponseInterface                                                       $response
      * @param \Magento\Sales\Model\Order\InvoiceRepository                                                   $invoiceRepository
      */
     public function __construct(
@@ -346,11 +344,9 @@ class OrderManagement extends ServiceAbstract
         RefundWithoutReceiptTransactionCollectionFactory $refundWithoutReceiptCollectionFactory,
         RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory,
         Loader $loader,
-        ObjectManagerInterface $objectManager,
         FileFactory $fileFactory,
         Currency $currencyModel,
         Filesystem $filesystem,
-        ResponseInterface $response,
         InvoiceRepository $invoiceRepository
     ) {
         $this->retailTransactionFactory               = $retailTransactionFactory;
@@ -387,11 +383,11 @@ class OrderManagement extends ServiceAbstract
         $this->warehouseIntegrateManagement           = $warehouseIntegrateManagement;
         $this->refundWithoutReceiptCollectionFactory  = $refundWithoutReceiptCollectionFactory;
         $this->refundWithoutReceiptTransactionFactory = $refundWithoutReceiptTransactionFactory;
-        $this->objectManager                          = $objectManager;
+        $this->objectManager                          = $context->getObjectManager();
         $this->fileFactory                            = $fileFactory;
         $this->currencyModel                          = $currencyModel;
         $this->filesystem                             = $filesystem;
-        $this->response                               = $response;
+        $this->response                               = $context->getResponse();
         $this->invoiceRepository                      = $invoiceRepository;
         parent::__construct($context->getRequest(), $dataConfig, $storeManager);
     }
@@ -1329,6 +1325,13 @@ class OrderManagement extends ServiceAbstract
                         $items[$key]['gift_card']['giftcard_message'] = $items[$key]['gift_card']['aw_gc_message'];
                     }
                 }
+                if (isset($value['options']) && isset($value['product_options_custom_option'])) {
+                    foreach ($value['product_options_custom_option'] as $opt) {
+                        if (isset($opt['option_type']) && $this->_isMultipleSelection($opt['option_type']) && is_string($value['options'][$opt['option_id']])) {
+                            $items[$key]['options'][$opt['option_id']] = explode(",", $value['options'][$opt['option_id']]);
+                        }
+                    }
+                }
             }
             $data['items'] = $items;
         }
@@ -1465,8 +1468,8 @@ class OrderManagement extends ServiceAbstract
                     'lastname'   => 'Costello',
                     'company'    => 'Taxa',
                     'street'     => [
-                        0 => '6146 Honey Bluff Parkway',
-                    ],
+                            0 => '6146 Honey Bluff Parkway',
+                        ],
                     'city'       => 'Calder',
                     'country_id' => 'US',
                     'region_id'  => '43',
@@ -1480,8 +1483,8 @@ class OrderManagement extends ServiceAbstract
                     'lastname'   => 'Costello',
                     'company'    => 'Taxa',
                     'street'     => [
-                        0 => '6146 Honey Bluff Parkway',
-                    ],
+                            0 => '6146 Honey Bluff Parkway',
+                        ],
                     'city'       => 'Calder',
                     'country_id' => 'US',
                     'region_id'  => '43',
@@ -1505,10 +1508,10 @@ class OrderManagement extends ServiceAbstract
         if ($isExchange) {
             $data['creditmemo'] = [
                 'items'               => [
-                    1128 => [
-                        'qty' => '1',
+                        1128 => [
+                                'qty' => '1',
+                            ],
                     ],
-                ],
                 'order_id'            => 281,
                 'do_offline'          => '1',
                 'comment_text'        => '',
@@ -1774,7 +1777,7 @@ class OrderManagement extends ServiceAbstract
              || ($this->integrateHelperData->isIntegrateGCInPWA()
                  && $this->getRequest()->getParam(
                         'is_pwa'
-                    ) === true))
+                 ) === true))
             && $this->getRequest()->getParam('gift_card')) {
             $this->gcIntegrateManagement->saveGCDataBeforeQuoteCollect($this->getRequest()->getParam('gift_card'));
         }
@@ -2158,5 +2161,14 @@ class OrderManagement extends ServiceAbstract
         }
 
         return $this->response;
+    }
+
+    protected function _isMultipleSelection($type)
+    {
+        $single = [
+            'checkbox',
+            'multiple',
+        ];
+        return in_array($type, $single);
     }
 }
