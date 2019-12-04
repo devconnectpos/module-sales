@@ -53,7 +53,6 @@ class UpgradeSchema implements UpgradeSchemaInterface
         }
         if (version_compare($context->getVersion(), '0.1.7', '<')) {
             $this->updateRetailToOrder($setup);
-            $this->updateRetailStatusOrder($setup);
         }
         if (version_compare($context->getVersion(), '0.2.3', '<')) {
             $this->addXRefNumOrderCardKnox($setup);
@@ -411,50 +410,6 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 'comment' => 'Register id',
             ]
         );
-    }
-
-    protected $newOrderStatus
-        = [
-            "1" => 13, //Partially Paid - Shipped
-            "2" => 12, //Partially Paid - Not Shipped
-            "3" => 11, //Partially Paid
-
-            "4" => 33, //Partially Refund - Shipped
-            "5" => 32, //Partially Refund - Not Shipped
-            "6" => 31, //Partially Refund
-
-            "7" => 40, //Fully Refund
-
-            "8"  => 53, //Exchange - Shipped
-            "9"  => 52, //Exchange - Not Shipped
-            "10" => 51, //Exchange
-
-            "11" => 23, //Complete - Shipped
-            "12" => 22, //Complete - Not Shipped
-            "13" => 21, //Complete
-        ];
-
-    /**
-     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
-     */
-    protected function updateRetailStatusOrder(SchemaSetupInterface $setup)
-    {
-        $installer = $setup;
-        $installer->startSetup();
-
-        $collection = $this->orderFactory->create()->getCollection();
-        $collection->addFieldToFilter('retail_status', ['notnull' => true]);
-        $collection->addFieldToFilter('retail_status', ['lteq' => 13]);
-
-        foreach ($collection as $order) {
-            $retail_status = $order->getRetailStatus();
-            if ($retail_status) {
-                $order->setData('retail_status', $this->newOrderStatus[$retail_status]);
-                $order->save();
-            }
-        }
-
-        $installer->endSetup();
     }
 
     /**

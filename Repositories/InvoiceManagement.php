@@ -326,7 +326,7 @@ class InvoiceManagement extends ServiceAbstract
                             }
                         }
                     } else {
-                        if ($order->getState() == Order::STATE_CLOSED) {
+                        if ($order->getState() == Order::STATE_CLOSED || (!$order->canCreditmemo() && $order->hasCreditmemos())) {
                             $order->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
                         } else {
                             if ($order->getData('retail_has_shipment')) {
