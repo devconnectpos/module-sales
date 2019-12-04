@@ -555,6 +555,12 @@ class OrderManagement extends ServiceAbstract
         } finally {
             $this->clear();
             if (isset($order) && !!$order->getId()) {
+                // Save loyalty info before create ship
+                try {
+                    $this->addStoreCreditData($order);
+                    $this->addRewardPointData($order);
+                } catch (Exception $e) {
+                }
                 if (!$this->getRequest()->getParam('retail_has_shipment') && !$this->getQuote()->isVirtual() && !$isPendingOrder) {
                     try {
                         if (!$this->getRequest()->getParam('is_pwa') === true) {
@@ -569,11 +575,6 @@ class OrderManagement extends ServiceAbstract
                             self::$MESSAGE_ERROR[] = 'can_not_create_shipment_with_negative_qty';
                         }
                     }
-                }
-                try {
-                    $this->addStoreCreditData($order);
-                    $this->addRewardPointData($order);
-                } catch (Exception $e) {
                 }
 
                 try {
