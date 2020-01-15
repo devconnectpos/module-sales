@@ -2029,7 +2029,7 @@ class OrderManagement extends ServiceAbstract
      */
     public static function getAllowedShippingMethods()
     {
-        return ['smstorepickup', 'dhl', 'ups', 'usps', 'fedex', 'flatrate', 'tablerate'];
+        return ['smstorepickup', 'dhl', 'ups', 'usps', 'fedex', 'flatrate', 'tablerate', 'matrixrate'];
     }
 
     protected function checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal)
