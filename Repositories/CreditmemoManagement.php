@@ -225,7 +225,6 @@ class CreditmemoManagement extends ServiceAbstract
                     __('The credit memo\'s total must be positive.')
                 );
             }
-
             if (!empty($data['comment_text'])) {
                 $creditmemo->addComment(
                     $data['comment_text'],
@@ -279,7 +278,6 @@ class CreditmemoManagement extends ServiceAbstract
                     'create_store_credit_for_order_refund_to_store_credit',
                     $eventData
                 );
-                $this->eventManagement->dispatch('order_cancel_after', ['order' => $order]);
                 if ($this->integrateHelperData->isIntegrateStoreCredit()
                     && $this->integrateHelperData->isExistStoreCreditMagento2EE()) {
                     $storeCreditData = $this->integrateHelperData
@@ -355,6 +353,7 @@ class CreditmemoManagement extends ServiceAbstract
 
         $data['items'] = [];
         $this->blockItem->setOrder($creditmemo->getOrder());
+//        var_dump($creditmemo->getData());die;
         foreach ($creditmemo->getAllItems() as $item) {
             /** @var \Magento\Sales\Model\Order\Creditmemo\Item $item */
             $_item               = [];
@@ -400,6 +399,8 @@ class CreditmemoManagement extends ServiceAbstract
         $totals['discount_amount']            = $creditmemo->getDiscountAmount();
         $totals['tax_amount']                 = $creditmemo->getTaxAmount();
         $totals['grand_total']                = $creditmemo->getGrandTotal();
+        $data['base_customer_balance_amount']             = $creditmemo->getData('base_customer_balance_amount');
+        $data['customer_balance_amount']             = $creditmemo->getData('customer_balance_amount');
         $data['totals']                       = $totals;
         $data['adjustment'] = $creditmemo->getAdjustmentPositive() - $creditmemo->getAdjustmentNegative();
         $data['is_display_shipping_incl_tax'] = $this->taxConfig->displaySalesShippingInclTax(
