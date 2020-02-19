@@ -1,9 +1,4 @@
 <?php
-/**
- * Created by mr.vjcspy@gmail.com - khoild@smartosc.com.
- * Date: 06/12/2016
- * Time: 15:26
- */
 
 namespace SM\Sales\Observer;
 
@@ -11,11 +6,6 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Registry;
 
-/**
- * Class SaveOutletIdToOrderAndQuote
- *
- * @package SM\Sales\Observer
- */
 class SaveRetailDataToOrderAndQuote implements ObserverInterface
 {
 
@@ -31,8 +21,7 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
      */
     public function __construct(
         Registry $registry
-    ) 
-    {
+    ) {
         $this->registry = $registry;
     }
 
@@ -135,9 +124,15 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
         }
 
         $isPWA = $this->registry->registry('is_pwa');
-        if(!!$isPWA){
+        if (!!$isPWA) {
             $quote->setData('is_pwa', $isPWA);
             $order->setData('is_pwa', $isPWA);
+        }
+
+        $estimatedAvailability = $this->registry->registry('estimated_availability');
+        if (!!$estimatedAvailability) {
+            $quote->setData('estimated_availability', $estimatedAvailability);
+            $order->setData('estimated_availability', $estimatedAvailability);
         }
     }
 }

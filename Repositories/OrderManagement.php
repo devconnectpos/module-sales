@@ -397,6 +397,7 @@ class OrderManagement extends ServiceAbstract
      *
      * @return array|null
      * @throws \ReflectionException
+     * @throws \Exception
      */
     public function loadOrderData($isSaveOrder = false)
     {
@@ -1754,6 +1755,13 @@ class OrderManagement extends ServiceAbstract
             $this::$ORDER_HAS_CUSTOM_SALE = true;
         }
 
+        $estimatedAvailability = $this->getRequest()->getParam('estimated_availability');
+
+        if (!!$estimatedAvailability) {
+            $this->registry->unregister('estimated_availability');
+            $this->registry->register('estimated_availability', $estimatedAvailability);
+        }
+
         return $this;
     }
 
@@ -1974,7 +1982,7 @@ class OrderManagement extends ServiceAbstract
         foreach ($rates as $rate) {
             foreach ($rate as $item) {
                 $rateData = $item->getData();
-                if (in_array($rateData['carrier'], $allow_shipping_carriers)) {
+                if (in_array($rateData['carrier'], $allow_shipping_carriers) || strpos($rateData['carrier'], 'shq') !== false) {
                     $arr[] = $rateData;
                 }
             }
@@ -2029,7 +2037,7 @@ class OrderManagement extends ServiceAbstract
      */
     public static function getAllowedShippingMethods()
     {
-        return ['smstorepickup', 'dhl', 'ups', 'usps', 'fedex', 'flatrate', 'tablerate', 'matrixrate'];
+        return ['smstorepickup', 'dhl', 'ups', 'usps', 'fedex', 'flatrate', 'tablerate', 'matrixrate', 'shipper'];
     }
 
     protected function checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal)
@@ -2134,11 +2142,19 @@ class OrderManagement extends ServiceAbstract
         $baseDir       = DirectoryList::MEDIA;
         $contentType   = 'application/pdf';
         $contentLength = null;
-        $fileName      = 'invoice' . $date . '.pdf';
         $dir           = $this->filesystem->getDirectoryWrite($baseDir);
         $isFile        = false;
         $file          = null;
-        $fileContent   = $pdf->render();
+
+        if ($this->integrateHelperData->isExistSnmportalPdfprint()) {
+            $engine = $this->objectManager->create(\Snmportal\Pdfprint\Model\Pdf\InvoiceFactory::class);
+            $documents = [$invoice];
+            $fileContent = $engine->getPdf($documents)->render();
+            $fileName = $engine->getEmailFilename();
+        } else {
+            $fileName      = 'invoice' . $date . '.pdf';
+            $fileContent   = $pdf->render();
+        }
 
         $this->response->setHttpResponseCode(200)
                        ->setHeader('Pragma', 'public', true)

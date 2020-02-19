@@ -12,8 +12,8 @@ use Magento\Catalog\Model\Product\Media\Config;
 use Magento\Customer\Model\CustomerFactory;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
-use Magento\Framework\Pricing\PriceCurrencyInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
+use Magento\Quote\Model\Quote\Item;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\OrderFactory;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
@@ -27,7 +27,7 @@ use SM\Sales\Model\ResourceModel\OrderSyncError\CollectionFactory as OrderSyncEr
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
-use Magento\Quote\Model\Quote\Item;
+
 /**
  * Class OrderHistoryManagement
  *
@@ -151,7 +151,7 @@ class OrderHistoryManagement extends ServiceAbstract
      * @param \Magento\Framework\DataObject $searchCriteria
      *
      * @return array
-     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     * @throws \Magento\Framework\Exception\LocalizedException
      * @throws \ReflectionException
      */
     public function loadOrders(DataObject $searchCriteria)
@@ -172,7 +172,6 @@ class OrderHistoryManagement extends ServiceAbstract
                         if ($order->getData('pickup_outlet_id') != $searchCriteria->getData('outletId')) {
                             continue;
                         }
-
                     } elseif (!!$order->getData('outlet_id') && $order->getData('outlet_id') != $searchCriteria->getData('outletId')) {
                         continue;
                     }
@@ -256,7 +255,8 @@ class OrderHistoryManagement extends ServiceAbstract
                                     'amount'     => $order->getTotalPaid(),
                                     'created_at' => $order->getCreatedAt(),
                                     'type'       => $order->getPayment()->getMethodInstance()->getCode()
-                                ]);
+                                ]
+                            );
                         }
                         $xOrder->setData('payment', $paymentData);
                     }
@@ -390,25 +390,42 @@ class OrderHistoryManagement extends ServiceAbstract
         /** @var  \Magento\Sales\Model\ResourceModel\Order\Collection $collection */
         $collection = $this->orderCollectionFactory->create();
         $storeId    = $searchCriteria->getData('storeId');
+        $locationId = $searchCriteria->getData('location_id');
         if (!$searchCriteria->getData('isSearchOnline')) {
             $outletId = $searchCriteria->getData('outletId');
             if (!!$outletId && !$searchCriteria->getData('searchString')) {
-                $collection->addFieldToFilter(
-                    ['outlet_id', 'shipping_method', 'pickup_outlet_id', 'is_pwa'],
-                    [
-                        ['eq' => $outletId],
-                        ['eq' => 'smstorepickup_smstorepickup'],
-                        ['eq' => $outletId],
-                        ['eq' => 1],
-                    ]
-                );
+                if ($this->integrateHelperData->isIntegrateStorePickUpExtension()) {
+                    $collection->addFieldToFilter(
+                        ['outlet_id', 'shipping_method', 'pickup_outlet_id', 'is_pwa', 'mageworx_pickup_location_id'],
+                        [
+                            ['eq' => $outletId],
+                            ['eq' => 'smstorepickup_smstorepickup'],
+                            ['eq' => $outletId],
+                            ['eq' => 1],
+                            ['eq' => $locationId],
+                        ]
+                    );
+                } else {
+                    $collection->addFieldToFilter(
+                        ['outlet_id', 'shipping_method', 'pickup_outlet_id', 'is_pwa'],
+                        [
+                            ['eq' => $outletId],
+                            ['eq' => 'smstorepickup_smstorepickup'],
+                            ['eq' => $outletId],
+                            ['eq' => 1],
+                        ]
+                    );
+                }
             }
-
             if (is_null($storeId)) {
                 throw new Exception("Please define storeId when pull order");
             } else {
                 if (!!$outletId) {
-                    $collection->getSelect()->where(sprintf('(store_id = %s AND is_pwa = 1) OR (outlet_id = %s AND is_pwa != 1) OR shipping_method = "smstorepickup_smstorepickup"', $storeId, $outletId));
+                    if ($this->integrateHelperData->isIntegrateStorePickUpExtension()) {
+                        $collection->getSelect()->where(sprintf('(store_id = %s AND is_pwa = 1) OR (outlet_id = %s AND is_pwa != 1) OR shipping_method = "smstorepickup_smstorepickup" OR mageworx_pickup_location_id = "%s"', $storeId, $outletId, $locationId));
+                    } else {
+                        $collection->getSelect()->where(sprintf('(store_id = %s AND is_pwa = 1) OR (outlet_id = %s AND is_pwa != 1) OR shipping_method = "smstorepickup_smstorepickup"', $storeId, $outletId));
+                    }
                 } else {
                     $collection->getSelect()->where(sprintf('(store_id = %s AND is_pwa = 1) OR shipping_method = "smstorepickup_smstorepickup"', $storeId));
                 }
@@ -547,7 +564,6 @@ class OrderHistoryManagement extends ServiceAbstract
                     $stockItemToCheck[] = $item->getProduct()->getId();
                 }
                 $_item->setData('stockItemToCheck', $stockItemToCheck);
-
             }
             if (!$item->getProduct()
                 || is_null($item->getProduct()->getImage())
@@ -591,7 +607,8 @@ class OrderHistoryManagement extends ServiceAbstract
                     [
                         'storeId'   => $storeId,
                         'entity_id' => $item->getProductId()
-                    ]);
+                    ]
+                );
 
                 $products = $this->productManagement->loadPWAProducts($searchCriteria)->getItems();
                 if (count($products) > 0) {

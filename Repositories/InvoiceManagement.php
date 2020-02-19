@@ -10,6 +10,7 @@ namespace SM\Sales\Repositories;
 use Exception;
 use Magento\Config\Model\Config\Loader;
 use Magento\Customer\Model\CustomerFactory;
+use Magento\Directory\Model\Currency;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
@@ -30,7 +31,6 @@ use SM\Shift\Model\RetailTransactionFactory;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
-use Magento\Directory\Model\Currency;
 
 /**
  * Class InvoiceManagement
@@ -95,7 +95,6 @@ class InvoiceManagement extends ServiceAbstract
      * @var Currency
      */
     private $currencyModel;
-
 
     /**
      * InvoiceManagement constructor.
@@ -246,7 +245,6 @@ class InvoiceManagement extends ServiceAbstract
                 }
             }
             $this->objectManager->get('Magento\Backend\Model\Session')->getCommentText(true);
-
         } catch (LocalizedException $e) {
             throw new Exception($e->getMessage());
         } catch (Exception $e) {
@@ -290,7 +288,7 @@ class InvoiceManagement extends ServiceAbstract
 
                 if ((abs($totalPaid - floatval($order->getGrandTotal())) < 0.07) || !!$order->getData('is_exchange')) {
                     // FULL PAID
-                    if ($order->canInvoice() && !$isPendingOrder) {
+                    if ($order->canInvoice() && !$isPendingOrder && (!$order->getData('retail_has_shipment') || !$this->integrateHelper->isIntegrateAcumaticaCloudERP())) {
                         $order = $this->invoice($order->getId());
                     }
                     if (!$order->hasCreditmemos()) {
@@ -316,7 +314,7 @@ class InvoiceManagement extends ServiceAbstract
                             }
                         } else {
                             if (!$order->getData('is_exchange')) {
-                                if(!$order->hasShipments() && !$order->getIsVirtual()) {
+                                if (!$order->hasShipments() && !$order->getIsVirtual()) {
                                     $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE_NOT_SHIPPED);
                                 } else {
                                     $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE);
@@ -357,7 +355,7 @@ class InvoiceManagement extends ServiceAbstract
                         }
                     } else {
                         if ($order->canCreditmemo()) {
-                            if (($order->getData('retail_has_shipment') ) || (in_array('can_not_create_shipment_with_negative_qty', OrderManagement::$MESSAGE_ERROR))) {
+                            if (($order->getData('retail_has_shipment')) || (in_array('can_not_create_shipment_with_negative_qty', OrderManagement::$MESSAGE_ERROR))) {
                                 if ($order->canShip()) {
                                     $order->setData(
                                         'retail_status',
@@ -377,8 +375,7 @@ class InvoiceManagement extends ServiceAbstract
                 }
                 $order->save();
             }
-        }
-        else if ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
+        } elseif ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
             if ($order->hasCreditmemos()) {
                 if ($order->canCreditmemo()) {
                     $retail_status = $order->getData('retail_status');
@@ -415,7 +412,6 @@ class InvoiceManagement extends ServiceAbstract
             }
         }
     }
-
 
     /**
      * Add payment to order created by X-Retail, this means adding a transaction
@@ -587,7 +583,7 @@ class InvoiceManagement extends ServiceAbstract
             }
         }
     }
-    
+
     protected function getCustomerCurrentRewardPointBalance($customerId, $storeId)
     {
         $currentRewardPointBalance = 0;
