@@ -10,9 +10,9 @@ use Magento\Framework\App\Area;
 use Magento\Framework\App\State;
 use Magento\Framework\DB\Ddl\Table;
 use Magento\Framework\Exception\LocalizedException;
-use Magento\Framework\Setup\UpgradeSchemaInterface;
 use Magento\Framework\Setup\ModuleContextInterface;
 use Magento\Framework\Setup\SchemaSetupInterface;
+use Magento\Framework\Setup\UpgradeSchemaInterface;
 use Magento\Sales\Model\OrderFactory;
 
 /**
@@ -29,8 +29,7 @@ class UpgradeSchema implements UpgradeSchemaInterface
     public function __construct(
         OrderFactory $orderFactory,
         State $state
-    )
-    {
+    ) {
         $this->orderFactory = $orderFactory;
         try {
             $state->setAreaCode(Area::AREA_FRONTEND);
@@ -90,7 +89,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.3.3', '<')) {
             $this->addIndexForRetailId($setup);
         }
-
+        if (version_compare($context->getVersion(), '0.3.4', '<')) {
+            $this->addEstimatedAvailabilityToOrder($setup);
+        }
     }
 
     /**
@@ -329,49 +330,49 @@ class UpgradeSchema implements UpgradeSchemaInterface
             'id',
             Table::TYPE_INTEGER,
             null,
-            ['identity' => true, 'nullable' => false, 'primary' => true, 'unsigned' => true,],
+            ['identity' => true, 'nullable' => false, 'primary' => true, 'unsigned' => true],
             'Entity ID'
         )->addColumn(
             'retail_id',
             Table::TYPE_TEXT,
             null,
-            ['nullable' => false,],
+            ['nullable' => false],
             'retail_id'
         )->addColumn(
             'outlet_id',
             Table::TYPE_INTEGER,
             null,
-            ['nullable' => false,],
+            ['nullable' => false],
             'retail_id'
         )->addColumn(
             'store_id',
             Table::TYPE_INTEGER,
             null,
-            ['nullable' => false,],
+            ['nullable' => false],
             'retail_id'
         )->addColumn(
             'message',
             Table::TYPE_TEXT,
             null,
-            ['nullable' => false,],
+            ['nullable' => false],
             'error'
         )->addColumn(
             'order_offline',
             Table::TYPE_TEXT,
             null,
-            ['nullable' => false,],
+            ['nullable' => false],
             'Order offline data'
         )->addColumn(
             'created_at',
             Table::TYPE_TIMESTAMP,
             null,
-            ['nullable' => false, 'default' => Table::TIMESTAMP_INIT,],
+            ['nullable' => false, 'default' => Table::TIMESTAMP_INIT],
             'Creation Time'
         )->addColumn(
             'updated_at',
             Table::TYPE_TIMESTAMP,
             null,
-            ['nullable' => false, 'default' => Table::TIMESTAMP_INIT_UPDATE,],
+            ['nullable' => false, 'default' => Table::TIMESTAMP_INIT_UPDATE],
             'Modification Time'
         );
         $installer->getConnection()->createTable($table);
@@ -500,14 +501,14 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'sm_seller_ids')) {
             $installer->getConnection()->dropColumn($installer->getTable('quote'), 'sm_seller_ids');
         }
-            $installer->getConnection()->addColumn(
-                $installer->getTable('quote'),
-                'sm_seller_ids',
-                [
-                    'type'    => Table::TYPE_TEXT,
-                    'comment' => 'Seller Ids',
-                ]
-            );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('quote'),
+            'sm_seller_ids',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'Seller Ids',
+            ]
+        );
 
         if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'sm_seller_ids')) {
             $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'sm_seller_ids');
@@ -520,7 +521,6 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 'comment' => 'Seller Ids',
             ]
         );
-
 
         if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'sm_seller_ids')) {
             $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'sm_seller_ids');
@@ -562,7 +562,6 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 'comment' => 'Order Feedback',
             ]
         );
-
     }
 
     protected function addFeedback(SchemaSetupInterface $setup)
@@ -576,7 +575,7 @@ class UpgradeSchema implements UpgradeSchemaInterface
             'id',
             Table::TYPE_INTEGER,
             null,
-            ['identity' => true, 'nullable' => false, 'primary' => true, 'unsigned' => true,],
+            ['identity' => true, 'nullable' => false, 'primary' => true, 'unsigned' => true],
             'Entity ID'
         )->addColumn(
             'retail_id',
@@ -588,13 +587,13 @@ class UpgradeSchema implements UpgradeSchemaInterface
             'retail_feedback',
             Table::TYPE_TEXT,
             null,
-            ['nullable' => true,],
+            ['nullable' => true],
             'Retail Feedback'
         )->addColumn(
             'retail_rate',
             Table::TYPE_SMALLINT,
             null,
-            ['nullable' => true,],
+            ['nullable' => true],
             'Retail Rate'
         );
         $installer->getConnection()->createTable($table);
@@ -810,30 +809,30 @@ class UpgradeSchema implements UpgradeSchemaInterface
             $installer->getTable('quote'),
             'reward_points_earned_amount',
             [
-                'type'    => Table::TYPE_DECIMAL,
+                'type'     => Table::TYPE_DECIMAL,
                 'length'   => '12,4',
                 'nullable' => true,
-                'comment' => 'Reward Points Earned Amount',
+                'comment'  => 'Reward Points Earned Amount',
             ]
         );
         $installer->getConnection()->addColumn(
             $installer->getTable('sales_order'),
             'reward_points_earned_amount',
             [
-                'type'    => Table::TYPE_DECIMAL,
+                'type'     => Table::TYPE_DECIMAL,
                 'length'   => '12,4',
                 'nullable' => true,
-                'comment' => 'Reward Points Earned Amount',
+                'comment'  => 'Reward Points Earned Amount',
             ]
         );
         $installer->getConnection()->addColumn(
             $installer->getTable('sales_order_grid'),
             'reward_points_earned_amount',
             [
-                'type'    => Table::TYPE_DECIMAL,
+                'type'     => Table::TYPE_DECIMAL,
                 'length'   => '12,4',
                 'nullable' => true,
-                'comment' => 'Reward Points Earned Amount',
+                'comment'  => 'Reward Points Earned Amount',
             ]
         );
     }
@@ -841,7 +840,7 @@ class UpgradeSchema implements UpgradeSchemaInterface
     /**
      * @param SchemaSetupInterface $setup
      */
-    protected function addPrintTimeCounter (SchemaSetupInterface $setup)
+    protected function addPrintTimeCounter(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
         if (!$setup->getConnection()->tableColumnExists($setup->getTable('sales_order'), 'print_time_counter')) {
@@ -849,9 +848,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 $setup->getTable('sales_order'),
                 'print_time_counter',
                 [
-                    'type'      => Table::TYPE_INTEGER,
-                    'comment'   => 'Print time counter',
-                    'default'   => 0
+                    'type'    => Table::TYPE_INTEGER,
+                    'comment' => 'Print time counter',
+                    'default' => 0
                 ]
             );
         }
@@ -869,8 +868,8 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 $installer->getTable('quote'),
                 'store_credit_balance',
                 [
-                    'type' => Table::TYPE_DECIMAL,
-                    'length' => '12,2',
+                    'type'    => Table::TYPE_DECIMAL,
+                    'length'  => '12,2',
                     'comment' => 'Store Credit Balance',
                 ]
             );
@@ -880,8 +879,8 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 $installer->getTable('sales_order'),
                 'store_credit_balance',
                 [
-                    'type' => Table::TYPE_DECIMAL,
-                    'length' => '12,2',
+                    'type'    => Table::TYPE_DECIMAL,
+                    'length'  => '12,2',
                     'comment' => 'Store Credit Balance',
                 ]
             );
@@ -891,8 +890,8 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 $installer->getTable('sales_order_grid'),
                 'store_credit_balance',
                 [
-                    'type' => Table::TYPE_DECIMAL,
-                    'length' => '12,2',
+                    'type'    => Table::TYPE_DECIMAL,
+                    'length'  => '12,2',
                     'comment' => 'Store Credit Balance',
                 ]
             );
@@ -960,5 +959,48 @@ class UpgradeSchema implements UpgradeSchemaInterface
                   ],
                   \Magento\Framework\DB\Adapter\AdapterInterface::INDEX_TYPE_FULLTEXT
               );
+    }
+
+    protected function addEstimatedAvailabilityToOrder(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+
+        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'estimated_availability');
+        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'estimated_availability');
+        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'estimated_availability');
+
+        $installer->getConnection()->addColumn(
+            $installer->getTable('quote'),
+            'estimated_availability',
+            [
+                'type'     => Table::TYPE_DECIMAL,
+                'length'   => '12,4',
+                'nullable' => true,
+                'default'  => 0,
+                'comment'  => 'Estimated Availability'
+            ]
+        );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order'),
+            'estimated_availability',
+            [
+                'type'     => Table::TYPE_DECIMAL,
+                'length'   => '12,4',
+                'nullable' => true,
+                'default'  => 0,
+                'comment'  => 'Estimated Availability'
+            ]
+        );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order_grid'),
+            'estimated_availability',
+            [
+                'type'     => Table::TYPE_DECIMAL,
+                'length'   => '12,4',
+                'nullable' => true,
+                'default'  => 0,
+                'comment'  => 'Estimated Availability'
+            ]
+        );
     }
 }
