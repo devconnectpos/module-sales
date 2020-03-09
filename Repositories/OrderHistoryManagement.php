@@ -321,7 +321,7 @@ class OrderHistoryManagement extends ServiceAbstract
 
                 if (($this->integrateHelperData->isIntegrateGC() ||
                      ($this->integrateHelperData->isIntegrateGCInPWA() && $order->getData('is_pwa') === '1'))
-                    && $this->integrateHelperData->isAHWGiftCardxist()) {
+                    && $this->integrateHelperData->isAHWGiftCardExist()) {
                     $orderGiftCards = [];
                     if ($order->getExtensionAttributes()) {
                         $orderGiftCards = $order->getExtensionAttributes()

@@ -538,7 +538,29 @@ class InvoiceManagement extends ServiceAbstract
      */
     public function takePayment()
     {
-        return $this->addPayment($this->getRequest()->getParams(), false);
+        $data = $this->getRequest()->getParams();
+        $order = $data['order'];
+
+        $gcCodes = $this->registry->registry('aw_gc_code');
+        if (!$gcCodes || $gcCodes->isEmpty()) {
+            $gcCodes = new \SplQueue();
+        }
+        foreach ($order['items'] as $item) {
+            if (!in_array($item['type_id'], ['aw_giftcard', 'aw_giftcard2', 'giftcard'])) {
+                continue;
+            }
+            $buyRequest = $item['buy_request'];
+            if (!isset($buyRequest['gift_card']) || !isset($buyRequest['gift_card']['aw_gc_code'])) {
+                continue;
+            }
+            $gcCodes->enqueue($buyRequest['gift_card']['aw_gc_code']);
+        }
+
+        if (!$gcCodes->isEmpty()) {
+            $this->registry->unregister('aw_gc_code');
+            $this->registry->register('aw_gc_code', $gcCodes);
+        }
+        return $this->addPayment($data, false);
     }
 
     /**

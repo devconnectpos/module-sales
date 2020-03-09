@@ -610,7 +610,7 @@ class OrderManagement extends ServiceAbstract
                             && $paymentData['type'] == 'refund_gift_card'
                             && $paymentData['is_purchase'] == 0) {
                             $gcProduct = $order->getItemsCollection()->getFirstItem();
-                            if ($this->integrateHelperData->isAHWGiftCardxist()
+                            if ($this->integrateHelperData->isAHWGiftCardExist()
                                 && isset($configData['xretail/pos/integrate_gc'])
                                 && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
                                 && $this->integrateHelperData->isIntegrateGC()) {
@@ -722,11 +722,11 @@ class OrderManagement extends ServiceAbstract
                     "created_at"            => $created_at,
                     "payment_data"          => []
                 ];
-            }
-            if (count($order['payment_data']) > 0) {
-                $order['payment_data'][0]['amount']      = $this->getQuote()->getGrandTotal();
-                $order['payment_data'][0]['is_purchase'] = 1;
-                $order['payment_data']['store_id']       = $this->getRequest()->getParam('store_id');
+                if (count($order['payment_data']) > 0) {
+                    $order['payment_data'][0]['amount']      = $this->getQuote()->getGrandTotal();
+                    $order['payment_data'][0]['is_purchase'] = 1;
+                    $order['payment_data']['store_id']       = $this->getRequest()->getParam('store_id');
+                }
             }
             $data['order'] = $order;
         }
@@ -995,24 +995,6 @@ class OrderManagement extends ServiceAbstract
             }
         }
 
-        if (!$this->getOrderCreateModel()->getQuote()->isVirtual()) {
-            $this->getOrderCreateModel()
-                 ->getShippingAddress()
-                 ->setLimitCarrier($carriers)
-                 ->setCollectShippingRates(true);
-
-            /*
-             * Retail luôn sử dụng multiple payment
-             */
-            //if ($paymentData = $this->getRequest()->getPost('payment')) {
-            //    $this->getOrderCreateModel()->getQuote()->getPayment()->addData($paymentData);
-            //}
-
-            $this->getOrderCreateModel()
-                 ->getQuote()
-                 ->setTotalsCollectedFlag(false);
-        }
-
         /*
         *  Need unset data: cached_items_all. Because it's cache when collect total at the first time when haven't any item in quote.
         *  After, we collect it will show error not shipping has set because this can't collect shipping rates(no items)
@@ -1035,20 +1017,24 @@ class OrderManagement extends ServiceAbstract
              * But we can't get quote from session quote because it check quoteId()(if magento check id !== null instead will not occur error)
              * We don't have to fix this. Only need restrict user assign admin store to outlet.
              **/
-            //$this->getOrderCreateModel()->getQuote()->getPayment()->addData($data['payment_data']);
             $this->getOrderCreateModel()->setPaymentData($data['payment_data']);
-        } elseif (!$this->getOrderCreateModel()->getQuote()->isVirtual()) {
-            $this->getOrderCreateModel()->collectShippingRates();
-        } else {
-            $this->getOrderCreateModel()
-                 ->getQuote()
-                 ->setTotalsCollectedFlag(false)
-                 ->collectTotals();
         }
 
         $this->checkExchange($action == 'check');
 
         $this->getOrderCreateModel()->saveQuote();
+
+        if (!$this->getOrderCreateModel()->getQuote()->isVirtual()) {
+            $this->getOrderCreateModel()
+                ->getShippingAddress()
+                ->setLimitCarrier($carriers)
+                ->setCollectShippingRates(true)->collectShippingRates();
+
+            $this->getOrderCreateModel()
+                ->getQuote()
+                ->setTotalsCollectedFlag(false)
+                ->collectTotals();
+        }
 
         $data       = $this->getRequest()->getParam('order');
         $couponCode = '';
@@ -1212,7 +1198,7 @@ class OrderManagement extends ServiceAbstract
             'shipping_tax_amount'          => $address->getShippingTaxAmount(),
             'discount'                     => isset($totals['discount']) ? $totals['discount']->getValue() : 0,
             'grand_total'                  => $totals['grand_total']->getData('value'),
-            'applied_taxes'                => $this->retailHelper->unserialize($address->getData('applied_taxes')),
+            'applied_taxes'                => $address->getData('applied_taxes') ? $this->retailHelper->unserialize($address->getData('applied_taxes')) : null,
             'cart_fixed_rules'             => $address->getData('cart_fixed_rules'),
             'applied_rule_ids'             => $address->getData('applied_rule_ids'),
             'retail_discount_per_item'     => $this->getQuote()->getData('retail_discount_per_item'),
@@ -1326,6 +1312,15 @@ class OrderManagement extends ServiceAbstract
                     if (isset($items[$key]['gift_card']['aw_gc_message'])) {
                         $items[$key]['gift_card']['giftcard_message'] = $items[$key]['gift_card']['aw_gc_message'];
                     }
+                    if (isset($items[$key]['gift_card']['aw_gc_code'])) {
+                        $queue = $this->registry->registry('aw_gc_code');
+                        if (!$queue || $queue->isEmpty()) {
+                            $queue = new \SplQueue();
+                        }
+                        $queue->enqueue($items[$key]['gift_card']['aw_gc_code']);
+                        $this->registry->unregister('aw_gc_code');
+                        $this->registry->register('aw_gc_code', $queue);
+                    }
                 }
                 if (isset($value['options']) && isset($value['product_options_custom_option'])) {
                     foreach ($value['product_options_custom_option'] as $opt) {
@@ -1378,7 +1373,7 @@ class OrderManagement extends ServiceAbstract
                 'product_id' => $refundToGCProductId,
                 'product'    => null,
             ];
-            if ($this->integrateHelperData->isAHWGiftCardxist()
+            if ($this->integrateHelperData->isAHWGiftCardExist()
                 && isset($configData['xretail/pos/integrate_gc'])
                 && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
                 && $this->integrateHelperData->isIntegrateGC()) {
@@ -1812,7 +1807,7 @@ class OrderManagement extends ServiceAbstract
     protected function isIntegrateGC()
     {
         $configData = $this->getConfigLoaderData();
-        if ($this->integrateHelperData->isAHWGiftCardxist()
+        if ($this->integrateHelperData->isAHWGiftCardExist()
             && isset($configData['xretail/pos/integrate_gc'])
             && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
             && ($this->integrateHelperData->isIntegrateGC()
@@ -1952,6 +1947,7 @@ class OrderManagement extends ServiceAbstract
     {
         $configData = $this->getConfigLoaderData();
         $this->catalogProduct->setSkipSaleableCheck(true);
+        $allowShippingCarriers = $this->getAllowedShippingMethods();
 
         $this->transformData($configData)
              ->checkShift()
@@ -1967,22 +1963,22 @@ class OrderManagement extends ServiceAbstract
                 // We must get quote after session has been created
                  ->checkShippingMethod()
                  ->checkDiscountWholeOrder()
-                 ->processActionData(null, $this->getAllowedShippingMethods());
+                 ->processActionData(null, $allowShippingCarriers);
         } catch (Exception $e) {
             $this->clear();
             throw new Exception($e->getMessage());
         }
         $quote           = $this->getOrderCreateModel()->getQuote();
-        $shippingAddress = $quote->getShippingAddress();
 
-        $allow_shipping_carriers = $this->getAllowedShippingMethods();
-        $rates                   = $shippingAddress->collectShippingRates()->getGroupedAllShippingRates();
+
+        $shippingAddress = $quote->getShippingAddress();
+        $rates           = $shippingAddress->setCollectShippingRates(true)->collectShippingRates()->getGroupedAllShippingRates();
 
         $arr = [];
         foreach ($rates as $rate) {
             foreach ($rate as $item) {
                 $rateData = $item->getData();
-                if (in_array($rateData['carrier'], $allow_shipping_carriers) || strpos($rateData['carrier'], 'shq') !== false) {
+                if (in_array($rateData['carrier'], $allowShippingCarriers) || strpos($rateData['carrier'], 'shq') !== false) {
                     $arr[] = $rateData;
                 }
             }

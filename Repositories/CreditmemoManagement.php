@@ -296,7 +296,7 @@ class CreditmemoManagement extends ServiceAbstract
                 && $data['payment_data'] == null
                 && isset($data['refund_to_gift_card'])
                 && $data['refund_to_gift_card'] == true
-                && $this->integrateHelperData->isAHWGiftCardxist()
+                && $this->integrateHelperData->isAHWGiftCardExist()
                 && ($this->integrateHelperData->isIntegrateGC()
                     || ($order->getData('is_pwa') == 1
                         && $this->integrateHelperData->isIntegrateGCInPWA()))) {
