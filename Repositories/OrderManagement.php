@@ -103,6 +103,8 @@ class OrderManagement extends ServiceAbstract
     const RETAIL_ORDER_EXCHANGE_NOT_SHIPPED         = 52;
     const RETAIL_ORDER_EXCHANGE                     = 51;
 
+    const RETAIL_ORDER_CANCELED                     = 61;
+
     /**
      * @var \Magento\Backend\App\Action\Context
      */
@@ -1716,6 +1718,7 @@ class OrderManagement extends ServiceAbstract
             $userId     = $this->getRequest()->getParam('user_id');
             $registerId = $this->getRequest()->getParam('register_id');
             $sellerIds  = $this->getRequest()->getParam('sellers');
+            $sellerUsername  = $this->getRequest()->getParam('sellersUsername');
             // save cashier to order
             if (!!$userId) {
                 $this->registry->unregister('user_id');
@@ -1724,6 +1727,11 @@ class OrderManagement extends ServiceAbstract
             if (!!$sellerIds) {
                 $this->registry->unregister('sm_seller_ids');
                 $this->registry->register('sm_seller_ids', implode(",", $sellerIds));
+            }
+
+            if (!!$sellerUsername) {
+                $this->registry->unregister('sm_seller_username');
+                $this->registry->register('sm_seller_username', $sellerUsername);
             }
 
             /** @var \SM\XRetail\Model\UserOrderCounter $userOrderCounterModel */

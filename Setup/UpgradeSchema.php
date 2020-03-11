@@ -92,6 +92,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.3.4', '<')) {
             $this->addEstimatedAvailabilityToOrder($setup);
         }
+        if (version_compare($context->getVersion(), '0.3.5', '<')) {
+            $this->addSellerUsernameInOrder($setup);
+        }
     }
 
     /**
@@ -1000,6 +1003,49 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 'nullable' => true,
                 'default'  => 0,
                 'comment'  => 'Estimated Availability'
+            ]
+        );
+    }
+
+    /**
+     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
+     */
+    protected function addSellerUsernameInOrder(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'sm_seller_username')) {
+            $installer->getConnection()->dropColumn($installer->getTable('quote'), 'sm_seller_username');
+        }
+        $installer->getConnection()->addColumn(
+            $installer->getTable('quote'),
+            'sm_seller_username',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'Seller Username',
+            ]
+        );
+
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'sm_seller_username')) {
+            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'sm_seller_username');
+        }
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order'),
+            'sm_seller_username',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'Seller Username',
+            ]
+        );
+
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'sm_seller_username')) {
+            $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'sm_seller_username');
+        }
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order_grid'),
+            'sm_seller_username',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'Seller Username',
             ]
         );
     }
