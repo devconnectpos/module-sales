@@ -87,6 +87,13 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
             $quote->setData('user_id', $userId);
             $order->setData('user_id', $userId);
         }
+
+        $sellerUsername = $this->registry->registry('sm_seller_username');
+        if (!!$sellerUsername) {
+            $quote->setData('sm_seller_username', $sellerUsername);
+            $order->setData('sm_seller_username', $sellerUsername);
+        }
+
         $sellerIds = $this->registry->registry('sm_seller_ids');
         if (!!$sellerIds) {
             $quote->setData('sm_seller_ids', $sellerIds);
