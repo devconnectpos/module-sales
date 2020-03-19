@@ -173,6 +173,29 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
             $totalPrice = 0;
             $proPrice = $item->getProduct()->getPrice();
             $newBasePrice = 0;
+
+            $options = [];
+            foreach($value as $optionId => $selectionId){
+                $options[] = $optionId;
+            }
+
+            $optionsAffectBasePrice = [];
+            foreach ($options as $option) {
+                $affect = $connection->fetchOne("SELECT affect_base_price FROM catalog_product_bundle_option where option_id = '" . $option . "'");
+                if ($affect == 1) {
+                    $optionsAffectBasePrice[] = $option;
+                }
+            }
+
+            if (is_array($optionsAffectBasePrice) && count($optionsAffectBasePrice) > 0) {
+                $optionAffectBasePrice = $optionsAffectBasePrice[0];
+                $arrayBasePrice = [$optionAffectBasePrice => $value[$optionAffectBasePrice]];
+                unset($value[$optionAffectBasePrice]);
+                $value = $arrayBasePrice+$value;
+            } else {
+                $optionAffectBasePrice = null;
+            }
+
             foreach($value as $optionId => $selectionId)
             {
                 if (is_array($optionId)) {
