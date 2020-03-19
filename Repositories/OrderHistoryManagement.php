@@ -364,6 +364,8 @@ class OrderHistoryManagement extends ServiceAbstract
 
                 $invoiceCollection = $this->getInvoices($order);
                 $xOrder->setData('invoice_collection', $invoiceCollection);
+                $creditmemoHistory = $this->getCreditmemoHistory($order);
+                $xOrder->setData('comment_history', $creditmemoHistory);
 
                 $xOrder->setData('totals', $totals);
                 $orders[] = $xOrder;
@@ -636,5 +638,42 @@ class OrderHistoryManagement extends ServiceAbstract
             $invoices[] = ['id' => $invoice->getId(), 'increment_id' => $invoice->getIncrementId()];
         }
         return $invoices;
+    }
+
+    /**
+     * @param \Magento\Sales\Model\Order  $order
+     *
+     * @return array
+     */
+    public function getCreditmemoHistory($order)
+    {
+        $creditMemoHistory = [];
+        $creditmemosCollection = $order->getCreditmemosCollection();
+        if (is_array($creditmemosCollection->getData()) && count($creditmemosCollection) > 0) {
+            foreach ($creditmemosCollection as $creditmemo) {
+                $creditMemoHistory[] = [
+                    'order_increment_id'      => $order->getIncrementId(),
+                    'creditmemo_increment_id' => $creditmemo->getIncrementId(),
+                    'creditmemo_id'           => $creditmemo->getId(),
+                    'comment_history'         => $this->getCommentHistory($creditmemo)];
+            }
+        }
+        return $creditMemoHistory;
+    }
+
+    /**
+     * @param null $creditmemo
+     *
+     * @return array
+     */
+    public function getCommentHistory($creditmemo = null) {
+        $commentHistory = [];
+        if ($creditmemo === null) {
+            return $commentHistory;
+        }
+        foreach ($creditmemo->getCommentsCollection() as $comment) {
+            $commentHistory[] = ['comment' => $comment->getComment(), 'created_at' => $comment->getCreatedAt()];
+        }
+        return $commentHistory;
     }
 }
