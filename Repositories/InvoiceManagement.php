@@ -283,12 +283,19 @@ class InvoiceManagement extends ServiceAbstract
                 }
                 if ($totalPaid - floatval($order->getGrandTotal()) > 0.01) {
                     // in production we will not check this.
-                    //throw new \Exception("Sorry, Not allow paid lager than grand total");
+                    //throw new \Exception("Sorry, Not allow paid lager thang rand total");
                 }
 
                 if ((abs($totalPaid - floatval($order->getGrandTotal())) < 0.07) || !!$order->getData('is_exchange')) {
                     // FULL PAID
-                    if ($order->canInvoice() && !$isPendingOrder && (!$order->getData('retail_has_shipment') || !$this->integrateHelper->isIntegrateAcumaticaCloudERP())) {
+                    if ($order->canInvoice()
+	                    && !$isPendingOrder
+	                    && (!$order->getData('retail_has_shipment')
+		                    || !$this->integrateHelper->isIntegrateAcumaticaCloudERP()
+		                    || ($this->integrateHelper->isIntegrateAcumaticaCloudERP()
+			                    && is_string($order->getShippingMethod())
+			                    && $order->getShippingMethod() === 'retailshipping_retailshipping'
+			                    && $order->getShippingAmount() == 0))) {
                         $order = $this->invoice($order->getId());
                     }
                     if (!$order->hasCreditmemos()) {
@@ -539,6 +546,10 @@ class InvoiceManagement extends ServiceAbstract
     public function takePayment()
     {
         $data = $this->getRequest()->getParams();
+        
+        if(!isset($data['order'])) {
+	        return $this->addPayment($data, false);
+        }
         $order = $data['order'];
 
         $gcCodes = $this->registry->registry('aw_gc_code');

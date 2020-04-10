@@ -202,10 +202,18 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
                     $optionId = $optionId[0];
                 }
                 if (is_array($selectionId)) {
-                    $selectionId = $selectionId[0];
+                	if (!empty($selectionId)) {
+		                $selectionId = $selectionId[0];
+	                } else {
+						$selectionId = null;
+	                }
                 }
                 $affect = $connection->fetchOne("SELECT affect_base_price FROM catalog_product_bundle_option where option_id = '" . $optionId . "'");
-                $optionPrice = $connection->fetchOne("SELECT selection_price_value FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
+                if (null === $selectionId) {
+                	$optionPrice = 0;
+                } else {
+	                $optionPrice = $connection->fetchOne("SELECT selection_price_value FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
+                }
                 $optionPricePercent = $optionPrice+0;
                 $optionPricePercent = $optionPricePercent / 100;
                 if($affect == 1)

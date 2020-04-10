@@ -213,10 +213,7 @@ class OrderHistoryManagement extends ServiceAbstract
                     && is_null($order->getData('retail_status'))) {
                     if (!$order->hasCreditmemos()) {
                         if ($order->canInvoice()) {
-                            $xOrder->setData(
-                                'retail_status',
-                                OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_PICKING
-                            );
+                            $xOrder->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_PICKING);
                         } elseif ($order->canShip()) {
                             $xOrder->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_PICKING);
                         }
@@ -225,17 +222,14 @@ class OrderHistoryManagement extends ServiceAbstract
                             $xOrder->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
                         } else {
                             if ($order->canShip()) {
-                                $xOrder->setData(
-                                    'retail_status',
-                                    OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING
+                                $xOrder->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING
                                 );
                             }
                         }
                     }
                 }
                 if ($order->getPayment()->getMethod() == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE
-                    || $order->getShippingMethod()
-                       === 'smstorepickup_smstorepickup') {
+                    || $order->getShippingMethod() === 'smstorepickup_smstorepickup') {
                     $paymentData = json_decode($order->getPayment()->getAdditionalInformation('split_data'), true);
                     $paymentData = is_array($paymentData) ? $paymentData : [];
                     if (is_array($paymentData)) {
@@ -245,9 +239,10 @@ class OrderHistoryManagement extends ServiceAbstract
                                 return is_array($val);
                             }
                         );
-                        if ($order->getShippingMethod() === 'smstorepickup_smstorepickup' && !$order->canInvoice()
-                            && $order->getData('is_exchange')
-                               != 1) {
+                        if ($order->getShippingMethod() === 'smstorepickup_smstorepickup'
+	                        && !$order->canInvoice()
+                            && $order->getData('is_exchange') != 1
+	                        && empty($paymentData)) {
                             array_push(
                                 $paymentData,
                                 [
