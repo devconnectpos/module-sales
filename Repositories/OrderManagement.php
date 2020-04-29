@@ -641,7 +641,7 @@ class OrderManagement extends ServiceAbstract
 	 */
 	protected function processSaveOrder($data)
     {
-	    $isPendingOrder   = $data['isPendingOrder'];
+	    $isPendingOrder   = isset($data['isPendingOrder']) ? $data['isPendingOrder'] : false;
 	    
 	    self::$SAVE_ORDER = true;
 	    $this->processLoadOrderData(true, $data);
@@ -1981,6 +1981,9 @@ class OrderManagement extends ServiceAbstract
                 $this->registry->register('user_id', $userId);
             }
             if (!!$sellerIds) {
+                if (!is_array($sellerIds)) {
+                    $sellerIds = [$sellerIds];
+                }
                 $this->registry->unregister('sm_seller_ids');
                 $this->registry->register('sm_seller_ids', implode(",", $sellerIds));
             }

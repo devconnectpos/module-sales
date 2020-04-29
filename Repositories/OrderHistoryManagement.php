@@ -583,10 +583,10 @@ class OrderHistoryManagement extends ServiceAbstract
             if ($item->getChildrenItems() && $item->getProductType() == 'bundle') {
                 foreach ($item->getChildrenItems() as $childrenItem) {
                     $_child = new XOrder\XOrderItem($childrenItem->getData());
-                    if (is_null($childrenItem->getProduct()->getImage())
-                        || $childrenItem->getProduct()->getImage() == 'no_selection'
-                        || !$childrenItem->getProduct()->getImage()
-                    ) {
+                    if (!$childrenItem->getProduct()
+	                    || is_null($childrenItem->getProduct()->getImage())
+	                    || $childrenItem->getProduct()->getImage() == 'no_selection'
+	                    || !$childrenItem->getProduct()->getImage()) {
                         $_child->setData('origin_image', null);
                     } else {
                         $_child->setData(

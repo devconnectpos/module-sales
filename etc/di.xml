@@ -13,11 +13,16 @@
     <type name="Magento\Quote\Model\Quote\Item\Processor">
         <plugin name="allowZeroCustomPrice" type="\SM\Sales\Plugin\AllowZeroCustomPrice"/>
     </type>
+    <!--Allow retail shipping method-->
+    <type name="Magento\Quote\Model\Quote\Address">
+        <plugin name="allowRetailShipping" type="\SM\Sales\Plugin\AllowRetailShipping"/>
+    </type>
 
     <virtualType name="Magento\Sales\Model\ResourceModel\Order\Grid">
         <arguments>
             <argument name="columns" xsi:type="array">
                 <item name="retail_id" xsi:type="string">sales_order.retail_id</item>
+                <item name="sm_seller_username" xsi:type="string">sales_order.sm_seller_username</item>
             </argument>
         </arguments>
     </virtualType>
@@ -26,6 +31,7 @@
         <arguments>
             <argument name="columns" xsi:type="array">
                 <item name="retail_id" xsi:type="string">sales_order.retail_id</item>
+                <item name="sm_seller_username" xsi:type="string">sales_order.sm_seller_username</item>
             </argument>
         </arguments>
     </virtualType>
