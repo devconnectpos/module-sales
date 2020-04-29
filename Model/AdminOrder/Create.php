@@ -166,36 +166,16 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
         if($typeId == 'bundle' && $integrateHelper->isExistKensiumCart())
         {
             $infoBuyRequest = $item->getBuyRequest()->toArray();
-            $value = $infoBuyRequest['bundle_option'];
+            $value = $this->resolveBundleOptions($product, $infoBuyRequest['bundle_option']);
             $pro_id = $item->getProduct()->getId();
             $connection = $this->_objectManager->get(\Magento\Framework\App\ResourceConnection::class)->getConnection();
-            $basePrice = 0;
-            $totalPrice = 0;
             $proPrice = $item->getProduct()->getPrice();
-            $newBasePrice = 0;
 
-            $options = [];
-            foreach($value as $optionId => $selectionId){
-                $options[] = $optionId;
-            }
-
-            $optionsAffectBasePrice = [];
-            foreach ($options as $option) {
-                $affect = $connection->fetchOne("SELECT affect_base_price FROM catalog_product_bundle_option where option_id = '" . $option . "'");
-                if ($affect == 1) {
-                    $optionsAffectBasePrice[] = $option;
-                }
-            }
-
-            if (is_array($optionsAffectBasePrice) && count($optionsAffectBasePrice) > 0) {
-                $optionAffectBasePrice = $optionsAffectBasePrice[0];
-                $arrayBasePrice = [$optionAffectBasePrice => $value[$optionAffectBasePrice]];
-                unset($value[$optionAffectBasePrice]);
-                $value = $arrayBasePrice+$value;
-            } else {
-                $optionAffectBasePrice = null;
-            }
-
+            $affectiveBasePrice = 0;
+            $affectiveTotalPrice = 0;
+            $nonAffectiveBasePrice = 0;
+            $nonAffectiveTotalPrice = 0;
+            
             foreach($value as $optionId => $selectionId)
             {
                 if (is_array($optionId)) {
@@ -209,38 +189,165 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 	                }
                 }
                 $affect = $connection->fetchOne("SELECT affect_base_price FROM catalog_product_bundle_option where option_id = '" . $optionId . "'");
-                if (null === $selectionId) {
-                	$optionPrice = 0;
-                } else {
-	                $optionPrice = $connection->fetchOne("SELECT selection_price_value FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
-                }
-                $optionPricePercent = $optionPrice+0;
-                $optionPricePercent = $optionPricePercent / 100;
                 if($affect == 1)
                 {
-                    if($basePrice == 0)
+                    if (null === $selectionId) {
+                        $optionPrice = 0;
+                        $priceType = 0;
+                    } else {
+                        $optionPrice = $connection->fetchOne("SELECT selection_price_value FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
+                        $priceType = $connection->fetchOne("SELECT selection_price_type FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
+                    }
+
+                    $optionPricePercent = $optionPrice+0;
+                    if($affectiveTotalPrice == 0)
                     {
-                        $newBasePrice = $proPrice + ($proPrice * $optionPricePercent);
-                        $basePrice = $newBasePrice;
+                        if($priceType == 0)
+                        {
+                            $affectiveBasePrice = $proPrice + $optionPricePercent;
+                        }
+                        else
+                        {
+                            $optionPricePercent = $optionPricePercent / 100;
+                            $affectiveBasePrice = $proPrice + ($proPrice * $optionPricePercent);
+                        }
                     }
                     else
                     {
-                        $newBasePrice += $totalPrice * $optionPricePercent;
-                        $basePrice = $totalPrice * $optionPricePercent;
+                        if($priceType == 0)
+                        {
+                            $affectiveBasePrice = $optionPricePercent;
+                        }
+                        else
+                        {
+                            $optionPricePercent = $optionPricePercent / 100;
+                            $affectiveBasePrice = $affectiveTotalPrice * $optionPricePercent;
+                        }
+                    }
+
+                    $affectiveTotalPrice += $affectiveBasePrice;
+                }
+            }
+
+            foreach($value as $optionId => $selectionId)
+            {
+                if (is_array($optionId)) {
+                    $optionId = $optionId[0];
+                }
+                if (is_array($selectionId)) {
+                    if (!empty($selectionId)) {
+                        $selectionId = $selectionId[0];
+                    } else {
+                        $selectionId = null;
                     }
                 }
-                else
+                $affect = $connection->fetchOne("SELECT affect_base_price FROM catalog_product_bundle_option where option_id = '" . $optionId . "'");
+                if($affect == 0)
                 {
-                    $basePrice = $newBasePrice * $optionPricePercent;
+                    if (null === $selectionId) {
+                        $optionPrice = 0;
+                        $priceType = 0;
+                    } else {
+                        $optionPrice = $connection->fetchOne("SELECT selection_price_value FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
+                        $priceType = $connection->fetchOne("SELECT selection_price_type FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
+                    }
+
+                    $optionPricePercent = $optionPrice+0;
+                    if($affectiveTotalPrice != 0)
+                    {
+                        if($nonAffectiveTotalPrice == 0)
+                        {
+                            if($priceType == 0)
+                            {
+                                $nonAffectiveTotalPrice += $affectiveTotalPrice + $optionPricePercent;
+                            }
+                            else
+                            {
+                                $optionPricePercent = $optionPricePercent / 100;
+                                $nonAffectiveTotalPrice = $affectiveTotalPrice + $affectiveTotalPrice * $optionPricePercent;
+                            }
+                        }
+                        else
+                        {
+                            if($priceType == 0)
+                            {
+                                $nonAffectiveTotalPrice += $optionPricePercent;
+                            }
+                            else
+                            {
+                                $optionPricePercent = $optionPricePercent / 100;
+                                $nonAffectiveTotalPrice += $affectiveTotalPrice * $optionPricePercent;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if($priceType == 0)
+                        {
+                            if($nonAffectiveTotalPrice == 0)
+                            {
+                                $proPrice += $optionPricePercent;
+                                $nonAffectiveTotalPrice = $proPrice + $optionPricePercent;
+                            }
+                            else
+                            {
+                                $nonAffectiveTotalPrice += $optionPricePercent;
+                            }
+                        }
+                        else
+                        {
+                            $optionPricePercent = $optionPricePercent / 100;
+                            if($nonAffectiveTotalPrice == 0)
+                            {
+                                $nonAffectiveTotalPrice = $proPrice + $proPrice * $optionPricePercent;
+                            }
+                            else
+                            {
+                                $nonAffectiveTotalPrice += $proPrice * $optionPricePercent;
+                            }
+                        }
+                    }
                 }
-                $totalPrice += $basePrice;
             }
-            $item->setCustomPrice($totalPrice);
-            $item->setOriginalCustomPrice($totalPrice);
+            
+            if($nonAffectiveTotalPrice == 0)
+            {
+                $nonAffectiveTotalPrice = $affectiveTotalPrice;
+            }
+            $item->setCustomPrice($nonAffectiveTotalPrice);
+            $item->setOriginalCustomPrice($nonAffectiveTotalPrice);
             $item->getProduct()->setIsSuperMode(true);
         }
 
         return $this;
+    }
+	
+	/**
+	 * @param \Magento\Catalog\Model\Product $product
+	 * @param array $originalBundleOptions
+	 * @return array
+	 */
+	protected function resolveBundleOptions($product, $originalBundleOptions)
+    {
+	    $this->resetProductInBlock($product);
+	    $this->_objectManager->get('\Magento\Catalog\Helper\Product')->setSkipSaleableCheck(true);
+	    $options       = $this->getBundleBlock()->decorateArray($this->getBundleBlock()->getOptions());
+	    $outputOptions = [];
+	    foreach ($options as $option) {
+		    $optionData               = $option->getData();
+		    $outputOptions[]          = $optionData;
+	    }
+	    
+	    $result = [];
+	    foreach ($outputOptions as $outputOption) {
+		    $resultKey = $outputOption['option_id'];
+		    foreach ($originalBundleOptions as $key => $value) {
+			   if ($resultKey == $key) {
+			   	$result[$resultKey] = $value;
+			   }
+		    }
+	    }
+	    return $result;
     }
 
     /**
@@ -313,4 +420,34 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 
         return $this;
     }
+    
+    protected function getBundleBlock()
+    {
+	    return $this->_objectManager->create(
+		    '\Magento\Bundle\Block\Adminhtml\Catalog\Product\Composite\Fieldset\Bundle'
+	    );
+    }
+	
+	/**
+	 * @return \Magento\Framework\Registry
+	 */
+	public function getRegistry()
+	{
+		return $this->_coreRegistry;
+	}
+	
+	/**
+	 * @param $product
+	 *
+	 * @return $this
+	 */
+	protected function resetProductInBlock($product)
+	{
+		$this->getRegistry()->unregister('current_product');
+		$this->getRegistry()->unregister('product');
+		$this->getRegistry()->register('current_product', $product);
+		$this->getRegistry()->register('product', $product);
+		
+		return $this;
+	}
 }
