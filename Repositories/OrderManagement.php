@@ -67,6 +67,7 @@ class OrderManagement extends ServiceAbstract
     const USING_REFUND_TO_GIFT_CARD = 'using_refund_to_GC';
 
     public static $MESSAGE_ERROR = [];
+    public static $MESSAGE_TEXT;
 
     const DISCOUNT_WHOLE_ORDER_KEY = 'discount_whole_order';
 
@@ -645,6 +646,7 @@ class OrderManagement extends ServiceAbstract
 	    
 	    self::$SAVE_ORDER = true;
 	    $this->processLoadOrderData(true, $data);
+        $this->savePromotionalCardCouponCode();
 	    $this->splitPaymentData();
 	    $data = $this->requestOrderData;
 	    
@@ -653,7 +655,11 @@ class OrderManagement extends ServiceAbstract
 			    ->setIsValidate(true)
 			    ->createOrder();
 		    if (!isset($data['is_pwa'])  || $data['is_pwa'] !== true) {
-			    $this->savePaymentTransaction($order);
+		    	//move the savePaymentTransaction function to an event
+			    $this->getContext()
+				    ->getEventManager()
+				    ->dispatch('connectpos_save_retail_transaction', ['orderData' => $order, 'requestData' => $this->requestOrderData]);
+			    
 			    $this->saveNoteToOrderAlso($order);
 			    if (isset($data['print_time_counter'])) {
 				    $this->savePrintTimeCounter($order, $data['print_time_counter']);
@@ -661,7 +667,12 @@ class OrderManagement extends ServiceAbstract
 		    }
 		
 		    if (isset($data['refund_transaction_id']) && $data['refund_transaction_id']) {
+		    	$order->setData('rwr_transaction_id', $data['refund_transaction_id']);
 			    $this->updateRefundWithoutReceiptTransaction($order, $data['refund_transaction_id']);
+		    }
+		    
+		    if (isset($data['order_refund_id']) && $data['order_refund_id']) {
+		    	$order->setData('origin_order_id', $data['order_refund_id']);
 		    }
 	    } catch (Exception $e) {
 		    if (isset($order) && !!$order->getId()) {
@@ -691,12 +702,10 @@ class OrderManagement extends ServiceAbstract
 					    }
 				    } catch (\Exception $e) {
 					    // ship error
-					    if ($e->getMessage() === 'Negative quantity is not allowed, stock movement can not be created'
-						    || $e->getMessage()
-						    === 'Negative quantity is not allowed'
-						    || $e->getMessage() === "Not all of your products are available in the requested quantity.") {
-						    self::$MESSAGE_ERROR[] = 'can_not_create_shipment_with_negative_qty';
-					    }
+                        if ((int) $e->getCode() === 0) {
+                            self::$MESSAGE_ERROR[] = 'can_not_create_shipment_with_negative_qty';
+                            self::$MESSAGE_TEXT = $e->getMessage();
+                        }
 				    }
 			    }
 			
@@ -1095,56 +1104,6 @@ class OrderManagement extends ServiceAbstract
         $this->registry->register('opening_shift', $openingShift);
 
         return $this;
-    }
-
-    /**
-     * @param $orderData
-     *
-     * @throws \Exception
-     */
-    protected function savePaymentTransaction($orderData)
-    {
-        $baseCurrencyCode    = $this->storeManager->getStore()->getBaseCurrencyCode();
-        $currentCurrencyCode = $this->storeManager->getStore($orderData->getData('store_id'))->getCurrentCurrencyCode();
-        $allowedCurrencies   = $this->currencyModel->getConfigAllowCurrencies();
-        $rates               = $this->currencyModel->getCurrencyRates($baseCurrencyCode, array_values($allowedCurrencies));
-        $data                = $this->requestOrderData;
-        $order               = $data['order'];
-        if (isset($order['payment_method'])
-            && $order['payment_method'] == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE) {
-            $openingShift = $this->registry->registry('opening_shift');
-            if (isset($order['payment_data'])
-                && is_array($order['payment_data'])
-                && count($order['payment_data']) > 0) {
-                foreach ($order['payment_data'] as $payment_datum) {
-                    if (!is_array($payment_datum)) {
-                        continue;
-                    }
-                    if (!isset($payment_datum['id']) || !$payment_datum['id']) {
-                        throw new Exception("Payment data not valid");
-                    }
-                    $created_at = $this->retailHelper->getCurrentTime();
-                    $_p         = $this->retailTransactionFactory->create();
-                    $_p->addData(
-                        [
-                            'outlet_id'     => $data['outlet_id'],
-                            'register_id'   => $data['register_id'],
-                            'shift_id'      => $openingShift->getData('id'),
-                            'payment_id'    => $payment_datum['id'],
-                            'payment_title' => $payment_datum['title'],
-                            'payment_type'  => $payment_datum['type'],
-                            'amount'        => $payment_datum['amount'],
-                            'is_purchase'   => 1,
-                            "created_at"    => $created_at,
-                            'order_id'      => $orderData->getData('entity_id'),
-                            "user_name"     => isset($data['user_name']) ? $data['user_name'] : '',
-                            'base_amount'   => isset($rates[$currentCurrencyCode]) && $rates[$currentCurrencyCode] != 0 ? $payment_datum['amount']
-                                                                                                                          / $rates[$currentCurrencyCode] : null,
-                        ]
-                    )->save();
-                }
-            }
-        }
     }
 
     /**
@@ -1801,7 +1760,7 @@ class OrderManagement extends ServiceAbstract
 	    }
         $order          = $this->requestOrderData['order'];
         $shippingAmount = 0;
-        if ($this->requestOrderData['retail_has_shipment'] === false) {
+        if (!isset($this->requestOrderData['retail_has_shipment']) || $this->requestOrderData['retail_has_shipment'] === false) {
 	        $shippingAmount = 0;
 	        $this->requestOrderData['order']['shipping_method'] = 'retailshipping_retailshipping';
 	        $this->requestOrderData['order']['shipping_amount'] = $shippingAmount;
@@ -1956,6 +1915,35 @@ class OrderManagement extends ServiceAbstract
             $this->registry->register('transId', $transId);
         }
 
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function savePromotionalCardCouponCode()
+    {
+        if ($this->paymentData !== null && is_array($this->paymentData) && count($this->paymentData) > 0) {
+            $promotionalCardCouponCode = '';
+            $countPromotionalCode = 0;
+
+            foreach ($this->paymentData as $payment) {
+                if ($countPromotionalCode > 0) {
+                    $promotionalCardCouponCode .= ',';
+                }
+                if ($payment['type'] === RetailPayment::PROMOTIONAL_CARD) {
+                    $promotionalCardCouponCode .= ((isset($payment['data'])
+                                                    && isset($payment['data']['promotional_card_coupon_code'])) ?
+                        $payment['data']['promotional_card_coupon_code'] : '');
+                }
+                $countPromotionalCode++;
+            }
+
+            if (!!$promotionalCardCouponCode) {
+                $this->registry->unregister('promotional_card_coupon_code');
+                $this->registry->register('promotional_card_coupon_code', $promotionalCardCouponCode);
+            }
+        }
         return $this;
     }
 

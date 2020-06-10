@@ -31,6 +31,7 @@ use SM\Shift\Model\RetailTransactionFactory;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
+use SM\Sales\Helper\Data as SalesHelper;
 
 /**
  * Class InvoiceManagement
@@ -95,32 +96,39 @@ class InvoiceManagement extends ServiceAbstract
      * @var Currency
      */
     private $currencyModel;
+    /**
+     * @var \SM\Sales\Helper\Data
+     */
+    private $salesHelper;
 
     /**
      * InvoiceManagement constructor.
-     * @param RequestInterface $requestInterface
-     * @param DataConfig $dataConfig
-     * @param Data $retailHelper
-     * @param StoreManagerInterface $storeManager
-     * @param ObjectManagerInterface $objectManager
-     * @param InvoiceService $invoiceService
-     * @param Registry $registry
-     * @param InvoiceSender $invoiceSender
-     * @param ShipmentSender $shipmentSender
-     * @param OrderFactory $orderFactory
-     * @param OrderHistoryManagement $orderHistoryManagement
-     * @param RetailTransactionFactory $retailTransactionFactory
-     * @param ShiftHelper $shiftHelper
-     * @param IntegrateHelper $integrateHelper
-     * @param Loader $configLoader
-     * @param CustomerFactory $customerFactory
-     * @param ScopeConfigInterface $scopeConfig
-     * @param Currency $currencyModel
+     *
+     * @param \Magento\Framework\App\RequestInterface                $requestInterface
+     * @param \SM\XRetail\Helper\DataConfig                          $dataConfig
+     * @param \SM\XRetail\Helper\Data                                $retailHelper
+     * @param \SM\Sales\Helper\Data                                  $salesHelper
+     * @param \Magento\Store\Model\StoreManagerInterface             $storeManager
+     * @param \Magento\Framework\ObjectManagerInterface              $objectManager
+     * @param \Magento\Sales\Model\Service\InvoiceService            $invoiceService
+     * @param \Magento\Framework\Registry                            $registry
+     * @param \Magento\Sales\Model\Order\Email\Sender\InvoiceSender  $invoiceSender
+     * @param \Magento\Sales\Model\Order\Email\Sender\ShipmentSender $shipmentSender
+     * @param \Magento\Sales\Model\OrderFactory                      $orderFactory
+     * @param \SM\Sales\Repositories\OrderHistoryManagement          $orderHistoryManagement
+     * @param \SM\Shift\Model\RetailTransactionFactory               $retailTransactionFactory
+     * @param \SM\Shift\Helper\Data                                  $shiftHelper
+     * @param \SM\Integrate\Helper\Data                              $integrateHelper
+     * @param \Magento\Config\Model\Config\Loader                    $configLoader
+     * @param \Magento\Customer\Model\CustomerFactory                $customerFactory
+     * @param \Magento\Framework\App\Config\ScopeConfigInterface     $scopeConfig
+     * @param \Magento\Directory\Model\Currency                      $currencyModel
      */
     public function __construct(
         RequestInterface $requestInterface,
         DataConfig $dataConfig,
         Data $retailHelper,
+        SalesHelper $salesHelper,
         StoreManagerInterface $storeManager,
         ObjectManagerInterface $objectManager,
         InvoiceService $invoiceService,
@@ -152,20 +160,23 @@ class InvoiceManagement extends ServiceAbstract
         $this->customerFactory          = $customerFactory;
         $this->scopeConfig              = $scopeConfig;
         $this->currencyModel            = $currencyModel;
+        $this->salesHelper              = $salesHelper;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
     /**
-     * @param $orderId
+     * @param       $orderId
+     * @param array $invoiceItems
+     * @param bool  $isRefundPendingOrder
      *
      * @return \Magento\Sales\Model\Order
      * @throws \Exception
      */
-    public function invoice($orderId)
+    public function invoice($orderId, $invoiceItems = [], $isRefundPendingOrder = false)
     {
         try {
             $invoiceData  = $this->getRequest()->getParam('invoice', []);
-            $invoiceItems = isset($invoiceData['items']) ? $invoiceData['items'] : [];
+            $invoiceItems = isset($invoiceData['items']) ? $invoiceData['items'] : $invoiceItems;
             /** @var \Magento\Sales\Model\Order $order */
             $order = $this->objectManager->create('Magento\Sales\Model\Order')->load($orderId);
             if (!$order->getId()) {
@@ -176,6 +187,11 @@ class InvoiceManagement extends ServiceAbstract
                 throw new LocalizedException(
                     __('The order does not allow an invoice to be created.')
                 );
+            }
+            if ($isRefundPendingOrder === true &&
+                !$order->hasInvoices() &&
+                !!$this->salesHelper->isEnableRefundPendingOrder()) {
+                $order->setIsRefundedPendingOrder(true)->save();
             }
 
             $invoice = $this->invoiceService->prepareInvoice($order, $invoiceItems);
@@ -255,6 +271,24 @@ class InvoiceManagement extends ServiceAbstract
     }
 
     /**
+     * @param $items
+     *
+     * @return array
+     */
+    private function prepareItemForInvoice($items) {
+        $invoiceItems = [];
+
+        if ($items === null || !is_array($items)) {
+            return $invoiceItems;
+        }
+
+        foreach ($items as $key => $value) {
+            $invoiceItems[$key] = $value['qty'];
+        }
+        return $invoiceItems;
+    }
+
+    /**
      * @param      $order
      *
      * @param bool $isPendingOrder
@@ -331,7 +365,8 @@ class InvoiceManagement extends ServiceAbstract
                             }
                         }
                     } else {
-                        if ($order->getState() == Order::STATE_CLOSED || (!$order->canCreditmemo() && $order->hasCreditmemos())) {
+                        if ($order->getState() == Order::STATE_CLOSED ||
+                            (!$order->canCreditmemo() && $order->hasCreditmemos() && $order->getIsRefundedPendingOrder() != 1)) {
                             $order->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
                         } else {
                             if ($order->getData('retail_has_shipment')) {
@@ -361,7 +396,8 @@ class InvoiceManagement extends ServiceAbstract
                             $order->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_PAID);
                         }
                     } else {
-                        if ($order->canCreditmemo()) {
+                        if ($order->canCreditmemo() ||
+                            ($order->getIsRefundedPendingOrder() == '1' && $order->getState() !== Order::STATE_CLOSED)) {
                             if (($order->getData('retail_has_shipment')) || (in_array('can_not_create_shipment_with_negative_qty', OrderManagement::$MESSAGE_ERROR))) {
                                 if ($order->canShip()) {
                                     $order->setData(

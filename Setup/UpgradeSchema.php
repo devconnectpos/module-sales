@@ -95,6 +95,13 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.3.5', '<')) {
             $this->addSellerUsernameInOrder($setup);
         }
+        if (version_compare($context->getVersion(), '0.3.6', '<')) {
+            $this->addIsRefundedPendingOrder($setup);
+            $this->addTotalPaidRefundedPendingOrder($setup);
+        }
+        if (version_compare($context->getVersion(), '0.3.7', '<')) {
+            $this->addPromotionalCouponCodeInOrder($setup);
+        }
     }
 
     /**
@@ -1048,5 +1055,95 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 'comment' => 'Seller Username',
             ]
         );
+    }
+
+    /**
+     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
+     */
+    protected function addIsRefundedPendingOrder(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'is_refunded_pending_order')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('sales_order'),
+                'is_refunded_pending_order',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'comment' => 'Is Refunded Pending Order',
+                ]
+            );
+        }
+    }
+
+    /**
+     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
+     */
+    protected function addTotalPaidRefundedPendingOrder(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'total_paid_refunded_pending_order')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('sales_order'),
+                'total_paid_refunded_pending_order',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'comment' => 'Total Paid Refunded Pending Order',
+                ]
+            );
+        }
+
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'base_total_paid_refunded_pending_order')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('sales_order'),
+                'base_total_paid_refunded_pending_order',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'comment' => 'Base Total Paid Refunded Pending Order',
+                ]
+            );
+        }
+    }
+
+    /**
+     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
+     */
+    protected function addPromotionalCouponCodeInOrder(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'promotional_card_coupon_code')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('quote'),
+                'promotional_card_coupon_code',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'comment' => 'Promotional Card Coupon Code',
+                ]
+            );
+        }
+
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'promotional_card_coupon_code')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('sales_order'),
+                'promotional_card_coupon_code',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'comment' => 'Promotional Card Coupon Code',
+                ]
+            );
+        }
+
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'promotional_card_coupon_code')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('sales_order_grid'),
+                'promotional_card_coupon_code',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'comment' => 'Promotional Card Coupon Code',
+                ]
+            );
+        }
     }
 }

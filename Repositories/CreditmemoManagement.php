@@ -27,6 +27,10 @@ use SM\Sales\Controller\Adminhtml\Order\CreditmemoLoader;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
+use SM\Sales\Helper\Data as SalesHelper;
+use Magento\Sales\Model\Order;
+use Magento\Framework\Api\SearchCriteriaBuilder;
+use SM\Shift\Api\RetailTransactionRepositoryInterface;
 
 /**
  * Class CreditmemoManagement
@@ -98,7 +102,25 @@ class CreditmemoManagement extends ServiceAbstract
      * @var \Magento\Sales\Model\Order\InvoiceFactory
      */
     private $invoiceFactory;
+    /**
+     * @var \SM\Sales\Helper\Data
+     */
+    private $salesHelper;
+    /**
+     * @var \Magento\Sales\Model\Order
+     */
+    private $orderFactory;
+    /**
+     * @var \SM\Shift\Api\RetailTransactionRepositoryInterface
+     */
+    protected $retailTransactionRepository;
+    /**
+     * @var \Magento\Framework\Api\SearchCriteriaBuilder
+     */
+    protected $searchCriteriaBuilder;
 
+    static $IS_SAVE_CREDITMEMO = true;
+    static $REFUND_PENDING_ORDER = false;
 
     /**
      * CreditmemoManagement constructor.
@@ -119,6 +141,8 @@ class CreditmemoManagement extends ServiceAbstract
      * @param \SM\Sales\Repositories\OrderHistoryManagement            $orderHistoryManagement
      * @param \Magento\Framework\Event\ManagerInterface                $eventManagement
      * @param \Magento\Sales\Model\Order\InvoiceFactory                $invoiceFactory
+     * @param \Magento\Customer\Model\CustomerFactory                  $customerFactory
+     * @param \SM\Sales\Helper\Data                                    $salesHelper
      */
     public function __construct(
         RequestInterface $requestInterface,
@@ -137,7 +161,11 @@ class CreditmemoManagement extends ServiceAbstract
         OrderHistoryManagement $orderHistoryManagement,
         ManagerInterface $eventManagement,
         InvoiceFactory $invoiceFactory,
-        \Magento\Customer\Model\CustomerFactory $customerFactory
+        \Magento\Customer\Model\CustomerFactory $customerFactory,
+        SalesHelper $salesHelper,
+        Order $orderFactory,
+        SearchCriteriaBuilder $searchCriteriaBuilder,
+        RetailTransactionRepositoryInterface $retailTransactionRepository
     ) {
         $this->taxConfig              = $taxConfig;
         $this->invoiceManagement      = $invoiceManagement;
@@ -152,7 +180,11 @@ class CreditmemoManagement extends ServiceAbstract
         $this->integrateHelperData    = $integrateHelperData;
         $this->eventManagement        = $eventManagement;
         $this->invoiceFactory         = $invoiceFactory;
-        $this->customerFactory                = $customerFactory;
+        $this->customerFactory        = $customerFactory;
+        $this->salesHelper            = $salesHelper;
+        $this->orderFactory           = $orderFactory;
+        $this->retailTransactionRepository = $retailTransactionRepository;
+        $this->searchCriteriaBuilder       = $searchCriteriaBuilder;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -175,6 +207,7 @@ class CreditmemoManagement extends ServiceAbstract
      */
     protected function load()
     {
+        self::$IS_SAVE_CREDITMEMO = false;
         $orderId = $this->getRequest()->getParam('order_id');
         $this->creditmemoLoader->setCreditmemo($this->getCreditmemoData());
         $this->creditmemoLoader->setOrderId($orderId);
@@ -198,13 +231,55 @@ class CreditmemoManagement extends ServiceAbstract
     }
 
     /**
+     * @param $items
+     *
+     * @return array
+     */
+    private function prepareItemForInvoice($items) {
+        $invoiceItems = [];
+
+        if (isset($items['items'])) {
+            $items = $items['items'];
+        }
+
+        if ($items === null || !is_array($items)) {
+            return $invoiceItems;
+        }
+
+        foreach ($items as $key => $value) {
+            if ($value['qty'] == 0) {
+                continue;
+            }
+            $invoiceItems[$key] = $value['qty'];
+        }
+        return $invoiceItems;
+    }
+
+    /**
      * @return array
      * @throws \Exception
      */
     protected function save()
     {
+        self::$IS_SAVE_CREDITMEMO = true;
         $orderId = $this->getRequest()->getParam('order_id');
         $storeId = $this->getRequest()->getParam('store_id');
+
+        if (!!$this->salesHelper->isEnableRefundPendingOrder()) {
+            $items        = $this->getRequest()->getParam('creditmemo');
+            $invoiceItems = $this->prepareItemForInvoice($items);
+            $order        = $this->orderFactory->load($orderId);
+
+            if (!$order->hasInvoices() ||
+                ($order->hasInvoices() && $order->canInvoice() && $order->getIsRefundedPendingOrder() == 1)) {
+                try {
+                    $this->invoiceManagement->invoice($orderId, $invoiceItems, true);
+                }
+                catch (Exception $e) {
+                }
+            }
+        }
+
         $data    = $this->getCreditmemoData();
         $this->creditmemoLoader->setOrderId($orderId);
         $this->creditmemoLoader->setCreditmemo($this->getCreditmemoData());
@@ -320,6 +395,11 @@ class CreditmemoManagement extends ServiceAbstract
             // fix refund amount
             $data['payment_data'][0]['amount'] = -$creditmemo->getGrandTotal();
 
+            if ($order->getIsRefundedPendingOrder() == '1' &&
+                !!$this->salesHelper->isEnableRefundPendingOrder()) {
+                $this->setTotalForRefundedPendingOrder($order);
+            }
+
             return $this->invoiceManagement->addPayment(
                 [
                     'payment_data' => $data['payment_data'],
@@ -334,6 +414,65 @@ class CreditmemoManagement extends ServiceAbstract
         } else {
             throw new Exception("Can't find creditmemo data");
         }
+    }
+
+    /**
+     * @param \Magento\Sales\Model\Order $order
+     *
+     * @return mixed
+     */
+    private function setTotalForRefundedPendingOrder(Order $order) {
+        list($baseTotalPaid, $totalPaid) = $this->getTotalPaid($order);
+
+        $order->setTotalPaidRefundedPendingOrder($totalPaid);
+        $order->setBaseTotalPaidRefundedPendingOrder($baseTotalPaid);
+
+        return $order->save();
+    }
+
+    /**
+     * @param \Magento\Sales\Model\Order $order
+     *
+     * @return array|int[]
+     */
+    private function getTotalPaid(Order $order) {
+        $totalPaid = 0;
+        $baseTotalPaid = 0;
+        $transactions = $this->getListTransaction($order);
+
+        if (empty($transactions)) {
+            return [$baseTotalPaid, $totalPaid];
+        }
+
+        /** @var \SM\Shift\Api\Data\RetailTransactionInterface $transaction */
+        foreach ($transactions as $transaction) {
+            $totalPaid += $transaction->getAmount();
+            $baseTotalPaid += $transaction->getBaseAmount();
+        }
+
+        return [$baseTotalPaid, $totalPaid];
+    }
+
+    /**
+     * @param \Magento\Sales\Model\Order $order
+     *
+     * @return mixed
+     */
+    private function getListTransaction(Order $order) {
+        $notCountedPaymentType = [
+            RetailPayment::GIFT_CARD_PAYMENT_TYPE,
+            RetailPayment::REWARD_POINT_PAYMENT_TYPE,
+            RetailPayment::STORE_CREDIT_PAYMENT_TYPE,
+            RetailPayment::REFUND_GC_PAYMENT_TYPE,
+            RetailPayment::REFUND_TO_STORE_CREDIT_PAYMENT_TYPE,
+        ];
+
+        $this->searchCriteriaBuilder->create();
+        $this->searchCriteriaBuilder->addFilter('order_id', $order->getId());
+        $this->searchCriteriaBuilder->addFilter('is_purchase', 1);
+        $this->searchCriteriaBuilder->addFilter('payment_type', $notCountedPaymentType, 'nin');
+
+        return $this->retailTransactionRepository->getList($this->searchCriteriaBuilder->create())->getItems();
     }
 
     /**

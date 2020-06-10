@@ -17,6 +17,23 @@
     <type name="Magento\Quote\Model\Quote\Address">
         <plugin name="allowRetailShipping" type="\SM\Sales\Plugin\AllowRetailShipping"/>
     </type>
+    <!--   Allow Refund Pending Order -->
+    <type name="Magento\Sales\Model\Order">
+        <plugin name="allowRefundPendingOrder" type="\SM\Sales\Plugin\AllowRefundPendingOrder" />
+    </type>
+    <!--    Set qty to refund for pending order -->
+    <type name="Magento\Sales\Model\Order\Item">
+        <plugin name="setQtyToRefundPendingOrder" type="\SM\Sales\Plugin\SetQtyToRefundPendingOrder" />
+    </type>
+    <!--    Calculate row total when refund pending order -->
+    <preference for="Magento\Sales\Model\Order\Creditmemo\Item" type="SM\Sales\Model\Order\Creditmemo\Item" />
+    <!--    Override total paid block display on backend -->
+    <type name="Magento\Sales\Model\Order">
+        <plugin name="calculateTotalDue" type="\SM\Sales\Plugin\CalculateTotalDue" />
+    </type>
+
+    <preference for="Magento\Sales\Model\Order\Creditmemo\Total\Tax" type="SM\Sales\Model\Order\Creditmemo\Total\Tax" />
+    <preference for="Magento\Sales\Model\Order\Creditmemo\Total\Discount" type="SM\Sales\Model\Order\Creditmemo\Total\Discount" />
 
     <virtualType name="Magento\Sales\Model\ResourceModel\Order\Grid">
         <arguments>

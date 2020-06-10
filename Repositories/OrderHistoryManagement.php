@@ -372,6 +372,7 @@ class OrderHistoryManagement extends ServiceAbstract
                     ->setItems($orders)
                     ->setTotalCount($collection->getTotalCount())
                     ->setMessageError(OrderManagement::$MESSAGE_ERROR)
+                    ->setMessageText(OrderManagement::$MESSAGE_TEXT)
                     ->setLastPageNumber($collection->getLastPageNumber())
                     ->getOutput();
     }
