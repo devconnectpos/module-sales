@@ -692,7 +692,7 @@ class OrderManagement extends ServiceAbstract
 				    $this->addRewardPointData($order);
 			    } catch (Exception $e) {
 			    }
-			    if ((!$data['retail_has_shipment'] && !$this->getQuote()->isVirtual() && !$isPendingOrder)
+			    if ((!$this->getQuote()->isVirtual() && !$isPendingOrder)
 				    || ($this->integrateHelperData->isIntegrateAcumaticaCloudERP()
 					    && $order->getShippingMethod() == 'retailshipping_retailshipping'
 					    && $order->getShippingAmount() == 0)) {
@@ -1935,8 +1935,8 @@ class OrderManagement extends ServiceAbstract
                     $promotionalCardCouponCode .= ((isset($payment['data'])
                                                     && isset($payment['data']['promotional_card_coupon_code'])) ?
                         $payment['data']['promotional_card_coupon_code'] : '');
+                    $countPromotionalCode++;
                 }
-                $countPromotionalCode++;
             }
 
             if (!!$promotionalCardCouponCode) {

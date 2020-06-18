@@ -2,7 +2,7 @@
 	"name": "connectpos/module-sales",
 	"description": "N/A",
 	"type": "magento2-module",
-	"version": "20.06.10",
+	"version": "20.06.18",
 	"license": [
 		"proprietary"
 	],

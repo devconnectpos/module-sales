@@ -313,7 +313,12 @@ class InvoiceManagement extends ServiceAbstract
                 );
                 $totalPaid = 0;
                 foreach ($payments as $payment) {
-                    $totalPaid += floatval($payment['amount']);
+                    if ($payment['is_purchase'] == 1) {
+                        $totalPaid += floatval($payment['amount']);
+                    }
+                    if ($order->getIsRefundedPendingOrder() && $payment['is_purchase'] != 1) {
+                        $totalPaid -= floatval($payment['amount']);
+                    }
                 }
                 if ($totalPaid - floatval($order->getGrandTotal()) > 0.01) {
                     // in production we will not check this.
