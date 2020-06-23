@@ -13,16 +13,23 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
      * @var \Magento\Framework\Registry
      */
     protected $registry;
-
-    /**
-     * SaveOutletIdToOrderAndQuote constructor.
-     *
-     * @param \Magento\Framework\Registry $registry
-     */
+	/**
+	 * @var \SM\Integrate\Helper\Data
+	 */
+	private $integrateHelper;
+	
+	/**
+	 * SaveOutletIdToOrderAndQuote constructor.
+	 *
+	 * @param \Magento\Framework\Registry $registry
+	 * @param \SM\Integrate\Helper\Data $integrateHelper
+	 */
     public function __construct(
-        Registry $registry
+        Registry $registry,
+		\SM\Integrate\Helper\Data $integrateHelper
     ) {
         $this->registry = $registry;
+	    $this->integrateHelper = $integrateHelper;
     }
 
     /**
@@ -32,7 +39,9 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
      */
     public function execute(Observer $observer)
     {
+    	/** @var \Magento\Sales\Api\Data\OrderInterface $order */
         $order = $observer->getData('order');
+        /** @var \Magento\Quote\Api\Data\CartInterface $quote */
         $quote = $observer->getData('quote');
 
         $outletId = $this->registry->registry('outlet_id');
@@ -56,6 +65,12 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
         if (!!$retailNote) {
             $quote->setData('retail_note', $retailNote);
             $order->setData('retail_note', $retailNote);
+            
+            //save pos retail note to bold commerce order comment field
+            if ($this->integrateHelper->isIntegrateBoldOrderComment()) {
+            	$quote->setData(\Bold\OrderComment\Model\Data\OrderComment::COMMENT_FIELD_NAME, $retailNote);
+            	$order->setData(\Bold\OrderComment\Model\Data\OrderComment::COMMENT_FIELD_NAME, $retailNote);
+            }
         }
 
         $orderRate = $this->registry->registry('order_rate');
