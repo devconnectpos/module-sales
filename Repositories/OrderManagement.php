@@ -744,7 +744,7 @@ class OrderManagement extends ServiceAbstract
 						    if ($this->integrateHelperData->isAHWGiftCardExist()
 							    && isset($configData['xretail/pos/integrate_gc'])
 							    && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
-							    && $this->integrateHelperData->isIntegrateGC()) {
+							    && $this->integrateHelperData->isIntegrateGC() && !$paymentData['gc_created_codes']) {
 							    $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['aw_gc_created_codes'][0];
 							    $paymentData['gc_amount']        = $gcProduct->getData('product_options')['aw_gc_amount'];
 						    } elseif ($this->integrateHelperData->isGiftCardMagento2EE()
