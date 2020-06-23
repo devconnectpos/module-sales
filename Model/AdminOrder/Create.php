@@ -116,6 +116,8 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 
         return $this;
     }
+    
+    protected $bundleOptionCustomPrice = [];
 
     /**
      * Override for add custom sale data
@@ -126,201 +128,135 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
      * @return $this
      * @throws \Magento\Framework\Exception\LocalizedException
      */
-    public function addProduct($product, $config = 1)
-    {
-        if (!is_array($config) && !$config instanceof DataObject) {
-            $config = ['qty' => $config];
-        }
-        $config = new DataObject($config);
-
-        if (!$product instanceof Product) {
-            $productId = $product;
-            $product   = $this->_objectManager->create(
-                'Magento\Catalog\Model\Product'
-            )->setStore(
-                $this->getSession()->getStore()
-            )->setStoreId(
-                $this->getSession()->getStoreId()
-            )->load(
-                $product
-            );
-            if (!$product->getId()) {
-                throw new LocalizedException(
-                    __('We could not add a product to cart by the ID "%1".', $productId)
-                );
-            }
-        }
-        $this->attachDataSupportSplitItem($product);
-        $this->attachCustomSaleData($product, $config);
-
-        $item = $this->quoteInitializer->init($this->getQuote(), $product, $config);
-
-        if (is_string($item)) {
-            throw new LocalizedException(__($item));
-        }
-        $item->checkData();
-        $this->setRecollect(true);
-
-        $integrateHelper = $this->_objectManager->get("SM\\Integrate\\Helper\\Data");
-        $typeId = $item->getProduct()->getTypeId();
-        if($typeId == 'bundle' && $integrateHelper->isExistKensiumCart())
-        {
-            $infoBuyRequest = $item->getBuyRequest()->toArray();
-            $value = $this->resolveBundleOptions($product, $infoBuyRequest['bundle_option']);
-            $pro_id = $item->getProduct()->getId();
-            $connection = $this->_objectManager->get(\Magento\Framework\App\ResourceConnection::class)->getConnection();
-            $proPrice = $item->getProduct()->getPrice();
-
-            $affectiveBasePrice = 0;
-            $affectiveTotalPrice = 0;
-            $nonAffectiveBasePrice = 0;
-            $nonAffectiveTotalPrice = 0;
-            
-            foreach($value as $optionId => $selectionId)
-            {
-                if (is_array($optionId)) {
-                    $optionId = $optionId[0];
-                }
-                if (is_array($selectionId)) {
-                	if (!empty($selectionId)) {
-		                $selectionId = $selectionId[0];
-	                } else {
-						$selectionId = null;
-	                }
-                }
-                $affect = $connection->fetchOne("SELECT affect_base_price FROM catalog_product_bundle_option where option_id = '" . $optionId . "'");
-                if($affect == 1)
-                {
-                    if (null === $selectionId) {
-                        $optionPrice = 0;
-                        $priceType = 0;
-                    } else {
-                        $optionPrice = $connection->fetchOne("SELECT selection_price_value FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
-                        $priceType = $connection->fetchOne("SELECT selection_price_type FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
-                    }
-
-                    $optionPricePercent = $optionPrice+0;
-                    if($affectiveTotalPrice == 0)
-                    {
-                        if($priceType == 0)
-                        {
-                            $affectiveBasePrice = $proPrice + $optionPricePercent;
-                        }
-                        else
-                        {
-                            $optionPricePercent = $optionPricePercent / 100;
-                            $affectiveBasePrice = $proPrice + ($proPrice * $optionPricePercent);
-                        }
-                    }
-                    else
-                    {
-                        if($priceType == 0)
-                        {
-                            $affectiveBasePrice = $optionPricePercent;
-                        }
-                        else
-                        {
-                            $optionPricePercent = $optionPricePercent / 100;
-                            $affectiveBasePrice = $affectiveTotalPrice * $optionPricePercent;
-                        }
-                    }
-
-                    $affectiveTotalPrice += $affectiveBasePrice;
-                }
-            }
-
-            foreach($value as $optionId => $selectionId)
-            {
-                if (is_array($optionId)) {
-                    $optionId = $optionId[0];
-                }
-                if (is_array($selectionId)) {
-                    if (!empty($selectionId)) {
-                        $selectionId = $selectionId[0];
-                    } else {
-                        $selectionId = null;
-                    }
-                }
-                $affect = $connection->fetchOne("SELECT affect_base_price FROM catalog_product_bundle_option where option_id = '" . $optionId . "'");
-                if($affect == 0)
-                {
-                    if (null === $selectionId) {
-                        $optionPrice = 0;
-                        $priceType = 0;
-                    } else {
-                        $optionPrice = $connection->fetchOne("SELECT selection_price_value FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
-                        $priceType = $connection->fetchOne("SELECT selection_price_type FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $pro_id . "' ");
-                    }
-
-                    $optionPricePercent = $optionPrice+0;
-                    if($affectiveTotalPrice != 0)
-                    {
-                        if($nonAffectiveTotalPrice == 0)
-                        {
-                            if($priceType == 0)
-                            {
-                                $nonAffectiveTotalPrice += $affectiveTotalPrice + $optionPricePercent;
-                            }
-                            else
-                            {
-                                $optionPricePercent = $optionPricePercent / 100;
-                                $nonAffectiveTotalPrice = $affectiveTotalPrice + $affectiveTotalPrice * $optionPricePercent;
-                            }
-                        }
-                        else
-                        {
-                            if($priceType == 0)
-                            {
-                                $nonAffectiveTotalPrice += $optionPricePercent;
-                            }
-                            else
-                            {
-                                $optionPricePercent = $optionPricePercent / 100;
-                                $nonAffectiveTotalPrice += $affectiveTotalPrice * $optionPricePercent;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if($priceType == 0)
-                        {
-                            if($nonAffectiveTotalPrice == 0)
-                            {
-                                $proPrice += $optionPricePercent;
-                                $nonAffectiveTotalPrice = $proPrice + $optionPricePercent;
-                            }
-                            else
-                            {
-                                $nonAffectiveTotalPrice += $optionPricePercent;
-                            }
-                        }
-                        else
-                        {
-                            $optionPricePercent = $optionPricePercent / 100;
-                            if($nonAffectiveTotalPrice == 0)
-                            {
-                                $nonAffectiveTotalPrice = $proPrice + $proPrice * $optionPricePercent;
-                            }
-                            else
-                            {
-                                $nonAffectiveTotalPrice += $proPrice * $optionPricePercent;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            if($nonAffectiveTotalPrice == 0)
-            {
-                $nonAffectiveTotalPrice = $affectiveTotalPrice;
-            }
-            $item->setCustomPrice($nonAffectiveTotalPrice);
-            $item->setOriginalCustomPrice($nonAffectiveTotalPrice);
-            $item->getProduct()->setIsSuperMode(true);
-        }
-
-        return $this;
-    }
+	public function addProduct($product, $config = 1)
+	{
+		if (!is_array($config) && !$config instanceof DataObject) {
+			$config = ['qty' => $config];
+		}
+		$config = new DataObject($config);
+		
+		if (!$product instanceof Product) {
+			$productId = $product;
+			$product   = $this->_objectManager->create(
+				'Magento\Catalog\Model\Product'
+			)->setStore(
+				$this->getSession()->getStore()
+			)->setStoreId(
+				$this->getSession()->getStoreId()
+			)->load(
+				$product
+			);
+			if (!$product->getId()) {
+				throw new LocalizedException(
+					__('We could not add a product to cart by the ID "%1".', $productId)
+				);
+			}
+		}
+		$this->attachDataSupportSplitItem($product);
+		$this->attachCustomSaleData($product, $config);
+		
+		$item = $this->quoteInitializer->init($this->getQuote(), $product, $config);
+		
+		if (is_string($item)) {
+			throw new LocalizedException(__($item));
+		}
+		$item->checkData();
+		$this->setRecollect(true);
+		
+		$integrateHelper = $this->_objectManager->get("SM\\Integrate\\Helper\\Data");
+		$typeId = $item->getProduct()->getTypeId();
+		if($typeId == 'bundle' && $integrateHelper->isExistKensiumCart())
+		{
+			$this->bundleOptionCustomPrice = [];
+			
+			$bundlePrice = $this->calculateBundlePrice($item, $product);
+			
+			$item->setCustomPrice($bundlePrice);
+			$item->setOriginalCustomPrice($bundlePrice);
+			$item->getProduct()->setIsSuperMode(true);
+			
+			//set custom price for bundle children
+			$children = $item->getChildren();
+			$i = 0;
+			foreach ($children as $child) {
+				$child->setCustomPrice($this->bundleOptionCustomPrice[$i]);
+				$child->setOriginalCustomPrice($this->bundleOptionCustomPrice[$i]);
+				$child->getProduct()->setIsSuperMode(true);
+				$i++;
+			}
+		}
+		
+		return $this;
+	}
+	
+	protected function calculateBundlePrice($item, $product)
+	{
+		$infoBuyRequest = $item->getBuyRequest()->toArray();
+		$bundleOptions = $this->resolveBundleOptions($product, $infoBuyRequest['bundle_option']);
+		$productId = $product->getId();
+		$connection = $this->_objectManager->get(\Magento\Framework\App\ResourceConnection::class)->getConnection();
+		
+		//init base price and final price, will update through the foreach loop base on options
+		$basePrice = $item->getProduct()->getPrice();
+		$finalPrice = $basePrice;
+		
+		$i = 0;
+		foreach($bundleOptions as $optionId => $selectionId) {
+			if (is_array($optionId)) {
+				$optionId = $optionId[0];
+			}
+			if (is_array($selectionId)) {
+				if (!empty($selectionId)) {
+					$selectionId = $selectionId[0];
+				} else {
+					$selectionId = null;
+				}
+			}
+			
+			$isAffect = $this->checkOptionAffectBasePrice($connection, $optionId);
+			
+			if (null === $selectionId) {
+				$optionPrice = 0;
+				$priceType = 0;
+			} else {
+				$optionPrice = $this->getOptionPrice($connection, $optionId, $selectionId, $productId);
+				$priceType = $this->getOptionPriceType($connection, $optionId, $selectionId, $productId);
+			}
+			
+			if($priceType != 0) { //type percent
+				$optionPrice = ($optionPrice * $basePrice / 100);
+			}
+			
+			//store bundle option custom price
+			$this->bundleOptionCustomPrice[$i] = $optionPrice;
+			$i++;
+			
+			//update final price
+			$finalPrice += $optionPrice;
+			
+			if ($isAffect == 1) { //option affects base price
+				//update base price
+				$basePrice += $optionPrice;
+			}
+		}
+		
+		return $finalPrice;
+	}
+	
+	protected function checkOptionAffectBasePrice($connection, $optionId)
+	{
+		return $connection->fetchOne("SELECT affect_base_price FROM catalog_product_bundle_option where option_id = '" . $optionId . "'");
+	}
+	
+	protected function getOptionPrice($connection, $optionId, $selectionId, $productId)
+	{
+		return $connection->fetchOne("SELECT selection_price_value FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $productId . "' ");
+	}
+	
+	protected function getOptionPriceType($connection, $optionId, $selectionId, $productId)
+	{
+		return $connection->fetchOne("SELECT selection_price_type FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $productId . "' ");
+	}
 	
 	/**
 	 * @param \Magento\Catalog\Model\Product $product

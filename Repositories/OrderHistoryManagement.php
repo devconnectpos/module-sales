@@ -88,24 +88,30 @@ class OrderHistoryManagement extends ServiceAbstract
      * @var \SM\Product\Repositories\ProductManagement
      */
     protected $productManagement;
-
-    /**
-     * OrderHistoryManagement constructor.
-     *
-     * @param \Magento\Framework\App\RequestInterface                        $requestInterface
-     * @param \SM\XRetail\Helper\DataConfig                                  $dataConfig
-     * @param \SM\XRetail\Helper\Data                                        $retailHelper
-     * @param \Magento\Store\Model\StoreManagerInterface                     $storeManager
-     * @param \Magento\Sales\Model\ResourceModel\Order\CollectionFactory     $collectionFactory
-     * @param \SM\Customer\Helper\Data                                       $customerHelper
-     * @param \SM\Integrate\Helper\Data                                      $integrateHelperData
-     * @param \Magento\Catalog\Model\Product\Media\Config                    $productMediaConfig
-     * @param \Magento\Customer\Model\CustomerFactory                        $customerFactory
-     * @param \SM\Sales\Model\ResourceModel\OrderSyncError\CollectionFactory $orderErrorCollectionFactory
-     * @param \Magento\Quote\Api\CartRepositoryInterface                     $quoteRepository
-     * @param \Magento\Sales\Model\OrderFactory                              $orderFactory
-     * @param \Magento\Framework\Pricing\PriceCurrencyInterface              $priceCurrency
-     */
+	/**
+	 * @var \Magento\Sales\Api\OrderRepositoryInterface
+	 */
+	private $orderRepository;
+	
+	/**
+	 * OrderHistoryManagement constructor.
+	 *
+	 * @param \Magento\Framework\App\RequestInterface $requestInterface
+	 * @param \SM\XRetail\Helper\DataConfig $dataConfig
+	 * @param \Magento\Catalog\Api\ProductRepositoryInterface $productRepository
+	 * @param \SM\XRetail\Helper\Data $retailHelper
+	 * @param \Magento\Store\Model\StoreManagerInterface $storeManager
+	 * @param \Magento\Sales\Model\ResourceModel\Order\CollectionFactory $collectionFactory
+	 * @param \SM\Customer\Helper\Data $customerHelper
+	 * @param \SM\Integrate\Helper\Data $integrateHelperData
+	 * @param \Magento\Catalog\Model\Product\Media\Config $productMediaConfig
+	 * @param \Magento\Customer\Model\CustomerFactory $customerFactory
+	 * @param \SM\Sales\Model\ResourceModel\OrderSyncError\CollectionFactory $orderErrorCollectionFactory
+	 * @param \Magento\Quote\Api\CartRepositoryInterface $quoteRepository
+	 * @param \Magento\Sales\Model\OrderFactory $orderFactory
+	 * @param \SM\Product\Repositories\ProductManagement $productManagement
+	 * @param \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
+	 */
     public function __construct(
         RequestInterface $requestInterface,
         DataConfig $dataConfig,
@@ -120,7 +126,8 @@ class OrderHistoryManagement extends ServiceAbstract
         OrderSyncErrorCollectionFactory $orderErrorCollectionFactory,
         CartRepositoryInterface $quoteRepository,
         OrderFactory $orderFactory,
-        \SM\Product\Repositories\ProductManagement $productManagement
+        \SM\Product\Repositories\ProductManagement $productManagement,
+		\Magento\Sales\Api\OrderRepositoryInterface $orderRepository
     ) {
         $this->productMediaConfig          = $productMediaConfig;
         $this->productRepository           = $productRepository;
@@ -133,7 +140,9 @@ class OrderHistoryManagement extends ServiceAbstract
         $this->quoteRepository             = $quoteRepository;
         $this->orderFactory                = $orderFactory;
         $this->productManagement           = $productManagement;
-        parent::__construct($requestInterface, $dataConfig, $storeManager);
+	    $this->orderRepository = $orderRepository;
+	
+	    parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
     public function getOrders()
@@ -263,7 +272,8 @@ class OrderHistoryManagement extends ServiceAbstract
                                 'title'      => $order->getPayment()->getMethodInstance()->getTitle(),
                                 'amount'     => $order->getTotalPaid(),
                                 'created_at' => $order->getCreatedAt(),
-                                'type'       => $order->getPayment()->getMethodInstance()->getCode()
+                                'type'       => $order->getPayment()->getMethodInstance()->getCode(),
+	                            'additional_information' => $order->getPayment()->getAdditionalInformation()
                             ]
                         ]
                     );
@@ -363,6 +373,11 @@ class OrderHistoryManagement extends ServiceAbstract
                 $xOrder->setData('comment_history', $creditmemoHistory);
 
                 $xOrder->setData('totals', $totals);
+                
+                if ($order->getData('origin_order_id')) {
+	                $xOrder->setData('origin_order_retail_id', $this->getOrderRetailId($order->getData('origin_order_id')));
+                }
+                
                 $orders[] = $xOrder;
             }
         }
@@ -372,6 +387,7 @@ class OrderHistoryManagement extends ServiceAbstract
                     ->setItems($orders)
                     ->setTotalCount($collection->getTotalCount())
                     ->setMessageError(OrderManagement::$MESSAGE_ERROR)
+                    ->setMessageText(OrderManagement::$MESSAGE_TEXT)
                     ->setLastPageNumber($collection->getLastPageNumber())
                     ->getOutput();
     }
@@ -670,5 +686,11 @@ class OrderHistoryManagement extends ServiceAbstract
             $commentHistory[] = ['comment' => $comment->getComment(), 'created_at' => $comment->getCreatedAt()];
         }
         return $commentHistory;
+    }
+    
+    protected function getOrderRetailId($orderId)
+    {
+    	$order = $this->orderRepository->get($orderId);
+    	return $order->getData('retail_id');
     }
 }
