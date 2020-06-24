@@ -194,6 +194,10 @@ class OrderHistoryManagement extends ServiceAbstract
                     [
                         'id'    => $order->getCustomerId(),
                         'name'  => $order->getCustomerName(),
+                        'first_name' => $order->getCustomerFirstname(),
+                        'last_name' => $order->getCustomerLastname(),
+                        'middle_name' => $order->getCustomerMiddlename(),
+                        'prefix' => $order->getCustomerPrefix(),
                         'email' => $order->getCustomerEmail(),
                         'phone' => $customerPhone,
                     ]
@@ -207,6 +211,12 @@ class OrderHistoryManagement extends ServiceAbstract
                 }
                 if ($shippingAdd = $order->getShippingAddress()) {
                     $customerShippingAdd = new CustomerAddress($shippingAdd->getData());
+                    if (!!$shippingAdd->getStreet() && is_array($shippingAdd->getStreet())) {
+                        $street = implode(', ', $shippingAdd->getStreet());
+                    } else {
+                        $street = $shippingAdd->getStreet();
+                    }
+                    $customerShippingAdd->setData('street', $street);
                     $xOrder->setData('shipping_address', $customerShippingAdd);
                 }
                 if ($order->getShippingMethod() === 'smstorepickup_smstorepickup'
