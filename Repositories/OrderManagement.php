@@ -1774,8 +1774,9 @@ class OrderManagement extends ServiceAbstract
             RetailShipping::RETAIL_SHIPPING_AMOUNT_KEY,
             $shippingAmount / $this->getCurrentRate()
         );
+        $retail_has_shipment = isset($this->requestOrderData['retail_has_shipment']) ? $this->requestOrderData['retail_has_shipment'] : false;
         $this->registry->unregister('retail_has_shipment');
-        $this->registry->register('retail_has_shipment', $this->requestOrderData['retail_has_shipment']);
+        $this->registry->register('retail_has_shipment', $retail_has_shipment);
         self::$FROM_API = true;
 
         return $this;
