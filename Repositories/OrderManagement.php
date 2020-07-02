@@ -550,11 +550,11 @@ class OrderManagement extends ServiceAbstract
     {
     	$this->clear();
     	$data = $this->getRequest()->getParams();
-        $retailId         = $data['retail_id'];
-        $outletId         = $data['outlet_id'];
-        $userId           = $data['user_id'];
-        $registerId       = $data['register_id'];
-        $customerId       = $data['customer_id'];
+        $retailId         = isset($data['retail_id']) ? $data['retail_id'] : '';
+        $outletId         = isset($data['outlet_id']) ? $data['outlet_id'] : '';
+        $userId           = isset($data['user_id']) ? $data['user_id'] : '';
+        $registerId       = isset($data['register_id']) ? $data['register_id'] : '';
+        $customerId       = isset($data['customer_id']) ? $data['customer_id'] : '';
         if (isset($data['orderOffline']) && $data['orderOffline']) {
             $grandTotal = $data['orderOffline']['totals']['grand_total'];
             if ($retailId && $this->checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal)) {
@@ -1782,8 +1782,9 @@ class OrderManagement extends ServiceAbstract
             RetailShipping::RETAIL_SHIPPING_AMOUNT_KEY,
             $shippingAmount / $this->getCurrentRate()
         );
+        $retail_has_shipment = isset($this->requestOrderData['retail_has_shipment']) ? $this->requestOrderData['retail_has_shipment'] : false;
         $this->registry->unregister('retail_has_shipment');
-        $this->registry->register('retail_has_shipment', $this->requestOrderData['retail_has_shipment']);
+        $this->registry->register('retail_has_shipment', $retail_has_shipment);
         self::$FROM_API = true;
 
         return $this;
