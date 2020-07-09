@@ -268,6 +268,10 @@ class OrderManagement extends ServiceAbstract
 	 * @var OutletRepository
 	 */
 	private $outletRepository;
+	/**
+	 * @var bool
+	 */
+	protected $isSplitOrder = false;
 	
 	/**
 	 * OrderManagement constructor.
@@ -618,6 +622,7 @@ class OrderManagement extends ServiceAbstract
 //		    return false;
 //	    }
 //
+	    $this->isSplitOrder = true;
 	    return true;
     }
 	
@@ -646,7 +651,10 @@ class OrderManagement extends ServiceAbstract
 	    
 	    self::$SAVE_ORDER = true;
 	    $this->processLoadOrderData(true, $data);
-	    $this->splitPaymentData();
+    
+	    if ($this->isSplitOrder) {
+		    $this->splitPaymentData();
+	    }
 	    $data = $this->requestOrderData;
 	    
 	    try {
@@ -913,6 +921,13 @@ class OrderManagement extends ServiceAbstract
     	$payments = [];
     	$i = 0;
 	    foreach ($this->paymentData as $paymentDatum) {
+	    	if ($paymentDatum['type'] === 'cash' && $paymentDatum['title'] === 'Change' && $paymentDatum['amount'] < 0) {
+			    $paidAmount += $paymentDatum['amount'];
+			    $payments[] = $paymentDatum;
+			    unset($this->paymentData[$i]);
+			    $i++;
+			    continue;
+		    }
 	    	if ($paidAmount == $grandTotal) {
 	    		continue;
 		    }
