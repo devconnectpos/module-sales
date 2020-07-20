@@ -4,7 +4,7 @@
             <block class="SM\Sales\Block\Adminhtml\Order\Totals\Deposit" name="connectpos.order.deposit" />
         </referenceBlock>
 
-        <referenceBlock name="order_info" class="SM\Sales\Block\Adminhtml\Order\View\Info">
+        <referenceBlock name="order_info">
             <action method="setTemplate">
                 <argument name="template" translate="true" xsi:type="string">SM_Sales::order/view/info.phtml</argument>
             </action>
