@@ -268,7 +268,11 @@ class OrderManagement extends ServiceAbstract
 	 * @var OutletRepository
 	 */
 	private $outletRepository;
-	
+	/**
+	 * @var bool
+	 */
+	protected $isSplitOrder = false;
+
 	/**
 	 * OrderManagement constructor.
 	 * @param DataConfig $dataConfig
@@ -550,11 +554,11 @@ class OrderManagement extends ServiceAbstract
     {
     	$this->clear();
     	$data = $this->getRequest()->getParams();
-        $retailId         = $data['retail_id'];
-        $outletId         = $data['outlet_id'];
-        $userId           = $data['user_id'];
-        $registerId       = $data['register_id'];
-        $customerId       = $data['customer_id'];
+        $retailId         = isset($data['retail_id']) ? $data['retail_id'] : '';
+        $outletId         = isset($data['outlet_id']) ? $data['outlet_id'] : '';
+        $userId           = isset($data['user_id']) ? $data['user_id'] : '';
+        $registerId       = isset($data['register_id']) ? $data['register_id'] : '';
+        $customerId       = isset($data['customer_id']) ? $data['customer_id'] : '';
         if (isset($data['orderOffline']) && $data['orderOffline']) {
             $grandTotal = $data['orderOffline']['totals']['grand_total'];
             if ($retailId && $this->checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal)) {
@@ -618,6 +622,7 @@ class OrderManagement extends ServiceAbstract
 //		    return false;
 //	    }
 //
+	    $this->isSplitOrder = true;
 	    return true;
     }
 	
@@ -647,7 +652,9 @@ class OrderManagement extends ServiceAbstract
 	    self::$SAVE_ORDER = true;
 	    $this->processLoadOrderData(true, $data);
         $this->savePromotionalCardCouponCode();
-	    $this->splitPaymentData();
+	    if ($this->isSplitOrder) {
+		    $this->splitPaymentData();
+	    }
 	    $data = $this->requestOrderData;
 	    
 	    try {
@@ -673,6 +680,10 @@ class OrderManagement extends ServiceAbstract
 		    
 		    if (isset($data['order_refund_id']) && $data['order_refund_id']) {
 		    	$order->setData('origin_order_id', $data['order_refund_id']);
+		    	$order->setData('cpos_is_new', 1);
+			    $this->getContext()
+				    ->getEventManager()
+				    ->dispatch('connectpos_save_exchange_order_ids', ['order' => $order]);
 		    }
 	    } catch (Exception $e) {
 		    if (isset($order) && !!$order->getId()) {
@@ -741,7 +752,7 @@ class OrderManagement extends ServiceAbstract
 						    if ($this->integrateHelperData->isAHWGiftCardExist()
 							    && isset($configData['xretail/pos/integrate_gc'])
 							    && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
-							    && $this->integrateHelperData->isIntegrateGC()) {
+							    && $this->integrateHelperData->isIntegrateGC() && !isset($paymentData['gc_created_codes'])) {
 							    $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['aw_gc_created_codes'][0];
 							    $paymentData['gc_amount']        = $gcProduct->getData('product_options')['aw_gc_amount'];
 						    } elseif ($this->integrateHelperData->isGiftCardMagento2EE()
@@ -910,6 +921,13 @@ class OrderManagement extends ServiceAbstract
     	$payments = [];
     	$i = 0;
 	    foreach ($this->paymentData as $paymentDatum) {
+	    	if ($paymentDatum['type'] === 'cash' && $paymentDatum['title'] === 'Change' && $paymentDatum['amount'] < 0) {
+			    $paidAmount += $paymentDatum['amount'];
+			    $payments[] = $paymentDatum;
+			    unset($this->paymentData[$i]);
+			    $i++;
+			    continue;
+		    }
 	    	if ($paidAmount == $grandTotal) {
 	    		continue;
 		    }
@@ -1420,6 +1438,11 @@ class OrderManagement extends ServiceAbstract
             $this->getSession()->setCurrencyId((string)$currencyId);
             $this->getOrderCreateModel()->setRecollect(true);
         }
+        
+	    /**
+	     * Unset old data
+	     */
+	    $this->getSession()->getQuote()->unsetData('retail_discount_per_item');
 
         return $this;
     }
@@ -1495,7 +1518,7 @@ class OrderManagement extends ServiceAbstract
             foreach ($data['items'] as $item) {
                 $isSalable = $this->warehouseIntegrateManagement->isSalableQty($item);
                 if (!$isSalable) {
-                    throw new Exception("The requested qty is not available");
+                    throw new Exception("The requested qty is not available for product {$item['name']} ({$item['sku']})");
                 }
             }
         }
