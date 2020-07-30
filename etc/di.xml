@@ -20,6 +20,10 @@
         <plugin name="allowRetailShipping" type="\SM\Sales\Plugin\AllowRetailShipping"/>
     </type>
 
+    <type name="Emartech\Emarsys\Model\OrderRepositoryPlugin">
+        <plugin name="connectpos_order_repository" type="SM\Sales\Model\OrderRepositoryPlugin" sortOrder="1"/>
+    </type>
+
     <virtualType name="Magento\Sales\Model\ResourceModel\Order\Grid">
         <arguments>
             <argument name="columns" xsi:type="array">
