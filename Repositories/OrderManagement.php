@@ -703,7 +703,7 @@ class OrderManagement extends ServiceAbstract
 				    $this->addRewardPointData($order);
 			    } catch (Exception $e) {
 			    }
-			    if ((!$data['retail_has_shipment'] && !$this->getQuote()->isVirtual() && !$isPendingOrder)
+			    if ((isset($data['retail_has_shipment']) && !$data['retail_has_shipment'] && !$this->getQuote()->isVirtual() && !$isPendingOrder)
 				    || ($this->integrateHelperData->isIntegrateAcumaticaCloudERP()
 					    && $order->getShippingMethod() == 'retailshipping_retailshipping'
 					    && $order->getShippingAmount() == 0)) {
@@ -1632,7 +1632,7 @@ class OrderManagement extends ServiceAbstract
                 }
                 if (isset($value['options']) && isset($value['product_options_custom_option'])) {
                     foreach ($value['product_options_custom_option'] as $opt) {
-                        if (isset($opt['option_type']) && $this->_isMultipleSelection($opt['option_type']) && isset($value['options'][$opt['option_id']]) && is_string($value['options'][$opt['option_id']])) {
+                        if (isset($opt['option_type']) && $this->_isMultipleSelection($opt['option_type']) && isset($value['options'][$opt['option_id']])  && is_string($value['options'][$opt['option_id']])) {
                             $items[$key]['options'][$opt['option_id']] = explode(",", $value['options'][$opt['option_id']]);
                         }
                     }
