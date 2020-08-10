@@ -53,8 +53,5 @@
         </arguments>
     </virtualType>
 
-    <!--  Override Invoice  -->
-    <preference for="\Magento\Sales\Model\Order\Pdf\Items\Invoice\DefaultInvoice" type="SM\Sales\Model\Rewrite\Order\Pdf\Invoice\DefaultInvoice"/>
-
     <preference for="Magento\Sales\Block\Adminhtml\Order\View\Info" type="SM\Sales\Block\Adminhtml\Order\View\Info"/>
 </config>
