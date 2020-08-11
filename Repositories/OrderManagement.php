@@ -2384,7 +2384,7 @@ class OrderManagement extends ServiceAbstract
         $file          = null;
 
         if ($this->integrateHelperData->isExistSnmportalPdfprint()) {
-            $engine = $this->objectManager->create(\Snmportal\Pdfprint\Model\Pdf\InvoiceFactory::class);
+            $engine = $this->objectManager->create(\Snmportal\Pdfprint\Model\Pdf\Invoice::class);
             $documents = [$invoice];
             $fileContent = $engine->getPdf($documents)->render();
             $fileName = $engine->getEmailFilename();
