@@ -9,12 +9,13 @@ namespace SM\Sales\Repositories;
 
 use Exception;
 use Magento\Backend\Model\Session;
+use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\App\RequestInterface;
-use Magento\Framework\DataObject;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\Sales\Block\Adminhtml\Items\AbstractItems;
+use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Creditmemo;
 use Magento\Sales\Model\Order\Email\Sender\CreditmemoSender;
 use Magento\Sales\Model\Order\InvoiceFactory;
@@ -24,13 +25,11 @@ use SM\Integrate\Helper\Data as IntegrateHelper;
 use SM\Payment\Helper\PaymentHelper;
 use SM\Payment\Model\RetailPayment;
 use SM\Sales\Controller\Adminhtml\Order\CreditmemoLoader;
+use SM\Sales\Helper\Data as SalesHelper;
+use SM\Shift\Api\RetailTransactionRepositoryInterface;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
-use SM\Sales\Helper\Data as SalesHelper;
-use Magento\Sales\Model\Order;
-use Magento\Framework\Api\SearchCriteriaBuilder;
-use SM\Shift\Api\RetailTransactionRepositoryInterface;
 
 /**
  * Class CreditmemoManagement
@@ -119,8 +118,9 @@ class CreditmemoManagement extends ServiceAbstract
      */
     protected $searchCriteriaBuilder;
 
-    static $IS_SAVE_CREDITMEMO = true;
-    static $REFUND_PENDING_ORDER = false;
+    public static $IS_SAVE_CREDITMEMO = true;
+    public static $REFUND_PENDING_ORDER = false;
+    public static $REFUND_SHIPPING_AMOUNT = false;
 
     /**
      * CreditmemoManagement constructor.
@@ -208,6 +208,7 @@ class CreditmemoManagement extends ServiceAbstract
     protected function load()
     {
         self::$IS_SAVE_CREDITMEMO = false;
+        self::$REFUND_SHIPPING_AMOUNT = false;
         $orderId = $this->getRequest()->getParam('order_id');
         $this->creditmemoLoader->setCreditmemo($this->getCreditmemoData());
         $this->creditmemoLoader->setOrderId($orderId);
@@ -224,7 +225,11 @@ class CreditmemoManagement extends ServiceAbstract
         $data = $this->getRequest()->getParam('creditmemo');
 
         if (isset($data['shipping_amount']) && !is_nan($data['shipping_amount'])) {
+            self::$REFUND_SHIPPING_AMOUNT = true;
             $data['shipping_amount'] = $data['shipping_amount'] / $this->getCurrentRate();
+        } else {
+            self::$REFUND_SHIPPING_AMOUNT = false;
+            $data['shipping_amount'] = 0;
         }
 
         return $data;
@@ -235,7 +240,8 @@ class CreditmemoManagement extends ServiceAbstract
      *
      * @return array
      */
-    private function prepareItemForInvoice($items) {
+    private function prepareItemForInvoice($items)
+    {
         $invoiceItems = [];
 
         if (isset($items['items'])) {
@@ -274,8 +280,7 @@ class CreditmemoManagement extends ServiceAbstract
                 ($order->hasInvoices() && $order->canInvoice() && $order->getIsRefundedPendingOrder() == 1)) {
                 try {
                     $this->invoiceManagement->invoice($orderId, $invoiceItems, true);
-                }
-                catch (Exception $e) {
+                } catch (Exception $e) {
                 }
             }
         }
@@ -400,6 +405,8 @@ class CreditmemoManagement extends ServiceAbstract
                 $this->setTotalForRefundedPendingOrder($order);
             }
 
+            $this->fullyRefundWithoutShipping($order);
+
             return $this->invoiceManagement->addPayment(
                 [
                     'payment_data' => $data['payment_data'],
@@ -417,11 +424,33 @@ class CreditmemoManagement extends ServiceAbstract
     }
 
     /**
+     * @param \Magento\Sales\Model\Order|null $order
+     *
+     * @return $this
+     */
+    private function fullyRefundWithoutShipping(Order $order = null)
+    {
+        if ($order === null) {
+            return $this;
+        }
+        $totalRefunded = $order->getTotalRefunded() * 1;
+        $shippingAmount = $order->getShippingAmount() * 1;
+        $shippingRefunded = $order->getShippingRefunded() * 1;
+
+        if ($totalRefunded - $shippingRefunded + $shippingAmount == $order->getGrandTotal()) {
+            $order->setData(Order::STATE, Order::STATE_CLOSED);
+            $order->setData(Order::STATUS, Order::STATE_CLOSED);
+            $order->save();
+        }
+    }
+
+    /**
      * @param \Magento\Sales\Model\Order $order
      *
      * @return mixed
      */
-    private function setTotalForRefundedPendingOrder(Order $order) {
+    private function setTotalForRefundedPendingOrder(Order $order)
+    {
         list($baseTotalPaid, $totalPaid) = $this->getTotalPaid($order);
 
         $order->setTotalPaidRefundedPendingOrder($totalPaid);
@@ -435,7 +464,8 @@ class CreditmemoManagement extends ServiceAbstract
      *
      * @return array|int[]
      */
-    private function getTotalPaid(Order $order) {
+    private function getTotalPaid(Order $order)
+    {
         $totalPaid = 0;
         $baseTotalPaid = 0;
         $transactions = $this->getListTransaction($order);
@@ -458,7 +488,8 @@ class CreditmemoManagement extends ServiceAbstract
      *
      * @return mixed
      */
-    private function getListTransaction(Order $order) {
+    private function getListTransaction(Order $order)
+    {
         $notCountedPaymentType = [
             RetailPayment::GIFT_CARD_PAYMENT_TYPE,
             RetailPayment::REWARD_POINT_PAYMENT_TYPE,
@@ -492,7 +523,7 @@ class CreditmemoManagement extends ServiceAbstract
 
         $data['items'] = [];
         $this->blockItem->setOrder($creditmemo->getOrder());
-//        var_dump($creditmemo->getData());die;
+
         foreach ($creditmemo->getAllItems() as $item) {
             /** @var \Magento\Sales\Model\Order\Creditmemo\Item $item */
             $_item               = [];
@@ -523,23 +554,33 @@ class CreditmemoManagement extends ServiceAbstract
             $_item['tax_amount']         = $item->getTaxAmount();
             $_item['discount_amount']    = $item->getDiscountAmount();
             $_item['is_qty_decimal']     = $item->getOrderItem()->getIsQtyDecimal();
+            $_item['warehouse_id']       = $item->getOrderItem()->getWarehouseId();
             $productOption               = $item->getOrderItem()->getProductOptions();
             if (isset($productOption['info_buyRequest']['custom_sale'])) {
                 $_item['custom_sale_name'] = $productOption['info_buyRequest']['custom_sale']['name'];
             }
+
+            //reward point data
+            $_item['base_aw_reward_points_cancelled']    = $item->getData('base_aw_reward_points_cancelled');
+            $_item['aw_reward_points_cancelled']         = $item->getData('aw_reward_points_cancelled');
+            $_item['aw_reward_points_blnce_cancelled']   = $item->getData('aw_reward_points_blnce_cancelled');
+            $_item['base_aw_reward_points_residual']     = $item->getData('base_aw_reward_points_residual');
+            $_item['aw_reward_points_residual']          = $item->getData('aw_reward_points_residual');
+            $_item['aw_reward_points_blnce_residual']    = $item->getData('aw_reward_points_blnce_residual');
+
             $data['items'][] = $_item;
         }
 
         $totals                               = [];
         $totals['subtotal']                   = $creditmemo->getSubtotal();
         $totals['subtotal_incl_tax']          = $creditmemo->getSubtotalInclTax();
-        $totals['shipping']                   = $creditmemo->getShippingAmount();
-        $totals['shipping_incl_tax']          = $creditmemo->getShippingInclTax();
+        $totals['shipping']                   = self::$REFUND_SHIPPING_AMOUNT === true ? $creditmemo->getShippingAmount() : 0;
+        $totals['shipping_incl_tax']          = self::$REFUND_SHIPPING_AMOUNT === true ? $creditmemo->getShippingInclTax() : 0;
         $totals['discount_amount']            = $creditmemo->getDiscountAmount();
         $totals['tax_amount']                 = $creditmemo->getTaxAmount();
         $totals['grand_total']                = $creditmemo->getGrandTotal();
-        $data['base_customer_balance_amount']             = $creditmemo->getData('base_customer_balance_amount');
-        $data['customer_balance_amount']             = $creditmemo->getData('customer_balance_amount');
+        $data['base_customer_balance_amount'] = $creditmemo->getData('base_customer_balance_amount');
+        $data['customer_balance_amount']      = $creditmemo->getData('customer_balance_amount');
         $data['totals']                       = $totals;
         $data['adjustment'] = $creditmemo->getAdjustmentPositive() - $creditmemo->getAdjustmentNegative();
         $data['is_display_shipping_incl_tax'] = $this->taxConfig->displaySalesShippingInclTax(
@@ -552,13 +593,21 @@ class CreditmemoManagement extends ServiceAbstract
             $shipping = $creditmemo->getShippingAmount();
         }
         $data['shipping_method']     = $creditmemo->getOrder()->getData('shipping_method');
-        $data['shipping_amount']     = $shipping;
+        $data['shipping_amount']     = self::$REFUND_SHIPPING_AMOUNT === true ? $shipping : 0;
         $data['retail_has_shipment'] = $creditmemo->getOrder()->getData('retail_has_shipment');
         $data['total_paid']          = $creditmemo->getOrder()->getData('total_paid');
         $data['total_refunded']      = $creditmemo->getOrder()->getData('total_refunded');
         $data['xRefNum']             = $creditmemo->getOrder()->getData('xRefNum');
         $data['transId']             = $creditmemo->getOrder()->getData('transId');
         $data['is_pwa']             = $creditmemo->getOrder()->getData('is_pwa');
+
+        //reward point data
+        $data['base_aw_reward_points_cancelled']    = $creditmemo->getData('base_aw_reward_points_cancelled');
+        $data['aw_reward_points_cancelled']         = $creditmemo->getData('aw_reward_points_cancelled');
+        $data['aw_reward_points_blnce_cancelled']   = $creditmemo->getData('aw_reward_points_blnce_cancelled');
+        $data['base_aw_reward_points_residual']     = $creditmemo->getData('base_aw_reward_points_residual');
+        $data['aw_reward_points_residual']          = $creditmemo->getData('aw_reward_points_residual');
+        $data['aw_reward_points_blnce_residual']    = $creditmemo->getData('aw_reward_points_blnce_residual');
 
         return $data;
     }
@@ -607,7 +656,6 @@ class CreditmemoManagement extends ServiceAbstract
             $storeCreditData = $this->getStoreCreditByPayments($payments);
         }
         return $storeCreditData;
-
     }
 
     /**
@@ -617,5 +665,4 @@ class CreditmemoManagement extends ServiceAbstract
     {
         return $this->customerFactory->create();
     }
-
 }

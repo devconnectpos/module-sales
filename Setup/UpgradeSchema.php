@@ -102,6 +102,10 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.3.7', '<')) {
             $this->addPromotionalCouponCodeInOrder($setup);
         }
+        if (version_compare($context->getVersion(), '0.3.8', '<')) {
+            $this->addOrderItemWarehouseId($setup);
+            $this->addQuoteItemWarehouseId($setup);
+        }
     }
 
     /**
@@ -1146,4 +1150,43 @@ class UpgradeSchema implements UpgradeSchemaInterface
             );
         }
     }
+
+    /**
+     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
+     */
+    protected function addOrderItemWarehouseId(SchemaSetupInterface $setup) {
+        $connection = $setup->getConnection();
+        $salesOrderItemTable = $setup->getTable('sales_order_item');
+
+        if (!$connection->tableColumnExists($salesOrderItemTable, 'warehouse_id')) {
+            $connection->addColumn(
+                $salesOrderItemTable,
+                'warehouse_id',
+                [
+                    'type'    => Table::TYPE_INTEGER,
+                    'comment' => 'BMS Warehouse ID',
+                ]
+            );
+        }
+    }
+
+    /**
+     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
+     */
+    protected function addQuoteItemWarehouseId(SchemaSetupInterface $setup) {
+        $connection = $setup->getConnection();
+        $quoteItemTable = $setup->getTable('quote_item');
+
+        if (!$connection->tableColumnExists($quoteItemTable, 'warehouse_id')) {
+            $connection->addColumn(
+                $quoteItemTable,
+                'warehouse_id',
+                [
+                    'type'    => Table::TYPE_INTEGER,
+                    'comment' => 'BMS Warehouse ID',
+                ]
+            );
+        }
+    }
+
 }

@@ -54,4 +54,11 @@
     </virtualType>
 
     <preference for="Magento\Sales\Block\Adminhtml\Order\View\Info" type="SM\Sales\Block\Adminhtml\Order\View\Info"/>
+
+    <!-- Propagate Quote Item Warehouse ID to Order Item Warehouse ID -->
+    <type name="Magento\Quote\Model\Quote\Item\ToOrderItem">
+        <plugin name="mpfreegifts_After_Order_Item" type="SM\Sales\Plugin\AfterOrderItem"/>
+    </type>
+
+    <preference for="BoostMyShop\AdvancedStock\Model\ExtendedSalesFlatOrderItem" type="SM\Sales\Model\AdvancedStock\ExtendedSalesFlatOrderItem" />
 </config>
