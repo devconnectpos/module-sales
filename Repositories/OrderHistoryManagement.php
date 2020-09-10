@@ -88,30 +88,30 @@ class OrderHistoryManagement extends ServiceAbstract
      * @var \SM\Product\Repositories\ProductManagement
      */
     protected $productManagement;
-	/**
-	 * @var \Magento\Sales\Api\OrderRepositoryInterface
-	 */
-	private $orderRepository;
-	
-	/**
-	 * OrderHistoryManagement constructor.
-	 *
-	 * @param \Magento\Framework\App\RequestInterface $requestInterface
-	 * @param \SM\XRetail\Helper\DataConfig $dataConfig
-	 * @param \Magento\Catalog\Api\ProductRepositoryInterface $productRepository
-	 * @param \SM\XRetail\Helper\Data $retailHelper
-	 * @param \Magento\Store\Model\StoreManagerInterface $storeManager
-	 * @param \Magento\Sales\Model\ResourceModel\Order\CollectionFactory $collectionFactory
-	 * @param \SM\Customer\Helper\Data $customerHelper
-	 * @param \SM\Integrate\Helper\Data $integrateHelperData
-	 * @param \Magento\Catalog\Model\Product\Media\Config $productMediaConfig
-	 * @param \Magento\Customer\Model\CustomerFactory $customerFactory
-	 * @param \SM\Sales\Model\ResourceModel\OrderSyncError\CollectionFactory $orderErrorCollectionFactory
-	 * @param \Magento\Quote\Api\CartRepositoryInterface $quoteRepository
-	 * @param \Magento\Sales\Model\OrderFactory $orderFactory
-	 * @param \SM\Product\Repositories\ProductManagement $productManagement
-	 * @param \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
-	 */
+    /**
+     * @var \Magento\Sales\Api\OrderRepositoryInterface
+     */
+    private $orderRepository;
+    
+    /**
+     * OrderHistoryManagement constructor.
+     *
+     * @param \Magento\Framework\App\RequestInterface $requestInterface
+     * @param \SM\XRetail\Helper\DataConfig $dataConfig
+     * @param \Magento\Catalog\Api\ProductRepositoryInterface $productRepository
+     * @param \SM\XRetail\Helper\Data $retailHelper
+     * @param \Magento\Store\Model\StoreManagerInterface $storeManager
+     * @param \Magento\Sales\Model\ResourceModel\Order\CollectionFactory $collectionFactory
+     * @param \SM\Customer\Helper\Data $customerHelper
+     * @param \SM\Integrate\Helper\Data $integrateHelperData
+     * @param \Magento\Catalog\Model\Product\Media\Config $productMediaConfig
+     * @param \Magento\Customer\Model\CustomerFactory $customerFactory
+     * @param \SM\Sales\Model\ResourceModel\OrderSyncError\CollectionFactory $orderErrorCollectionFactory
+     * @param \Magento\Quote\Api\CartRepositoryInterface $quoteRepository
+     * @param \Magento\Sales\Model\OrderFactory $orderFactory
+     * @param \SM\Product\Repositories\ProductManagement $productManagement
+     * @param \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
+     */
     public function __construct(
         RequestInterface $requestInterface,
         DataConfig $dataConfig,
@@ -127,7 +127,7 @@ class OrderHistoryManagement extends ServiceAbstract
         CartRepositoryInterface $quoteRepository,
         OrderFactory $orderFactory,
         \SM\Product\Repositories\ProductManagement $productManagement,
-		\Magento\Sales\Api\OrderRepositoryInterface $orderRepository
+        \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
     ) {
         $this->productMediaConfig          = $productMediaConfig;
         $this->productRepository           = $productRepository;
@@ -140,16 +140,17 @@ class OrderHistoryManagement extends ServiceAbstract
         $this->quoteRepository             = $quoteRepository;
         $this->orderFactory                = $orderFactory;
         $this->productManagement           = $productManagement;
-	    $this->orderRepository = $orderRepository;
-	
-	    parent::__construct($requestInterface, $dataConfig, $storeManager);
+        $this->orderRepository = $orderRepository;
+    
+        parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
     public function getOrders()
     {
         $searchCriteria = $this->getSearchCriteria();
 
-        if ($searchCriteria->getData('getErrorOrder') && intval($searchCriteria->getData('getErrorOrder')) === 1) {
+        if ($searchCriteria->getData('getErrorOrder')
+            && (int) $searchCriteria->getData('getErrorOrder') === 1) {
             return $this->loadOrderError($searchCriteria);
         } else {
             return $this->loadOrders($searchCriteria);
@@ -231,8 +232,7 @@ class OrderHistoryManagement extends ServiceAbstract
                             $xOrder->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
                         } else {
                             if ($order->canShip()) {
-                                $xOrder->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING
-                                );
+                                $xOrder->setData('retail_status', OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING);
                             }
                         }
                     }
@@ -249,9 +249,9 @@ class OrderHistoryManagement extends ServiceAbstract
                             }
                         );
                         if ($order->getShippingMethod() === 'smstorepickup_smstorepickup'
-	                        && !$order->canInvoice()
+                            && !$order->canInvoice()
                             && $order->getData('is_exchange') != 1
-	                        && empty($paymentData)) {
+                            && empty($paymentData)) {
                             array_push(
                                 $paymentData,
                                 [
@@ -273,7 +273,7 @@ class OrderHistoryManagement extends ServiceAbstract
                                 'amount'     => $order->getTotalPaid(),
                                 'created_at' => $order->getCreatedAt(),
                                 'type'       => $order->getPayment()->getMethodInstance()->getCode(),
-	                            'additional_information' => $order->getPayment()->getAdditionalInformation()
+                                'additional_information' => $order->getPayment()->getAdditionalInformation()
                             ]
                         ]
                     );
@@ -375,7 +375,7 @@ class OrderHistoryManagement extends ServiceAbstract
                 $xOrder->setData('totals', $totals);
                 
                 if ($order->getData('origin_order_id')) {
-	                $xOrder->setData('origin_order_retail_id', $this->getOrderRetailId($order->getData('origin_order_id')));
+                    $xOrder->setData('origin_order_retail_id', $this->getOrderRetailId($order->getData('origin_order_id')));
                 }
                 
                 $orders[] = $xOrder;
@@ -600,9 +600,9 @@ class OrderHistoryManagement extends ServiceAbstract
                 foreach ($item->getChildrenItems() as $childrenItem) {
                     $_child = new XOrder\XOrderItem($childrenItem->getData());
                     if (!$childrenItem->getProduct()
-	                    || is_null($childrenItem->getProduct()->getImage())
-	                    || $childrenItem->getProduct()->getImage() == 'no_selection'
-	                    || !$childrenItem->getProduct()->getImage()) {
+                        || is_null($childrenItem->getProduct()->getImage())
+                        || $childrenItem->getProduct()->getImage() == 'no_selection'
+                        || !$childrenItem->getProduct()->getImage()) {
                         $_child->setData('origin_image', null);
                     } else {
                         $_child->setData(
@@ -629,7 +629,20 @@ class OrderHistoryManagement extends ServiceAbstract
                 }
             }
             $_item->setData('children', $children);
-            $_item->setData('buy_request', $item->getBuyRequest()->getData());
+            
+            $buyRequest = $item->getBuyRequest()->getData();
+            
+            if (!isset($buyRequest['item_note']) && isset($item->getProductOptions()['additional_options'])) {
+                $additionalOptions = $item->getProductOptions()['additional_options'];
+                foreach ($additionalOptions as $additionalOption) {
+                    if ($additionalOption['label'] === 'Comment') {
+                        $buyRequest['item_note'] = $additionalOption['value'];
+                    }
+                }
+            }
+            
+            $_item->setData('buy_request', $buyRequest);
+            
             $itemData[] = $_item->getOutput();
         }
 
@@ -677,7 +690,8 @@ class OrderHistoryManagement extends ServiceAbstract
      *
      * @return array
      */
-    public function getCommentHistory($creditmemo = null) {
+    public function getCommentHistory($creditmemo = null)
+    {
         $commentHistory = [];
         if ($creditmemo === null) {
             return $commentHistory;
@@ -690,7 +704,7 @@ class OrderHistoryManagement extends ServiceAbstract
     
     protected function getOrderRetailId($orderId)
     {
-    	$order = $this->orderRepository->get($orderId);
-    	return $order->getData('retail_id');
+        $order = $this->orderRepository->get($orderId);
+        return $order->getData('retail_id');
     }
 }
