@@ -18,4 +18,8 @@
         <observer name="connectpos_save_exchange_order_ids" instance="\SM\Sales\Observer\SaveExchangeOrderIds"/>
     </event>
 
+    <event name="sales_quote_add_item">
+        <observer name="connectpos_quote_update_item_comment" instance="\SM\Sales\Observer\UpdateQuoteItemComment"/>
+    </event>
+
 </config>

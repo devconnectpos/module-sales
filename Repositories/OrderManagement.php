@@ -1331,7 +1331,8 @@ class OrderManagement extends ServiceAbstract
             $this->getOrderCreateModel()
                 ->getShippingAddress()
                 ->setLimitCarrier($carriers)
-                ->setCollectShippingRates(true);
+                ->setCollectShippingRates(true)
+                ->collectShippingRates();
 
             $this->getOrderCreateModel()
                 ->getQuote()

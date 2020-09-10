@@ -24,6 +24,10 @@
         <plugin name="connectpos_order_repository" type="SM\Sales\Model\OrderRepositoryPlugin" sortOrder="1"/>
     </type>
 
+    <type name="Magento\Quote\Model\Quote\Item\ToOrderItem">
+        <plugin name="connectpos_custom_sale_name" type="SM\Sales\Plugin\ChangeCustomSaleOrderItemName" sortOrder="10"/>
+    </type>
+
     <virtualType name="Magento\Sales\Model\ResourceModel\Order\Grid">
         <arguments>
             <argument name="columns" xsi:type="array">
