@@ -399,6 +399,7 @@ class CreditmemoManagement extends ServiceAbstract
         $totals['discount_amount']            = $creditmemo->getDiscountAmount();
         $totals['tax_amount']                 = $creditmemo->getTaxAmount();
         $totals['grand_total']                = $creditmemo->getGrandTotal();
+        $totals['has_shipment']               = $creditmemo->getOrder()->getShippingAmount() ? true : false;
         $data['base_customer_balance_amount']             = $creditmemo->getData('base_customer_balance_amount');
         $data['customer_balance_amount']             = $creditmemo->getData('customer_balance_amount');
         $data['totals']                       = $totals;
