@@ -51,6 +51,7 @@ use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Model\OutletRepository;
 use SM\XRetail\Model\UserOrderCounterFactory;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
+
 /**
  * Class OrderManagement
  *
@@ -246,115 +247,115 @@ class OrderManagement extends ServiceAbstract
      * @var \SM\Product\Helper\ProductHelper
      */
     private $productHelper;
-	/**
-	 * @var ShippingHelper
-	 */
-	private $shippingHelper;
-	/**
-	 * @var OrderRepositoryInterface
-	 */
-	private $orderRepository;
-	/**
-	 * @var SalesHelper
-	 */
-	private $salesHelper;
-	/**
-	 * @var CartRepositoryInterface
-	 */
-	private $cartRepository;
-	
-	protected $paymentData = [];
-	/**
-	 * @var OutletRepository
-	 */
-	private $outletRepository;
-	/**
-	 * @var bool
-	 */
-	protected $isSplitOrder = false;
-	
-	/**
-	 * OrderManagement constructor.
-	 * @param DataConfig $dataConfig
-	 * @param Data $retailHelper
-	 * @param StoreManagerInterface $storeManager
-	 * @param Context $context
-	 * @param Registry $registry
-	 * @param UserOrderCounterFactory $userOrderCounterFactory
-	 * @param ShipmentManagement $shipmentManagement
-	 * @param InvoiceManagement $invoiceManagement
-	 * @param Product $catalogProduct
-	 * @param Session $customerSession
-	 * @param PaymentHelper $paymentHelper
-	 * @param RetailTransactionFactory $retailTransactionFactory
-	 * @param ShiftHelper $shiftHelper
-	 * @param IntegrateHelper $integrateHelperData
-	 * @param RPIntegrateManagement $RPIntegrateManagement
-	 * @param StoreCreditIntegrateManagement $storeCreditIntegrateManagement
-	 * @param GCIntegrateManagement $GCIntegrateManagement
-	 * @param OrderSyncErrorFactory $orderSyncErrorFactory
-	 * @param FeedbackFactory $feedbackFactory
-	 * @param feedbackCollectionFactory $feedbackCollectionFactory
-	 * @param OrderHistoryManagement $orderHistoryManagement
-	 * @param TaxHelper $taxHelper
-	 * @param CollectionFactory $collectionFactory
-	 * @param ResourceConnection $resourceConnection
-	 * @param OrderFactory $orderFactory
-	 * @param MetadataPool $metadataPool
-	 * @param RealtimeManager $realtimeManager
-	 * @param WarehouseIntegrateManagement $warehouseIntegrateManagement
-	 * @param ProductHelper $productHelper
-	 * @param RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory
-	 * @param Loader $loader
-	 * @param Currency $currencyModel
-	 * @param Filesystem $filesystem
-	 * @param InvoiceRepository $invoiceRepository
-	 * @param ShippingHelper $shippingHelper
-	 * @param OrderRepositoryInterface $orderRepository
-	 * @param SalesHelper $salesHelper
-	 * @param CartRepositoryInterface $cartRepository
-	 * @param OutletRepository $outletRepository
-	 */
-	public function __construct(
-		DataConfig $dataConfig,
-		Data $retailHelper,
-		StoreManagerInterface $storeManager,
-		Context $context,
-		Registry $registry,
-		UserOrderCounterFactory $userOrderCounterFactory,
-		ShipmentManagement $shipmentManagement,
-		InvoiceManagement $invoiceManagement,
-		Product $catalogProduct,
-		Session $customerSession,
-		PaymentHelper $paymentHelper,
-		RetailTransactionFactory $retailTransactionFactory,
-		ShiftHelper $shiftHelper,
-		IntegrateHelper $integrateHelperData,
-		RPIntegrateManagement $RPIntegrateManagement,
-		StoreCreditIntegrateManagement $storeCreditIntegrateManagement,
-		GCIntegrateManagement $GCIntegrateManagement,
-		OrderSyncErrorFactory $orderSyncErrorFactory,
-		FeedbackFactory $feedbackFactory,
-		feedbackCollectionFactory $feedbackCollectionFactory,
-		OrderHistoryManagement $orderHistoryManagement,
-		TaxHelper $taxHelper,
-		CollectionFactory $collectionFactory,
-		ResourceConnection $resourceConnection,
-		OrderFactory $orderFactory,
-		MetadataPool $metadataPool,
-		RealtimeManager $realtimeManager,
-		WarehouseIntegrateManagement $warehouseIntegrateManagement,
-		ProductHelper $productHelper,
-		RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory,
-		Loader $loader,
-		Currency $currencyModel,
-		Filesystem $filesystem,
-		InvoiceRepository $invoiceRepository,
-		ShippingHelper $shippingHelper,
-		OrderRepositoryInterface $orderRepository,
-		SalesHelper $salesHelper,
-		CartRepositoryInterface $cartRepository,
-		OutletRepository $outletRepository
+    /**
+     * @var ShippingHelper
+     */
+    private $shippingHelper;
+    /**
+     * @var OrderRepositoryInterface
+     */
+    private $orderRepository;
+    /**
+     * @var SalesHelper
+     */
+    private $salesHelper;
+    /**
+     * @var CartRepositoryInterface
+     */
+    private $cartRepository;
+    
+    protected $paymentData = [];
+    /**
+     * @var OutletRepository
+     */
+    private $outletRepository;
+    /**
+     * @var bool
+     */
+    protected $isSplitOrder = false;
+    
+    /**
+     * OrderManagement constructor.
+     * @param DataConfig $dataConfig
+     * @param Data $retailHelper
+     * @param StoreManagerInterface $storeManager
+     * @param Context $context
+     * @param Registry $registry
+     * @param UserOrderCounterFactory $userOrderCounterFactory
+     * @param ShipmentManagement $shipmentManagement
+     * @param InvoiceManagement $invoiceManagement
+     * @param Product $catalogProduct
+     * @param Session $customerSession
+     * @param PaymentHelper $paymentHelper
+     * @param RetailTransactionFactory $retailTransactionFactory
+     * @param ShiftHelper $shiftHelper
+     * @param IntegrateHelper $integrateHelperData
+     * @param RPIntegrateManagement $RPIntegrateManagement
+     * @param StoreCreditIntegrateManagement $storeCreditIntegrateManagement
+     * @param GCIntegrateManagement $GCIntegrateManagement
+     * @param OrderSyncErrorFactory $orderSyncErrorFactory
+     * @param FeedbackFactory $feedbackFactory
+     * @param feedbackCollectionFactory $feedbackCollectionFactory
+     * @param OrderHistoryManagement $orderHistoryManagement
+     * @param TaxHelper $taxHelper
+     * @param CollectionFactory $collectionFactory
+     * @param ResourceConnection $resourceConnection
+     * @param OrderFactory $orderFactory
+     * @param MetadataPool $metadataPool
+     * @param RealtimeManager $realtimeManager
+     * @param WarehouseIntegrateManagement $warehouseIntegrateManagement
+     * @param ProductHelper $productHelper
+     * @param RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory
+     * @param Loader $loader
+     * @param Currency $currencyModel
+     * @param Filesystem $filesystem
+     * @param InvoiceRepository $invoiceRepository
+     * @param ShippingHelper $shippingHelper
+     * @param OrderRepositoryInterface $orderRepository
+     * @param SalesHelper $salesHelper
+     * @param CartRepositoryInterface $cartRepository
+     * @param OutletRepository $outletRepository
+     */
+    public function __construct(
+        DataConfig $dataConfig,
+        Data $retailHelper,
+        StoreManagerInterface $storeManager,
+        Context $context,
+        Registry $registry,
+        UserOrderCounterFactory $userOrderCounterFactory,
+        ShipmentManagement $shipmentManagement,
+        InvoiceManagement $invoiceManagement,
+        Product $catalogProduct,
+        Session $customerSession,
+        PaymentHelper $paymentHelper,
+        RetailTransactionFactory $retailTransactionFactory,
+        ShiftHelper $shiftHelper,
+        IntegrateHelper $integrateHelperData,
+        RPIntegrateManagement $RPIntegrateManagement,
+        StoreCreditIntegrateManagement $storeCreditIntegrateManagement,
+        GCIntegrateManagement $GCIntegrateManagement,
+        OrderSyncErrorFactory $orderSyncErrorFactory,
+        FeedbackFactory $feedbackFactory,
+        feedbackCollectionFactory $feedbackCollectionFactory,
+        OrderHistoryManagement $orderHistoryManagement,
+        TaxHelper $taxHelper,
+        CollectionFactory $collectionFactory,
+        ResourceConnection $resourceConnection,
+        OrderFactory $orderFactory,
+        MetadataPool $metadataPool,
+        RealtimeManager $realtimeManager,
+        WarehouseIntegrateManagement $warehouseIntegrateManagement,
+        ProductHelper $productHelper,
+        RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory,
+        Loader $loader,
+        Currency $currencyModel,
+        Filesystem $filesystem,
+        InvoiceRepository $invoiceRepository,
+        ShippingHelper $shippingHelper,
+        OrderRepositoryInterface $orderRepository,
+        SalesHelper $salesHelper,
+        CartRepositoryInterface $cartRepository,
+        OutletRepository $outletRepository
     ) {
         $this->retailTransactionFactory               = $retailTransactionFactory;
         $this->customerSession                        = $customerSession;
@@ -391,127 +392,127 @@ class OrderManagement extends ServiceAbstract
         $this->filesystem                             = $filesystem;
         $this->response                               = $context->getResponse();
         $this->invoiceRepository                      = $invoiceRepository;
-	    $this->shippingHelper                         = $shippingHelper;
-		$this->orderRepository                        = $orderRepository;
-		$this->salesHelper                            = $salesHelper;
-		$this->cartRepository                         = $cartRepository;
-		parent::__construct($context->getRequest(), $dataConfig, $storeManager);
-		$this->outletRepository = $outletRepository;
-	}
-	
-	/**
-	 * @return array|null
-	 * @throws \Magento\Framework\Exception\NoSuchEntityException
-	 * @throws \ReflectionException
-	 */
-	public function loadOrderData()
-	{
-		$data = $this->getRequest()->getParams();
-		if (!$this->canSplitOrder($data)) {
-			return $this->processLoadOrderData(false, $data);
-		}
-		
-		$splitOrders = $this->splitOrder($data, $data['shipments'], false);
-	
-		$orders = [];
-		foreach ($splitOrders as $splitOrder) {
-			$this->clear();
-			$orders[] = $this->processLoadOrderData(false, $splitOrder, true);
-		}
-		$result = [];
-		$result['totals'] = [
-			'subtotal'                     => 0,
-			'subtotal_incl_tax'            => 0,
-			'real_tax_for_display_in_xpos' => 0,
-			'tax_only'                     => 0,
-			'shipping'                     => 0,
-			'shipping_incl_tax'            => 0,
-			'shipping_method'              => 'retailshipping_retailshipping',
-			'shipping_discount'            => 0,
-			'shipping_tax_amount'          => 0,
-			'discount'                     => 0,
-			'grand_total'                  => 0,
-			'applied_taxes'                => [],
-			'cart_fixed_rules'             => [],
-			'applied_rule_ids'             => '',
-			'retail_discount_per_item'     => 0,
-			'coupon_code'                  => null
-		];
-		$result['items'] = [];
-		$result['gift_card'] = [];
-		$result['reward_point'] = [];
-		$result['store_credit'] = [];
-		
-		//summary result from split orders
-		foreach ($orders as $order) {
-			$result['totals']['subtotal'] += $order['totals']['subtotal'];
-			$result['totals']['subtotal_incl_tax'] += $order['totals']['subtotal_incl_tax'];
-			$result['totals']['real_tax_for_display_in_xpos'] += $order['totals']['real_tax_for_display_in_xpos'];
-			$result['totals']['tax_only'] += $order['totals']['tax_only'];
-			$result['totals']['shipping'] += $order['totals']['shipping'];
-			$result['totals']['shipping_incl_tax'] += $order['totals']['shipping_incl_tax'];
-			$result['totals']['shipping_discount'] += $order['totals']['shipping_discount'];
-			$result['totals']['shipping_tax_amount'] += $order['totals']['shipping_tax_amount'];
-			$result['totals']['discount'] += $order['totals']['discount'];
-			$result['totals']['grand_total'] += $order['totals']['grand_total'];
-			$result['totals']['applied_taxes'] = is_array($order['totals']['applied_taxes']) ? array_merge($result['totals']['applied_taxes'], $order['totals']['applied_taxes']) : $result['totals']['applied_taxes'];
-			$result['totals']['cart_fixed_rules'] = is_array($order['totals']['cart_fixed_rules']) ? array_merge($result['totals']['cart_fixed_rules'], $order['totals']['cart_fixed_rules']) : $result['totals']['cart_fixed_rules'];
-			$result['totals']['applied_rule_ids'] .= $order['totals']['applied_rule_ids'] . ',';
-			$result['totals']['retail_discount_per_item'] += $order['totals']['retail_discount_per_item'];
-			
-			$result['items'] = array_merge($result['items'], $order['items']);
-			
-			if (isset($orders['gift_card'])) {
-				$result['gift_card'] = array_merge($result['gift_card'], $order['gift_card']);
-			}
-			
-			if (isset($orders['reward_point'])) {
-				$result['reward_point'] = array_merge($result['reward_point'], $order['reward_point']);
-			}
-			if (isset($orders['store_credit'])) {
-				$result['store_credit'] = array_merge($result['store_credit'], $order['store_credit']);
-			}
-		}
-		
-		return $result;
-	}
-	
-	/**
-	 * @param bool $isSaveOrder
-	 *
-	 * @param null $data
-	 * @param bool $isSplitting
-	 * @return array|null
-	 * @throws \ReflectionException
-	 */
+        $this->shippingHelper                         = $shippingHelper;
+        $this->orderRepository                        = $orderRepository;
+        $this->salesHelper                            = $salesHelper;
+        $this->cartRepository                         = $cartRepository;
+        parent::__construct($context->getRequest(), $dataConfig, $storeManager);
+        $this->outletRepository = $outletRepository;
+    }
+    
+    /**
+     * @return array|null
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     * @throws \ReflectionException
+     */
+    public function loadOrderData()
+    {
+        $data = $this->getRequest()->getParams();
+        if (!$this->canSplitOrder($data)) {
+            return $this->processLoadOrderData(false, $data);
+        }
+        
+        $splitOrders = $this->splitOrder($data, $data['shipments'], false);
+    
+        $orders = [];
+        foreach ($splitOrders as $splitOrder) {
+            $this->clear();
+            $orders[] = $this->processLoadOrderData(false, $splitOrder, true);
+        }
+        $result = [];
+        $result['totals'] = [
+            'subtotal'                     => 0,
+            'subtotal_incl_tax'            => 0,
+            'real_tax_for_display_in_xpos' => 0,
+            'tax_only'                     => 0,
+            'shipping'                     => 0,
+            'shipping_incl_tax'            => 0,
+            'shipping_method'              => 'retailshipping_retailshipping',
+            'shipping_discount'            => 0,
+            'shipping_tax_amount'          => 0,
+            'discount'                     => 0,
+            'grand_total'                  => 0,
+            'applied_taxes'                => [],
+            'cart_fixed_rules'             => [],
+            'applied_rule_ids'             => '',
+            'retail_discount_per_item'     => 0,
+            'coupon_code'                  => null
+        ];
+        $result['items'] = [];
+        $result['gift_card'] = [];
+        $result['reward_point'] = [];
+        $result['store_credit'] = [];
+        
+        //summary result from split orders
+        foreach ($orders as $order) {
+            $result['totals']['subtotal'] += $order['totals']['subtotal'];
+            $result['totals']['subtotal_incl_tax'] += $order['totals']['subtotal_incl_tax'];
+            $result['totals']['real_tax_for_display_in_xpos'] += $order['totals']['real_tax_for_display_in_xpos'];
+            $result['totals']['tax_only'] += $order['totals']['tax_only'];
+            $result['totals']['shipping'] += $order['totals']['shipping'];
+            $result['totals']['shipping_incl_tax'] += $order['totals']['shipping_incl_tax'];
+            $result['totals']['shipping_discount'] += $order['totals']['shipping_discount'];
+            $result['totals']['shipping_tax_amount'] += $order['totals']['shipping_tax_amount'];
+            $result['totals']['discount'] += $order['totals']['discount'];
+            $result['totals']['grand_total'] += $order['totals']['grand_total'];
+            $result['totals']['applied_taxes'] = is_array($order['totals']['applied_taxes']) ? array_merge($result['totals']['applied_taxes'], $order['totals']['applied_taxes']) : $result['totals']['applied_taxes'];
+            $result['totals']['cart_fixed_rules'] = is_array($order['totals']['cart_fixed_rules']) ? array_merge($result['totals']['cart_fixed_rules'], $order['totals']['cart_fixed_rules']) : $result['totals']['cart_fixed_rules'];
+            $result['totals']['applied_rule_ids'] .= $order['totals']['applied_rule_ids'] . ',';
+            $result['totals']['retail_discount_per_item'] += $order['totals']['retail_discount_per_item'];
+            
+            $result['items'] = array_merge($result['items'], $order['items']);
+            
+            if (isset($orders['gift_card'])) {
+                $result['gift_card'] = array_merge($result['gift_card'], $order['gift_card']);
+            }
+            
+            if (isset($orders['reward_point'])) {
+                $result['reward_point'] = array_merge($result['reward_point'], $order['reward_point']);
+            }
+            if (isset($orders['store_credit'])) {
+                $result['store_credit'] = array_merge($result['store_credit'], $order['store_credit']);
+            }
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * @param bool $isSaveOrder
+     *
+     * @param null $data
+     * @param bool $isSplitting
+     * @return array|null
+     * @throws \ReflectionException
+     */
     public function processLoadOrderData($isSaveOrder = false, $data = null, $isSplitting = false)
     {
-    	if (!$isSaveOrder && $isSplitting) {
-		    $this->cartRepository->delete($this->getQuote());
-	    }
+        if (!$isSaveOrder && $isSplitting) {
+            $this->cartRepository->delete($this->getQuote());
+        }
         // see XRT-388: not collect all selection of bundle product because it not salable
         $this->catalogProduct->setSkipSaleableCheck(true);
         if (!$data || !is_array($data) || !isset($data['order'])) {
-        	$data = $this->getRequest()->getParams();
+            $data = $this->getRequest()->getParams();
         }
         
-	    $this->requestOrderData = $data;
-	
+        $this->requestOrderData = $data;
+    
         $this->transformData();
-	    if (isset($data['is_pwa']) && $data['is_pwa'] === true) {
+        if (isset($data['is_pwa']) && $data['is_pwa'] === true) {
             $this->checkIsPWAOrder()
                  ->checkCustomerGroup()
                  ->checkOutlet();
         } else {
             $this->checkShift()
-                 ->checkCustomerGroup()
-                 ->checkOutlet()
-                 ->checkRegister()
-                 ->checkRetailAdditionData()
-                 ->checkOfflineMode()
-                 ->checkIntegrateMagentoInventory()
-                 ->checkIntegrateWh()
-                 ->checkFeedback();
+              ->checkCustomerGroup()
+              ->checkOutlet()
+              ->checkRegister()
+              ->checkRetailAdditionData()
+              ->checkOfflineMode()
+              ->checkIntegrateMagentoInventory()
+              ->checkIntegrateWh()
+              ->checkFeedback();
         }
 
         if ($isSaveOrder === true) {
@@ -533,9 +534,9 @@ class OrderManagement extends ServiceAbstract
         }
 
         $outputData = null;
-	    if (!$isSaveOrder) {
+        if (!$isSaveOrder) {
             $this->getQuote()->setIsActive(true)->save();
-	        $outputData = $this->getOutputLoadData();
+            $outputData = $this->getOutputLoadData();
             $this->clear();
         } else {
             $this->getQuote()->setIsActive(false)->save();
@@ -543,17 +544,17 @@ class OrderManagement extends ServiceAbstract
 
         return $outputData;
     }
-	
-	/**
-	 * @return array
-	 * @throws \Magento\Framework\Exception\LocalizedException
-	 * @throws \ReflectionException
-	 * @throws Exception
-	 */
-	public function saveOrder()
+    
+    /**
+     * @return array
+     * @throws \Magento\Framework\Exception\LocalizedException
+     * @throws \ReflectionException
+     * @throws Exception
+     */
+    public function saveOrder()
     {
-    	$this->clear();
-    	$data = $this->getRequest()->getParams();
+        $this->clear();
+        $data = $this->getRequest()->getParams();
         $retailId         = isset($data['retail_id']) ? $data['retail_id'] : '';
         $outletId         = isset($data['outlet_id']) ? $data['outlet_id'] : '';
         $userId           = isset($data['user_id']) ? $data['user_id'] : '';
@@ -565,464 +566,464 @@ class OrderManagement extends ServiceAbstract
                 throw new Exception(__('Duplicated order, cannot save!'));
             }
         }
-	
-	    //save origin payment data to local variable
-	    $this->paymentData = $data['order']['payment_data'];
-	
-	    $splitOrders = [$data];
+    
+        //save origin payment data to local variable
+        $this->paymentData = $data['order']['payment_data'];
+    
+        $splitOrders = [$data];
         if ($this->canSplitOrder($data)) {
             $splitOrders = $this->splitOrder($data, $data['shipments']);
         }
         $criteriaList = [];
-	    foreach ($splitOrders as $orderData) {
-	    	$this->clear();
-		    $criteriaList[] = $this->processSaveOrder($orderData);
+        foreach ($splitOrders as $orderData) {
+            $this->clear();
+            $criteriaList[] = $this->processSaveOrder($orderData);
         }
         
-	    $criteria = $this->processCriterias($criteriaList);
-	
-	    return $this->orderHistoryManagement->loadOrders($criteria);
-    }
-	
-	/**
-	 * @param array $orderData
-	 * @return bool
-	 */
-	protected function canSplitOrder($orderData)
-    {
-    	//not split when order has not multi shipments
-	    if (!isset($orderData['shipments']) || empty($orderData['shipments'])) {
-	    	return false;
-	    }
-	    
-//	    //not split when order has no payment data (using full gift card or full store credit or full reward point, or partially paid with no deposit amount
-//	    if (!isset($orderData['order']['payment_data']) || empty($orderData['order']['payment_data'])) {
-//	    	return false;
-//	    }
-//
-//	    //not split when order using gift card
-//	    if (isset($orderData['gift_card']) && !empty($orderData['gift_card'])) {
-//	    	return false;
-//	    }
-//
-//	    //not split when order using reward point
-//	    if(isset($orderData['reward_point']) && $orderData['reward_point']['use_reward_point']) {
-//	    	return false;
-//	    }
-//
-//	    //not split when order using discount whole order
-//	    if(isset($orderData['order']['whole_order_discount'])
-//		    && isset($orderData['order']['whole_order_discount']['value'])
-//		    && $orderData['order']['whole_order_discount']['value'] != 0) {
-//	    	return false;
-//	    }
-//
-//	    //not split when order using store credit
-//	    if (isset($orderData['store_credit']) && !empty($orderData['store_credit'])) {
-//		    return false;
-//	    }
-//
-	    $this->isSplitOrder = true;
-	    return true;
-    }
-	
-	/**
-	 * @param DataObject[] $criterias
-	 * @return DataObject
-	 */
-	protected function processCriterias($criterias)
-	{
-		$entityIds = [];
-		foreach ($criterias as $criteria) {
-			$entityIds[] = $criteria->getData('entity_id');
-		}
-		return $criterias[0]->setData('entity_id', implode(",", $entityIds));
-	}
-	
-	/**
-	 * @param $data
-	 * @return DataObject
-	 * @throws \ReflectionException
-	 * @throws Exception
-	 */
-	protected function processSaveOrder($data)
-    {
-	    $isPendingOrder   = isset($data['isPendingOrder']) ? $data['isPendingOrder'] : false;
-	    
-	    self::$SAVE_ORDER = true;
-	    $this->processLoadOrderData(true, $data);
+        $criteria = $this->processCriterias($criteriaList);
     
-	    if ($this->isSplitOrder) {
-		    $this->splitPaymentData();
-	    }
-	    $data = $this->requestOrderData;
-	    
-	    try {
-		    $order = $this->getOrderCreateModel()
-			    ->setIsValidate(true)
-			    ->createOrder();
-		    if (!isset($data['is_pwa'])  || $data['is_pwa'] !== true) {
-		    	//move the savePaymentTransaction function to an event
-			    $this->getContext()
-				    ->getEventManager()
-				    ->dispatch('connectpos_save_retail_transaction', ['orderData' => $order, 'requestData' => $this->requestOrderData]);
-			    
-			    $this->saveNoteToOrderAlso($order);
-			    if (isset($data['print_time_counter'])) {
-				    $this->savePrintTimeCounter($order, $data['print_time_counter']);
-			    }
-		    }
-		
-		    if (isset($data['refund_transaction_id']) && $data['refund_transaction_id']) {
-		    	$order->setData('rwr_transaction_id', $data['refund_transaction_id']);
-			    $this->updateRefundWithoutReceiptTransaction($order, $data['refund_transaction_id']);
-		    }
-		    
-		    if (isset($data['order_refund_id']) && $data['order_refund_id']) {
-		    	$order->setData('origin_order_id', $data['order_refund_id']);
-		    	$order->setData('cpos_is_new', 1);
-			    $this->getContext()
-				    ->getEventManager()
-				    ->dispatch('connectpos_save_exchange_order_ids', ['order' => $order]);
-		    }
-	    } catch (Exception $e) {
-		    if (isset($order) && !!$order->getId()) {
-			    $order->setData('retail_note', $order->getData('retail_note') . ' - ' . $e->getMessage());
-			    $this->orderRepository->save($order);
-		    } elseif ($data['orderOffline']) {
-			    $this->saveOrderError($data['orderOffline'], $e);
-		    }
-		
-		    throw new Exception($e->getMessage());
-	    } finally {
-		    $this->clear();
-		    if (isset($order) && !!$order->getId()) {
-			    // Save loyalty info before create ship
-			    try {
-				    $this->addStoreCreditData($order);
-				    $this->addRewardPointData($order);
-			    } catch (Exception $e) {
-			    }
-			    if ((isset($data['retail_has_shipment']) && !$data['retail_has_shipment'] && !$this->getQuote()->isVirtual() && !$isPendingOrder)
-				    || ($this->integrateHelperData->isIntegrateAcumaticaCloudERP()
-					    && $order->getShippingMethod() == 'retailshipping_retailshipping'
-					    && $order->getShippingAmount() == 0)) {
-				    try {
-					    if (!isset($data['is_pwa']) || $data['is_pwa'] !== true) {
-						    $this->shipmentDataManagement->ship($order->getId());
-					    }
-				    } catch (\Exception $e) {
-					    // ship error
+        return $this->orderHistoryManagement->loadOrders($criteria);
+    }
+    
+    /**
+     * @param array $orderData
+     * @return bool
+     */
+    protected function canSplitOrder($orderData)
+    {
+        //not split when order has not multi shipments
+        if (!isset($orderData['shipments']) || empty($orderData['shipments'])) {
+            return false;
+        }
+        
+//        //not split when order has no payment data (using full gift card or full store credit or full reward point, or partially paid with no deposit amount
+//        if (!isset($orderData['order']['payment_data']) || empty($orderData['order']['payment_data'])) {
+//            return false;
+//        }
+   //
+//        //not split when order using gift card
+//        if (isset($orderData['gift_card']) && !empty($orderData['gift_card'])) {
+//            return false;
+//        }
+   //
+//        //not split when order using reward point
+//        if(isset($orderData['reward_point']) && $orderData['reward_point']['use_reward_point']) {
+//            return false;
+//        }
+   //
+//        //not split when order using discount whole order
+//        if(isset($orderData['order']['whole_order_discount'])
+//            && isset($orderData['order']['whole_order_discount']['value'])
+//            && $orderData['order']['whole_order_discount']['value'] != 0) {
+//            return false;
+//        }
+   //
+//        //not split when order using store credit
+//        if (isset($orderData['store_credit']) && !empty($orderData['store_credit'])) {
+//            return false;
+//        }
+   //
+        $this->isSplitOrder = true;
+        return true;
+    }
+    
+    /**
+     * @param DataObject[] $criterias
+     * @return DataObject
+     */
+    protected function processCriterias($criterias)
+    {
+        $entityIds = [];
+        foreach ($criterias as $criteria) {
+            $entityIds[] = $criteria->getData('entity_id');
+        }
+        return $criterias[0]->setData('entity_id', implode(",", $entityIds));
+    }
+    
+    /**
+     * @param $data
+     * @return DataObject
+     * @throws \ReflectionException
+     * @throws Exception
+     */
+    protected function processSaveOrder($data)
+    {
+        $isPendingOrder   = isset($data['isPendingOrder']) ? $data['isPendingOrder'] : false;
+        
+        self::$SAVE_ORDER = true;
+        $this->processLoadOrderData(true, $data);
+    
+        if ($this->isSplitOrder) {
+            $this->splitPaymentData();
+        }
+        $data = $this->requestOrderData;
+        
+        try {
+            $order = $this->getOrderCreateModel()
+                ->setIsValidate(true)
+                ->createOrder();
+            if (!isset($data['is_pwa']) || $data['is_pwa'] !== true) {
+                //move the savePaymentTransaction function to an event
+                $this->getContext()
+                    ->getEventManager()
+                    ->dispatch('connectpos_save_retail_transaction', ['orderData' => $order, 'requestData' => $this->requestOrderData]);
+                
+                $this->saveNoteToOrderAlso($order);
+                if (isset($data['print_time_counter'])) {
+                    $this->savePrintTimeCounter($order, $data['print_time_counter']);
+                }
+            }
+        
+            if (isset($data['refund_transaction_id']) && $data['refund_transaction_id']) {
+                $order->setData('rwr_transaction_id', $data['refund_transaction_id']);
+                $this->updateRefundWithoutReceiptTransaction($order, $data['refund_transaction_id']);
+            }
+            
+            if (isset($data['order_refund_id']) && $data['order_refund_id']) {
+                $order->setData('origin_order_id', $data['order_refund_id']);
+                $order->setData('cpos_is_new', 1);
+                $this->getContext()
+                    ->getEventManager()
+                    ->dispatch('connectpos_save_exchange_order_ids', ['order' => $order]);
+            }
+        } catch (Exception $e) {
+            if (isset($order) && !!$order->getId()) {
+                $order->setData('retail_note', $order->getData('retail_note') . ' - ' . $e->getMessage());
+                $this->orderRepository->save($order);
+            } elseif ($data['orderOffline']) {
+                $this->saveOrderError($data['orderOffline'], $e);
+            }
+        
+            throw new Exception($e->getMessage());
+        } finally {
+            $this->clear();
+            if (isset($order) && !!$order->getId()) {
+                // Save loyalty info before create ship
+                try {
+                    $this->addStoreCreditData($order);
+                    $this->addRewardPointData($order);
+                } catch (Exception $e) {
+                }
+                if ((isset($data['retail_has_shipment']) && !$data['retail_has_shipment'] && !$this->getQuote()->isVirtual() && !$isPendingOrder)
+                    || ($this->integrateHelperData->isIntegrateAcumaticaCloudERP()
+                        && $order->getShippingMethod() == 'retailshipping_retailshipping'
+                        && $order->getShippingAmount() == 0)) {
+                    try {
+                        if (!isset($data['is_pwa']) || $data['is_pwa'] !== true) {
+                            $this->shipmentDataManagement->ship($order->getId());
+                        }
+                    } catch (\Exception $e) {
+                        // ship error
                         if ((int) $e->getCode() === 0) {
                             self::$MESSAGE_ERROR[] = 'can_not_create_shipment_with_negative_qty';
                             self::$MESSAGE_TEXT = $e->getMessage();
                         }
-				    }
-			    }
-			
-			    try {
-				    if (isset($data['is_pwa']) && ($data['is_pwa'] === true || $data['is_pwa'] === 1)
-					    && !$data['is_use_paypal']) {
-				    } else {
-					    $this->invoiceManagement->checkPayment($order, $isPendingOrder);
-				    }
-			    } catch (\Exception $e) {
-				    // invoice error
-			    }
-			    if (!isset($data['is_pwa']) || !$data['is_pwa'] === true) {
-				    $this->saveOrderTaxInTableShift($order);
-			    }
-		    }
-	    }
-	
-	    $configData = $this->getConfigLoaderData();
-	
-	    if ($this->isRefundToGC && !!$data['order_refund_id']) {
-		    /** @var \Magento\Sales\Model\Order $refundOrder */
-		    $refundOrder = $this->orderFactory->create();
-		    $refundOrder->load($data['order_refund_id']);
-		    if ($refundOrder->getId()) {
-			    $splitData = json_decode($refundOrder->getPayment()->getAdditionalInformation('split_data'), true);
-			    if ($splitData) {
-				    foreach ($splitData as &$paymentData) {
-					    if (is_array($paymentData)
-						    && $paymentData['type'] == 'refund_gift_card'
-						    && $paymentData['is_purchase'] == 0) {
-						    $gcProduct = $order->getItemsCollection()->getFirstItem();
-						    if ($this->integrateHelperData->isAHWGiftCardExist()
-							    && isset($configData['xretail/pos/integrate_gc'])
-							    && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
-							    && $this->integrateHelperData->isIntegrateGC() && !isset($paymentData['gc_created_codes'])) {
-							    $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['aw_gc_created_codes'][0];
-							    $paymentData['gc_amount']        = $gcProduct->getData('product_options')['aw_gc_amount'];
-						    } elseif ($this->integrateHelperData->isGiftCardMagento2EE()
-							    && isset($configData['xretail/pos/integrate_gc'])
-							    && $configData['xretail/pos/integrate_gc']['value'] === 'mage2_ee'
-							    && $this->integrateHelperData->isIntegrateGC()) {
-							    $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['giftcard_created_codes'][0];
-							    $paymentData['gc_amount']        = $paymentData['amount'];
-						    }
-					    }
-				    }
-				    $refundOrder->getPayment()->setAdditionalInformation('split_data', json_encode($splitData))->save();
-			    }
-		    }
-		    return new DataObject(
-			    [
-				    'entity_id' => $order->getEntityId() . "," . $refundOrder->getEntityId(),
-				    'storeId'   => $this->requestOrderData['store_id'],
-				    'outletId'  => $this->requestOrderData['outlet_id']
-			    ]
-		    );
-	    }
-	
-	    if (isset($data['is_pwa']) && $data['is_pwa'] === true) {
-		    return new DataObject(
-			    [
-				    'entity_id' => $order->getEntityId(),
-				    'storeId'   => $this->requestOrderData['store_id']
-			    ]
-		    );
-	    }
-	    
-	    return new DataObject(
-		    [
-			    'entity_id' => $order->getEntityId(),
-			    'storeId'   => $this->requestOrderData['store_id'],
-			    'outletId'  => $this->requestOrderData['outlet_id']
-		    ]
-	    );
+                    }
+                }
+            
+                try {
+                    if (isset($data['is_pwa']) && ($data['is_pwa'] === true || $data['is_pwa'] === 1)
+                        && !$data['is_use_paypal']) {
+                    } else {
+                        $this->invoiceManagement->checkPayment($order, $isPendingOrder);
+                    }
+                } catch (\Exception $e) {
+                    // invoice error
+                }
+                if (!isset($data['is_pwa']) || !$data['is_pwa'] === true) {
+                    $this->saveOrderTaxInTableShift($order);
+                }
+            }
+        }
+    
+        $configData = $this->getConfigLoaderData();
+    
+        if ($this->isRefundToGC && !!$data['order_refund_id']) {
+            /** @var \Magento\Sales\Model\Order $refundOrder */
+            $refundOrder = $this->orderFactory->create();
+            $refundOrder->load($data['order_refund_id']);
+            if ($refundOrder->getId()) {
+                $splitData = json_decode($refundOrder->getPayment()->getAdditionalInformation('split_data'), true);
+                if ($splitData) {
+                    foreach ($splitData as &$paymentData) {
+                        if (is_array($paymentData)
+                            && $paymentData['type'] == 'refund_gift_card'
+                            && $paymentData['is_purchase'] == 0) {
+                            $gcProduct = $order->getItemsCollection()->getFirstItem();
+                            if ($this->integrateHelperData->isAHWGiftCardExist()
+                                && isset($configData['xretail/pos/integrate_gc'])
+                                && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
+                                && $this->integrateHelperData->isIntegrateGC() && !isset($paymentData['gc_created_codes'])) {
+                                $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['aw_gc_created_codes'][0];
+                                $paymentData['gc_amount']        = $gcProduct->getData('product_options')['aw_gc_amount'];
+                            } elseif ($this->integrateHelperData->isGiftCardMagento2EE()
+                                && isset($configData['xretail/pos/integrate_gc'])
+                                && $configData['xretail/pos/integrate_gc']['value'] === 'mage2_ee'
+                                && $this->integrateHelperData->isIntegrateGC()) {
+                                $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['giftcard_created_codes'][0];
+                                $paymentData['gc_amount']        = $paymentData['amount'];
+                            }
+                        }
+                    }
+                    $refundOrder->getPayment()->setAdditionalInformation('split_data', json_encode($splitData))->save();
+                }
+            }
+            return new DataObject(
+                [
+                    'entity_id' => $order->getEntityId() . "," . $refundOrder->getEntityId(),
+                    'storeId'   => $this->requestOrderData['store_id'],
+                    'outletId'  => $this->requestOrderData['outlet_id']
+                ]
+            );
+        }
+    
+        if (isset($data['is_pwa']) && $data['is_pwa'] === true) {
+            return new DataObject(
+                [
+                    'entity_id' => $order->getEntityId(),
+                    'storeId'   => $this->requestOrderData['store_id']
+                ]
+            );
+        }
+        
+        return new DataObject(
+            [
+                'entity_id' => $order->getEntityId(),
+                'storeId'   => $this->requestOrderData['store_id'],
+                'outletId'  => $this->requestOrderData['outlet_id']
+            ]
+        );
     }
-	
-	/**
-	 * @param $data
-	 * @param $shipments
-	 * @param bool $isSaveOrder
-	 * @return array
-	 * @throws \Magento\Framework\Exception\NoSuchEntityException
-	 */
-	protected function splitOrder($data, $shipments, $isSaveOrder = true)
+    
+    /**
+     * @param $data
+     * @param $shipments
+     * @param bool $isSaveOrder
+     * @return array
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     */
+    protected function splitOrder($data, $shipments, $isSaveOrder = true)
     {
-    	$shipments = $this->resolveShipments($shipments);
-    	$shipments = $this->checkAllItemsWasInShipment($data, $shipments);
+        $shipments = $this->resolveShipments($shipments);
+        $shipments = $this->checkAllItemsWasInShipment($data, $shipments);
         $splitOrders = [];
 
         $i = 1;
-	    foreach ($shipments as $shipment) {
-		    $orderData = $data;
-		    $orderData['items'] = $shipment['items'];
-		    
-		    $orderData['order']['shipping_method'] = $shipment['carrier'] . '_' . $shipment['method'];
-		    $orderData['order']['shipping_address'] = $shipment['shipping_address'];
-		    $orderData['order']['shipping_amount'] = $shipment['shipping_rate'][0]['price'];
-		    $orderData['order']['payment_data'] = [];
-		    if ($isSaveOrder) {
-			    $orderData['retail_id'] = $data['retail_id'] . '-' . $i;
-		    }
-		    if ($orderData['order']['shipping_method'] === 'retailshipping_retailshipping'
-			    && $orderData['order']['shipping_amount'] == 0) {
-		    	$orderData['retail_has_shipment'] = false;
-		    }
-		    $i++;
-		    $splitOrders[] = $orderData;
+        foreach ($shipments as $shipment) {
+            $orderData = $data;
+            $orderData['items'] = $shipment['items'];
+            
+            $orderData['order']['shipping_method'] = $shipment['carrier'] . '_' . $shipment['method'];
+            $orderData['order']['shipping_address'] = $shipment['shipping_address'];
+            $orderData['order']['shipping_amount'] = $shipment['shipping_rate'][0]['price'];
+            $orderData['order']['payment_data'] = [];
+            if ($isSaveOrder) {
+                $orderData['retail_id'] = $data['retail_id'] . '-' . $i;
+            }
+            if ($orderData['order']['shipping_method'] === 'retailshipping_retailshipping'
+                && $orderData['order']['shipping_amount'] == 0) {
+                $orderData['retail_has_shipment'] = false;
+            }
+            $i++;
+            $splitOrders[] = $orderData;
         }
         
         return $splitOrders;
     }
-	
-	/**
-	 * @param array $data
-	 * @param array $shipments
-	 * @return array
-	 * @throws \Magento\Framework\Exception\NoSuchEntityException
-	 */
-	protected function checkAllItemsWasInShipment($data, $shipments)
+    
+    /**
+     * @param array $data
+     * @param array $shipments
+     * @return array
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
+     */
+    protected function checkAllItemsWasInShipment($data, $shipments)
     {
-    	$originalItems = $data['items'];
-	    $hasShipItems = [];
-	    foreach ($shipments as $shipment) {
-		    $hasShipItems = array_merge($hasShipItems, $shipment['items']);
-    	}
-	    
-	    if (count($originalItems) === count($hasShipItems)) {
-	    	return $shipments;
-	    }
-	
-	    $needShipItems = [];
-	    foreach ($originalItems as $item) {
-		    if (!$this->isInArray($item, $hasShipItems)) {
-		    	$needShipItems[] = $item;
-		    }
-	    }
-	    
-	    if (count($needShipItems) === 0) {
-	    	return $shipments;
-	    }
-	    
-	    $outlet = $this->outletRepository->getById($data['outlet_id']);
-	    $shipment['carrier'] = \SM\Shipping\Model\Carrier\RetailShipping::METHOD_CODE;
-	    $shipment['method'] = \SM\Shipping\Model\Carrier\RetailShipping::METHOD_CODE;
-	    $shipment['shipping_address'] = [
-	        "city" => $outlet->getData("city"),
-	        "company" => "",
-	        "country_id" => $outlet->getData("country_id"),
-	        "first_name" => "Store",
-	        "last_name" => "Pickup",
-	        "middlename" => "",
-	        "postcode" => $outlet->getData("postcode"),
-	        "region" => $outlet->getData("region"),
-	        "region_id" => $outlet->getData("region_id"),
-	        "street" => $outlet->getData("city"),
-	        "telephone" => $outlet->getData("city"),
-	    ];
-	    $shipment['items'] = $needShipItems;
-	    $shipment['shipping_rate'] = [];
-	    $shipment['shipping_rate'][] = [
-	    	"code" => $shipment['carrier'] . '_' . $shipment['method'],
-		    "carrier" => \SM\Shipping\Model\Carrier\RetailShipping::METHOD_CODE,
-		    "method" => \SM\Shipping\Model\Carrier\RetailShipping::METHOD_CODE,
-		    "carrier_title" => "Store Shipping",
-		    "method_title" => "ConnectPOS",
-		    "price" => 0
-	    ];
-	    array_unshift($shipments, $shipment);
-	    return $shipments;
+        $originalItems = $data['items'];
+        $hasShipItems = [];
+        foreach ($shipments as $shipment) {
+            $hasShipItems = array_merge($hasShipItems, $shipment['items']);
+        }
+        
+        if (count($originalItems) === count($hasShipItems)) {
+            return $shipments;
+        }
+    
+        $needShipItems = [];
+        foreach ($originalItems as $item) {
+            if (!$this->isInArray($item, $hasShipItems)) {
+                $needShipItems[] = $item;
+            }
+        }
+        
+        if (count($needShipItems) === 0) {
+            return $shipments;
+        }
+        
+        $outlet = $this->outletRepository->getById($data['outlet_id']);
+        $shipment['carrier'] = \SM\Shipping\Model\Carrier\RetailShipping::METHOD_CODE;
+        $shipment['method'] = \SM\Shipping\Model\Carrier\RetailShipping::METHOD_CODE;
+        $shipment['shipping_address'] = [
+            "city" => $outlet->getData("city"),
+            "company" => "",
+            "country_id" => $outlet->getData("country_id"),
+            "first_name" => "Store",
+            "last_name" => "Pickup",
+            "middlename" => "",
+            "postcode" => $outlet->getData("postcode"),
+            "region" => $outlet->getData("region"),
+            "region_id" => $outlet->getData("region_id"),
+            "street" => $outlet->getData("city"),
+            "telephone" => $outlet->getData("city"),
+        ];
+        $shipment['items'] = $needShipItems;
+        $shipment['shipping_rate'] = [];
+        $shipment['shipping_rate'][] = [
+            "code" => $shipment['carrier'] . '_' . $shipment['method'],
+            "carrier" => \SM\Shipping\Model\Carrier\RetailShipping::METHOD_CODE,
+            "method" => \SM\Shipping\Model\Carrier\RetailShipping::METHOD_CODE,
+            "carrier_title" => "Store Shipping",
+            "method_title" => "ConnectPOS",
+            "price" => 0
+        ];
+        array_unshift($shipments, $shipment);
+        return $shipments;
     }
     
     protected function isInArray($item, $array)
     {
-	    foreach ($array as $a) {
-		    if (isset($a['product_id']) && $a['product_id'] == $item['product_id']) {
-		    	return true;
-		    }
-    	}
-	    return false;
+        foreach ($array as $a) {
+            if (isset($a['product_id']) && $a['product_id'] == $item['product_id']) {
+                return true;
+            }
+        }
+        return false;
     }
     
-	
-	/**
-	 * @param array $shipments
-	 * @return array
-	 */
-	protected function resolveShipments($shipments)
+    
+    /**
+     * @param array $shipments
+     * @return array
+     */
+    protected function resolveShipments($shipments)
     {
-    	if($index = array_search(\SM\Shipping\Model\Carrier\RetailShipping::METHOD_CODE, array_column($shipments, 'carrier'))) {
-    		$tmp = $shipments[0];
-    		$shipments[0] = $shipments[$index];
-    		$shipments[$index] = $tmp;
-	    }
-    	return $shipments;
+        if ($index = array_search(\SM\Shipping\Model\Carrier\RetailShipping::METHOD_CODE, array_column($shipments, 'carrier'))) {
+            $tmp = $shipments[0];
+            $shipments[0] = $shipments[$index];
+            $shipments[$index] = $tmp;
+        }
+        return $shipments;
     }
     
     protected function splitPaymentData()
     {
-    	$grandTotal = $this->getOrderCreateModel()->getQuote()->getGrandTotal();
-    	$paidAmount = 0;
-    	$payments = [];
-    	$i = 0;
-	    foreach ($this->paymentData as $paymentDatum) {
-	    	if ($paymentDatum['type'] === 'cash' && $paymentDatum['title'] === 'Change' && $paymentDatum['amount'] < 0) {
-			    $paidAmount += $paymentDatum['amount'];
-			    $payments[] = $paymentDatum;
-			    unset($this->paymentData[$i]);
-			    $i++;
-			    continue;
-		    }
-	    	if ($paidAmount == $grandTotal) {
-	    		continue;
-		    }
-		    if ($paymentDatum['is_purchase'] != 1) {
-		    	continue;
-		    }
-		    if ($paymentDatum['amount'] <= $grandTotal) {
-		    	$paidAmount += $paymentDatum['amount'];
-		    	$payments[] = $paymentDatum;
-		    	unset($this->paymentData[$i]);
-		    } else {
-		    	$paidAmount += $grandTotal;
-		    	$payment = $paymentDatum;
-		    	$payment['amount'] = $grandTotal;
-		    	$payments[] = $payment;
-		    	$leftoverPayment = $paymentDatum;
-			    $leftoverPayment['amount'] = $paymentDatum['amount'] - $grandTotal;
-		    	$this->paymentData[$i] = $leftoverPayment;
-		    }
-		    $i++;
-    	}
-	    $this->requestOrderData['order']['payment_data'] = $payments;
-	    $this->importPaymentDataToQuote();
+        $grandTotal = $this->getOrderCreateModel()->getQuote()->getGrandTotal();
+        $paidAmount = 0;
+        $payments = [];
+        $i = 0;
+        foreach ($this->paymentData as $paymentDatum) {
+            if ($paymentDatum['type'] === 'cash' && $paymentDatum['title'] === 'Change' && $paymentDatum['amount'] < 0) {
+                $paidAmount += $paymentDatum['amount'];
+                $payments[] = $paymentDatum;
+                unset($this->paymentData[$i]);
+                $i++;
+                continue;
+            }
+            if ($paidAmount == $grandTotal) {
+                continue;
+            }
+            if ($paymentDatum['is_purchase'] != 1) {
+                continue;
+            }
+            if ($paymentDatum['amount'] <= $grandTotal) {
+                $paidAmount += $paymentDatum['amount'];
+                $payments[] = $paymentDatum;
+                unset($this->paymentData[$i]);
+            } else {
+                $paidAmount += $grandTotal;
+                $payment = $paymentDatum;
+                $payment['amount'] = $grandTotal;
+                $payments[] = $payment;
+                $leftoverPayment = $paymentDatum;
+                $leftoverPayment['amount'] = $paymentDatum['amount'] - $grandTotal;
+                $this->paymentData[$i] = $leftoverPayment;
+            }
+            $i++;
+        }
+        $this->requestOrderData['order']['payment_data'] = $payments;
+        $this->importPaymentDataToQuote();
     }
     
     protected function importPaymentDataToQuote()
-	{
-		if (isset($this->requestOrderData['order']['payment_data'])
-			&& $this->requestOrderData['order']['payment_method'] == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE) {
-			$this->requestOrderData['order']['payment_data']['store_id'] = $this->requestOrderData['store_id'];
-			
-			$this->getOrderCreateModel()->setPaymentData($this->requestOrderData['order']['payment_data']);
-			$this->getOrderCreateModel()->getQuote()->setTotalsCollectedFlag(false)->collectTotals();
-		}
-	}
-	
-	/**
-	 * @throws \Exception
-	 */
-	public function updateOrderNote()
-	{
-		$data = $this->getRequest()->getParams()['noteData'];
-		
-		/** @var  \Magento\Sales\Model\ResourceModel\Order\Collection $collection */
-		$collection = $this->orderCollectionFactory->create();
-		
-		$collection->addFieldToFilter('entity_id', $data['order_id']);
-		$dataOrder = $collection->getFirstItem();
-		
-		if ($dataOrder->getId()) {
-			$dataOrder->setData('retail_note', $data['retail_note']);
-			$this->saveNoteToOrderAlso($dataOrder, $data['retail_note']);
-			$dataOrder->save();
-			
-			$criteria = new DataObject(
-				['entity_id' => $dataOrder->getEntityId(), 'storeId' => $dataOrder->getStoreId()]
-			);
-			
-			return $this->orderHistoryManagement->loadOrders($criteria);
-		}
-	}
-	
-	/**
-	 * @throws \Exception
-	 */
-	public function updatePrintTime()
-	{
-		$printTimeCounter = $this->getRequest()->getParam('printTimeCounter');
-		$order_id         = $this->getRequest()->getParam('order_id');
-		
-		$dataOrder = $this->getPrintTimeCollection($order_id);
-		
-		if ($dataOrder->getId()) {
-			$dataOrder->setData('print_time_counter', $printTimeCounter);
-			$dataOrder->save();
-		}
-		$criteria = new DataObject(
-			['entity_id' => $dataOrder->getEntityId(), 'storeId' => $dataOrder->getStoreId()]
-		);
-		
-		return $this->orderHistoryManagement->loadOrders($criteria);
-	}
-	
-	/**
-	 * @param $order_id
-	 *
-	 * @return DataObject
-	 */
-	public function getPrintTimeCollection($order_id)
-	{
-		$collection = $this->orderCollectionFactory->create();
-		$collection->addAttributeToFilter('entity_id', $order_id);
-		
-		return $collection->getFirstItem();
-	}
+    {
+        if (isset($this->requestOrderData['order']['payment_data'])
+            && $this->requestOrderData['order']['payment_method'] == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE) {
+            $this->requestOrderData['order']['payment_data']['store_id'] = $this->requestOrderData['store_id'];
+            
+            $this->getOrderCreateModel()->setPaymentData($this->requestOrderData['order']['payment_data']);
+            $this->getOrderCreateModel()->getQuote()->setTotalsCollectedFlag(false)->collectTotals();
+        }
+    }
+    
+    /**
+     * @throws \Exception
+     */
+    public function updateOrderNote()
+    {
+        $data = $this->getRequest()->getParams()['noteData'];
+        
+        /** @var  \Magento\Sales\Model\ResourceModel\Order\Collection $collection */
+        $collection = $this->orderCollectionFactory->create();
+        
+        $collection->addFieldToFilter('entity_id', $data['order_id']);
+        $dataOrder = $collection->getFirstItem();
+        
+        if ($dataOrder->getId()) {
+            $dataOrder->setData('retail_note', $data['retail_note']);
+            $this->saveNoteToOrderAlso($dataOrder, $data['retail_note']);
+            $dataOrder->save();
+            
+            $criteria = new DataObject(
+                ['entity_id' => $dataOrder->getEntityId(), 'storeId' => $dataOrder->getStoreId()]
+            );
+            
+            return $this->orderHistoryManagement->loadOrders($criteria);
+        }
+    }
+    
+    /**
+     * @throws \Exception
+     */
+    public function updatePrintTime()
+    {
+        $printTimeCounter = $this->getRequest()->getParam('printTimeCounter');
+        $order_id         = $this->getRequest()->getParam('order_id');
+        
+        $dataOrder = $this->getPrintTimeCollection($order_id);
+        
+        if ($dataOrder->getId()) {
+            $dataOrder->setData('print_time_counter', $printTimeCounter);
+            $dataOrder->save();
+        }
+        $criteria = new DataObject(
+            ['entity_id' => $dataOrder->getEntityId(), 'storeId' => $dataOrder->getStoreId()]
+        );
+        
+        return $this->orderHistoryManagement->loadOrders($criteria);
+    }
+    
+    /**
+     * @param $order_id
+     *
+     * @return DataObject
+     */
+    public function getPrintTimeCollection($order_id)
+    {
+        $collection = $this->orderCollectionFactory->create();
+        $collection->addAttributeToFilter('entity_id', $order_id);
+        
+        return $collection->getFirstItem();
+    }
 
     /**
      * @param $orderOffline
@@ -1049,14 +1050,14 @@ class OrderManagement extends ServiceAbstract
 
         return $this;
     }
-	
-	/**
-	 * To fix amount of exchange order
-	 *
-	 * @param $isSave
-	 * @return $this
-	 * @throws Exception
-	 */
+    
+    /**
+     * To fix amount of exchange order
+     *
+     * @param $isSave
+     * @return $this
+     * @throws Exception
+     */
     protected function checkExchange($isSave)
     {
         if (!$isSave) {
@@ -1118,7 +1119,7 @@ class OrderManagement extends ServiceAbstract
         if (!$openingShift->getData('id')) {
             throw new Exception("No Shift are opening");
         }
-	    $this->registry->unregister('opening_shift');
+        $this->registry->unregister('opening_shift');
         $this->registry->register('opening_shift', $openingShift);
 
         return $this;
@@ -1249,7 +1250,7 @@ class OrderManagement extends ServiceAbstract
          * Initialize catalog rule data
          */
         if (self::$IS_COLLECT_RULE) {
-	        $this->registry->unregister('rule_data');
+            $this->registry->unregister('rule_data');
             $this->getOrderCreateModel()->initRuleData();
         }
 
@@ -1440,10 +1441,10 @@ class OrderManagement extends ServiceAbstract
             $this->getOrderCreateModel()->setRecollect(true);
         }
         
-	    /**
-	     * Unset old data
-	     */
-	    $this->getSession()->getQuote()->unsetData('retail_discount_per_item');
+        /**
+         * Unset old data
+         */
+        $this->getSession()->getQuote()->unsetData('retail_discount_per_item');
 
         return $this;
     }
@@ -1590,7 +1591,7 @@ class OrderManagement extends ServiceAbstract
     private function transformData($configData = null)
     {
         $configData             = $this->getConfigLoaderData();
-	    $data                   = $this->requestOrderData;
+        $data                   = $this->requestOrderData;
         $order                  = $data['order'];
         $items                  = $data['items'];
 
@@ -1633,7 +1634,10 @@ class OrderManagement extends ServiceAbstract
                 }
                 if (isset($value['options']) && isset($value['product_options_custom_option'])) {
                     foreach ($value['product_options_custom_option'] as $opt) {
-                        if (isset($opt['option_type']) && $this->_isMultipleSelection($opt['option_type']) && isset($value['options'][$opt['option_id']])  && is_string($value['options'][$opt['option_id']])) {
+                        if (isset($opt['option_type'])
+                            && $this->_isMultipleSelection($opt['option_type'])
+                            && isset($value['options'][$opt['option_id']])
+                            && is_string($value['options'][$opt['option_id']])) {
                             $items[$key]['options'][$opt['option_id']] = explode(",", $value['options'][$opt['option_id']]);
                         }
                     }
@@ -1676,19 +1680,31 @@ class OrderManagement extends ServiceAbstract
         }
 
         if ($this->checkIsRefundToGiftCard()) {
+            foreach ($order['payment_data'] as $paymentDatum) {
+                if ($paymentDatum['type'] == 'refund_gift_card') {
+                    $data['order']['payment_data'] = [$paymentDatum];
+                    $order['payment_data'] = [$paymentDatum];
+                }
+            }
             $refundToGCProductId = $this->gcIntegrateManagement->getRefundToGCProductId();
             $giftCardItems       = [
                 'qty'        => 1,
                 'product_id' => $refundToGCProductId,
                 'product'    => null,
             ];
+            
+            $gcAmount = $order['payment_data'][0]['refund_amount'] - $data['order']['payment_data'][0]['amount'];
+            if ($data['order']['payment_data'][0]['amount'] < 0) {
+                $gcAmount = abs($data['order']['payment_data'][0]['amount']);
+            }
+            
             if ($this->integrateHelperData->isAHWGiftCardExist()
                 && isset($configData['xretail/pos/integrate_gc'])
                 && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
                 && $this->integrateHelperData->isIntegrateGC()) {
                 $giftCardItems['gift_card'] = [
                     'aw_gc_amount'        => "custom",
-                    'aw_gc_custom_amount' => $order['payment_data'][0]['refund_amount'] - $data['order']['payment_data'][0]['amount'],
+                    'aw_gc_custom_amount' => $gcAmount,
                     'aw_gc_template'      => 'aw_giftcard_email_template',
                     'aw_gc_sender_email'  => $order['payment_data'][0]['sender_email'],
                     'aw_gc_sender_name'   => $order['payment_data'][0]['sender_name'],
@@ -1702,7 +1718,7 @@ class OrderManagement extends ServiceAbstract
                       && $this->integrateHelperData->isIntegrateGC()) {
                 $giftCardItems['gift_card'] = [
                     'giftcard_amount'        => "custom",
-                    'custom_giftcard_amount' => $order['payment_data'][0]['refund_amount'] - $data['order']['payment_data'][0]['amount'],
+                    'custom_giftcard_amount' => $gcAmount,
                     'giftcard_sender_email'  => $order['payment_data'][0]['sender_email'],
                     'giftcard_sender_name'   => $order['payment_data'][0]['sender_name'],
 
@@ -1712,14 +1728,14 @@ class OrderManagement extends ServiceAbstract
             }
             array_push($data['items'], $giftCardItems);
 
-            $data['order']['payment_data'][0]['isChanging'] = true;
-            if ($data['order']['payment_data'][0]['amount'] == 0) {
-                $data['order']['payment_data'][0]['amount'] = $data['order']['payment_data'][0]['refund_amount'];
+            $order['payment_data'][0]['isChanging'] = true;
+            if ($order['payment_data'][0]['amount'] == 0) {
+                $order['payment_data'][0]['amount'] = $order['payment_data'][0]['refund_amount'];
             }
-	        $this->registry->unregister(self::USING_REFUND_TO_GIFT_CARD);
-	        $this->registry->register(self::USING_REFUND_TO_GIFT_CARD, true);
+            $this->registry->unregister(self::USING_REFUND_TO_GIFT_CARD);
+            $this->registry->register(self::USING_REFUND_TO_GIFT_CARD, true);
         } else {
-	        $this->registry->unregister(self::USING_REFUND_TO_GIFT_CARD);
+            $this->registry->unregister(self::USING_REFUND_TO_GIFT_CARD);
             $this->registry->register(self::USING_REFUND_TO_GIFT_CARD, false);
         }
 
@@ -1779,17 +1795,17 @@ class OrderManagement extends ServiceAbstract
      */
     private function checkShippingMethod()
     {
-    	if (!isset($this->requestOrderData['order'])) {
-    		return $this;
-	    }
+        if (!isset($this->requestOrderData['order'])) {
+            return $this;
+        }
         $order          = $this->requestOrderData['order'];
         $shippingAmount = 0;
         if (!isset($this->requestOrderData['retail_has_shipment']) || $this->requestOrderData['retail_has_shipment'] === false) {
-	        $shippingAmount = 0;
-	        $this->requestOrderData['order']['shipping_method'] = 'retailshipping_retailshipping';
-	        $this->requestOrderData['order']['shipping_amount'] = $shippingAmount;
-        } else if (isset($order['shipping_amount']) && !is_nan($order['shipping_amount'])) {
-	        $shippingAmount = $order['shipping_amount'];
+            $shippingAmount = 0;
+            $this->requestOrderData['order']['shipping_method'] = 'retailshipping_retailshipping';
+            $this->requestOrderData['order']['shipping_amount'] = $shippingAmount;
+        } elseif (isset($order['shipping_amount']) && !is_nan($order['shipping_amount'])) {
+            $shippingAmount = $order['shipping_amount'];
         }
         
 
@@ -2031,7 +2047,7 @@ class OrderManagement extends ServiceAbstract
         if (($this->integrateHelperData->isIntegrateGC()
              || ($this->integrateHelperData->isIntegrateGCInPWA()
                  && $this->getRequest()->getParam(
-                        'is_pwa'
+                     'is_pwa'
                  ) === true))
             && $this->getRequest()->getParam('gift_card')) {
             $this->gcIntegrateManagement->saveGCDataBeforeQuoteCollect($this->getRequest()->getParam('gift_card'));
@@ -2100,9 +2116,12 @@ class OrderManagement extends ServiceAbstract
         $order        = $data['order'];
         $isRefundByGC = false;
 
-        if (isset($order['payment_data']) && is_array($order['payment_data']) && count($order['payment_data']) == 1) {
-            if (isset($order['payment_data'][0]['type']) && $order['payment_data'][0]['type'] == 'refund_gift_card') {
-                $isRefundByGC = true;
+        if (isset($order['payment_data']) && is_array($order['payment_data'])) {
+            foreach ($order['payment_data'] as $paymentDatum) {
+                if ($paymentDatum['type'] == 'refund_gift_card') {
+                    $isRefundByGC = true;
+                    $this->requestOrderData['order']['payment_data'] = [$paymentDatum];
+                }
             }
         }
 
@@ -2230,6 +2249,9 @@ class OrderManagement extends ServiceAbstract
         foreach ($rates as $rate) {
             foreach ($rate as $item) {
                 $rateData = $item->getData();
+                if (isset($rateData['error_message']) && $rateData['error_message']) {
+                    continue;
+                }
                 if (in_array($rateData['carrier'], $allowShippingCarriers) || strpos($rateData['carrier'], 'shq') !== false) {
                     $arr[] = $rateData;
                 }

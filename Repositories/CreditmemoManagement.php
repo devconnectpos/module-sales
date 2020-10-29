@@ -270,14 +270,6 @@ class CreditmemoManagement extends ServiceAbstract
             );
 
             if (isset($data['refund_to_store_credit'])) {
-                $eventData = [
-                    'creditmemo'             => $creditmemo,
-                    'refund_to_store_credit' => $data['refund_to_store_credit']
-                ];
-                $this->eventManagement->dispatch(
-                    'create_store_credit_for_order_refund_to_store_credit',
-                    $eventData
-                );
                 if ($this->integrateHelperData->isIntegrateStoreCredit()
                     && $this->integrateHelperData->isExistStoreCreditMagento2EE()) {
                     $storeCreditData = $this->integrateHelperData
@@ -318,7 +310,7 @@ class CreditmemoManagement extends ServiceAbstract
                 ];
             }
             // fix refund amount
-            $data['payment_data'][0]['amount'] = -$creditmemo->getGrandTotal();
+            // $data['payment_data'][0]['amount'] = -$creditmemo->getGrandTotal();
 
             return $this->invoiceManagement->addPayment(
                 [
