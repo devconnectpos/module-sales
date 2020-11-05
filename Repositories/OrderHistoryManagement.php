@@ -288,6 +288,7 @@ class OrderHistoryManagement extends ServiceAbstract
                     'shipping_incl_tax'              => floatval($order->getShippingInclTax()),
                     'shipping'                       => floatval($order->getShippingAmount()),
                     'shipping_method'                => floatval($order->getShippingMethod()),
+                    'shipping_method_name'           => $order->getShippingDescription(),
                     'shipping_discount'              => floatval($order->getShippingDiscountAmount()),
                     'shipping_tax_amount'            => floatval($order->getShippingTaxAmount()),
                     'subtotal'                       => floatval($order->getSubtotal()),
