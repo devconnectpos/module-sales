@@ -484,6 +484,7 @@ class OrderManagement extends ServiceAbstract
      * @param bool $isSplitting
      * @return array|null
      * @throws \ReflectionException
+     * @throws \Magento\Framework\Exception\NoSuchEntityException
      */
     public function processLoadOrderData($isSaveOrder = false, $data = null, $isSplitting = false)
     {
@@ -494,6 +495,14 @@ class OrderManagement extends ServiceAbstract
         $this->catalogProduct->setSkipSaleableCheck(true);
         if (!$data || !is_array($data) || !isset($data['order'])) {
             $data = $this->getRequest()->getParams();
+        }
+        
+        if (isset($data['previous_quote_id'])) {
+            $previousQuote = $this->cartRepository->get($data['previous_quote_id']);
+            if ($previousQuote->getIsActive() === true) {
+                $previousQuote->setIsActive(false);
+                $this->cartRepository->save($previousQuote);
+            }
         }
         
         $this->requestOrderData = $data;
@@ -535,12 +544,13 @@ class OrderManagement extends ServiceAbstract
 
         $outputData = null;
         if (!$isSaveOrder) {
-            $this->getQuote()->setIsActive(true)->save();
+            $this->getQuote()->setIsActive(true);
             $outputData = $this->getOutputLoadData();
             $this->clear();
         } else {
-            $this->getQuote()->setIsActive(false)->save();
+            $this->getQuote()->setIsActive(false);
         }
+        $this->cartRepository->save($this->getQuote());
 
         return $outputData;
     }
@@ -1556,6 +1566,8 @@ class OrderManagement extends ServiceAbstract
                 $data['gift_card'] = [];
             }
         }
+        
+        $data['quote_id'] = $this->getQuote()->getId();
 
         return $data;
     }
