@@ -98,24 +98,25 @@ class InvoiceManagement extends ServiceAbstract
 
     /**
      * InvoiceManagement constructor.
-     * @param RequestInterface $requestInterface
-     * @param DataConfig $dataConfig
-     * @param Data $retailHelper
-     * @param StoreManagerInterface $storeManager
-     * @param ObjectManagerInterface $objectManager
-     * @param InvoiceService $invoiceService
-     * @param Registry $registry
-     * @param InvoiceSender $invoiceSender
-     * @param ShipmentSender $shipmentSender
-     * @param OrderFactory $orderFactory
-     * @param OrderHistoryManagement $orderHistoryManagement
+     *
+     * @param RequestInterface         $requestInterface
+     * @param DataConfig               $dataConfig
+     * @param Data                     $retailHelper
+     * @param StoreManagerInterface    $storeManager
+     * @param ObjectManagerInterface   $objectManager
+     * @param InvoiceService           $invoiceService
+     * @param Registry                 $registry
+     * @param InvoiceSender            $invoiceSender
+     * @param ShipmentSender           $shipmentSender
+     * @param OrderFactory             $orderFactory
+     * @param OrderHistoryManagement   $orderHistoryManagement
      * @param RetailTransactionFactory $retailTransactionFactory
-     * @param ShiftHelper $shiftHelper
-     * @param IntegrateHelper $integrateHelper
-     * @param Loader $configLoader
-     * @param CustomerFactory $customerFactory
-     * @param ScopeConfigInterface $scopeConfig
-     * @param Currency $currencyModel
+     * @param ShiftHelper              $shiftHelper
+     * @param IntegrateHelper          $integrateHelper
+     * @param Loader                   $configLoader
+     * @param CustomerFactory          $customerFactory
+     * @param ScopeConfigInterface     $scopeConfig
+     * @param Currency                 $currencyModel
      */
     public function __construct(
         RequestInterface $requestInterface,
@@ -137,21 +138,21 @@ class InvoiceManagement extends ServiceAbstract
         ScopeConfigInterface $scopeConfig,
         Currency $currencyModel
     ) {
-        $this->orderHistoryManagement   = $orderHistoryManagement;
-        $this->orderFactory             = $orderFactory;
-        $this->shipmentSender           = $shipmentSender;
-        $this->invoiceSender            = $invoiceSender;
-        $this->registry                 = $registry;
-        $this->invoiceService           = $invoiceService;
-        $this->objectManager            = $objectManager;
+        $this->orderHistoryManagement = $orderHistoryManagement;
+        $this->orderFactory = $orderFactory;
+        $this->shipmentSender = $shipmentSender;
+        $this->invoiceSender = $invoiceSender;
+        $this->registry = $registry;
+        $this->invoiceService = $invoiceService;
+        $this->objectManager = $objectManager;
         $this->retailTransactionFactory = $retailTransactionFactory;
-        $this->shiftHelper              = $shiftHelper;
-        $this->retailHelper             = $retailHelper;
-        $this->integrateHelper          = $integrateHelper;
-        $this->configLoader             = $configLoader;
-        $this->customerFactory          = $customerFactory;
-        $this->scopeConfig              = $scopeConfig;
-        $this->currencyModel            = $currencyModel;
+        $this->shiftHelper = $shiftHelper;
+        $this->retailHelper = $retailHelper;
+        $this->integrateHelper = $integrateHelper;
+        $this->configLoader = $configLoader;
+        $this->customerFactory = $customerFactory;
+        $this->scopeConfig = $scopeConfig;
+        $this->currencyModel = $currencyModel;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -164,7 +165,7 @@ class InvoiceManagement extends ServiceAbstract
     public function invoice($orderId)
     {
         try {
-            $invoiceData  = $this->getRequest()->getParam('invoice', []);
+            $invoiceData = $this->getRequest()->getParam('invoice', []);
             $invoiceItems = isset($invoiceData['items']) ? $invoiceData['items'] : [];
             /** @var \Magento\Sales\Model\Order $order */
             $order = $this->objectManager->create('Magento\Sales\Model\Order')->load($orderId);
@@ -211,7 +212,7 @@ class InvoiceManagement extends ServiceAbstract
             $invoice->getOrder()->setCustomerNoteNotify(!empty($data['send_email']));
             $invoice->getOrder()->setIsInProcess(true);
 
-            $order           = $invoice->getOrder();
+            $order = $invoice->getOrder();
             $transactionSave = $this->objectManager->create(
                 'Magento\Framework\DB\Transaction'
             )->addObject(
@@ -219,7 +220,7 @@ class InvoiceManagement extends ServiceAbstract
             )->addObject(
                 $order
             );
-            $shipment        = false;
+            $shipment = false;
             if (!empty($data['do_shipment']) || (int)$invoice->getOrder()->getForcedShipmentWithInvoice()) {
                 $shipment = $this->_prepareShipment($invoice);
                 if ($shipment) {
@@ -266,12 +267,12 @@ class InvoiceManagement extends ServiceAbstract
         if ($order instanceof Order) {
         } else {
             $orderModel = $this->orderFactory->create();
-            $order      = $orderModel->load($order);
+            $order = $orderModel->load($order);
         }
         if ($order->getPayment()->getMethod() == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE) {
             $paymentData = json_decode($order->getPayment()->getAdditionalInformation('split_data'), true);
             if (is_array($paymentData)) {
-                $payments  = array_filter(
+                $payments = array_filter(
                     $paymentData,
                     function ($val) {
                         return is_array($val);
@@ -289,18 +290,20 @@ class InvoiceManagement extends ServiceAbstract
                 if ((abs($totalPaid - floatval($order->getGrandTotal())) < 0.07) || !!$order->getData('is_exchange')) {
                     // FULL PAID
                     if ($order->canInvoice()
-	                    && !$isPendingOrder
-	                    && (!$order->getData('retail_has_shipment')
-		                    || !$this->integrateHelper->isIntegrateAcumaticaCloudERP()
-		                    || ($this->integrateHelper->isIntegrateAcumaticaCloudERP()
-			                    && is_string($order->getShippingMethod())
-			                    && $order->getShippingMethod() === 'retailshipping_retailshipping'
-			                    && $order->getShippingAmount() == 0))) {
+                        && !$isPendingOrder
+                        && (!$order->getData('retail_has_shipment')
+                            || !$this->integrateHelper->isIntegrateAcumaticaCloudERP()
+                            || ($this->integrateHelper->isIntegrateAcumaticaCloudERP()
+                                && is_string($order->getShippingMethod())
+                                && $order->getShippingMethod() === 'retailshipping_retailshipping'
+                                && $order->getShippingAmount() == 0))
+                    ) {
                         $order = $this->invoice($order->getId());
                     }
                     if (!$order->hasCreditmemos()) {
                         if (($order->getData('retail_has_shipment'))
-                            || (in_array('can_not_create_shipment_with_negative_qty', OrderManagement::$MESSAGE_ERROR))) {
+                            || (in_array('can_not_create_shipment_with_negative_qty', OrderManagement::$MESSAGE_ERROR))
+                        ) {
                             if ($order->canShip()) {
                                 if (!$order->getData('is_exchange')) {
                                     $order->setData('retail_has_shipment', 1);
@@ -461,7 +464,7 @@ class InvoiceManagement extends ServiceAbstract
             }
 
             $currentShift = $this->shiftHelper->getShiftOpening($data['outlet_id'], $data['register_id']);
-            $shiftId      = $currentShift->getId();
+            $shiftId = $currentShift->getId();
             if (!$shiftId) {
                 throw new Exception("No shift are opening");
             }
@@ -473,8 +476,8 @@ class InvoiceManagement extends ServiceAbstract
                 // within cash rounding payment
                 foreach ($data['payment_data'] as $payment_datum) {
                     if (isset($payment_datum['title']) && !($payment_datum['title'] === null)) {
-                        $created_at       = $this->retailHelper->getCurrentTime();
-                        $transactionData  = [
+                        $created_at = $this->retailHelper->getCurrentTime();
+                        $transactionData = [
                             "payment_id"    => isset($payment_datum['id']) ? $payment_datum['id'] : null,
                             "shift_id"      => $shiftId,
                             "outlet_id"     => $data['outlet_id'],
@@ -486,7 +489,7 @@ class InvoiceManagement extends ServiceAbstract
                             "created_at"    => $created_at,
                             "order_id"      => isset($data['order_id']) ? $data['order_id'] : '',
                             "user_name"     => isset($data['user_name']) ? $data['user_name'] : '',
-                            "base_amount"   => isset($rates[$currentCurrencyCode]) && $rates[$currentCurrencyCode] != 0 ? $payment_datum['amount']/$rates[$currentCurrencyCode] : null,
+                            "base_amount"   => isset($rates[$currentCurrencyCode]) && $rates[$currentCurrencyCode] != 0 ? $payment_datum['amount'] / $rates[$currentCurrencyCode] : null,
                         ];
                         $transactionModel = $this->getRetailTransactionModel();
                         $transactionModel->addData($transactionData)->save();
@@ -497,8 +500,8 @@ class InvoiceManagement extends ServiceAbstract
             } else {
                 foreach ($data['payment_data'] as $payment_datum) {
                     if (isset($payment_datum['title']) && !($payment_datum['title'] === null)) {
-                        $created_at       = $this->retailHelper->getCurrentTime();
-                        $transactionData  = [
+                        $created_at = $this->retailHelper->getCurrentTime();
+                        $transactionData = [
                             "payment_id"    => isset($payment_datum['id']) ? $payment_datum['id'] : null,
                             "shift_id"      => $shiftId,
                             "outlet_id"     => $data['outlet_id'],
@@ -510,7 +513,7 @@ class InvoiceManagement extends ServiceAbstract
                             "created_at"    => $created_at,
                             "order_id"      => isset($data['order_id']) ? $data['order_id'] : '',
                             "user_name"     => isset($data['user_name']) ? $data['user_name'] : '',
-                            "base_amount"   => isset($rates[$currentCurrencyCode]) && $rates[$currentCurrencyCode] != 0 ? $payment_datum['amount']/$rates[$currentCurrencyCode] : null,
+                            "base_amount"   => isset($rates[$currentCurrencyCode]) && $rates[$currentCurrencyCode] != 0 ? $payment_datum['amount'] / $rates[$currentCurrencyCode] : null,
                         ];
                         $transactionModel = $this->getRetailTransactionModel();
                         $transactionModel->addData($transactionData)->save();
@@ -526,10 +529,10 @@ class InvoiceManagement extends ServiceAbstract
 
             $criteria = new DataObject(
                 [
-                    'entity_id' => $order->getEntityId(),
-                    'storeId' => $data['store_id'],
-                    'outletId' => $data['outlet_id'],
-                    'isSearchOnline' => true
+                    'entity_id'      => $order->getEntityId(),
+                    'storeId'        => $data['store_id'],
+                    'outletId'       => $data['outlet_id'],
+                    'isSearchOnline' => true,
                 ]
             );
 
@@ -546,9 +549,9 @@ class InvoiceManagement extends ServiceAbstract
     public function takePayment()
     {
         $data = $this->getRequest()->getParams();
-        
-        if(!isset($data['order'])) {
-	        return $this->addPayment($data, false);
+
+        if (!isset($data['order'])) {
+            return $this->addPayment($data, false);
         }
         $order = $data['order'];
 
@@ -571,6 +574,7 @@ class InvoiceManagement extends ServiceAbstract
             $this->registry->unregister('aw_gc_code');
             $this->registry->register('aw_gc_code', $gcCodes);
         }
+
         return $this->addPayment($data, false);
     }
 
@@ -608,7 +612,8 @@ class InvoiceManagement extends ServiceAbstract
             );
             if ($this->integrateHelper->isIntegrateRP()) {
                 if (($this->integrateHelper->isRewardPointMagento2EE() && $mage2EEConfig)
-                || ($this->integrateHelper->isAHWRewardPoints() && $aheadWorkConfig)) {
+                    || ($this->integrateHelper->isAHWRewardPoints() && $aheadWorkConfig)
+                ) {
                     $order->setData('reward_points_refunded', floatval($reward_point_deduct));
                     $order->setData('previous_reward_points_balance', floatval($currentRewardPointBalance));
                     $order->save();
@@ -621,7 +626,8 @@ class InvoiceManagement extends ServiceAbstract
     {
         $currentRewardPointBalance = 0;
         if ($this->integrateHelper->isIntegrateRP()
-            && $this->integrateHelper->isAHWRewardPoints()) {
+            && ($this->integrateHelper->isAHWRewardPoints() || $this->integrateHelper->isAmastyRewardPoints())
+        ) {
             $currentRewardPointBalance = $this->integrateHelper
                 ->getRpIntegrateManagement()
                 ->getCurrentIntegrateModel()
@@ -632,7 +638,8 @@ class InvoiceManagement extends ServiceAbstract
         }
 
         if ($this->integrateHelper->isIntegrateRP()
-            && $this->integrateHelper->isRewardPointMagento2EE()) {
+            && $this->integrateHelper->isRewardPointMagento2EE()
+        ) {
             $currentRewardPointBalance = $this->integrateHelper
                 ->getRpIntegrateManagement()
                 ->getCurrentIntegrateModel()
@@ -641,6 +648,7 @@ class InvoiceManagement extends ServiceAbstract
                     $this->storeManager->getStore($storeId)->getWebsiteId()
                 );
         }
+
         return $currentRewardPointBalance;
     }
 

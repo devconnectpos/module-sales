@@ -176,7 +176,9 @@ class OrderHistoryManagement extends ServiceAbstract
             /** @var \Magento\Sales\Model\Order $order */
             foreach ($collection as $order) {
                 $order = $this->orderFactory->create()->loadByIncrementId($order->getIncrementId());
-                if (!$searchCriteria->getData('isSearchOnline') && $order->getShippingMethod() === 'smstorepickup_smstorepickup') {
+                if (!$searchCriteria->getData('isSearchOnline')
+                    && $order->getShippingMethod() === 'smstorepickup_smstorepickup'
+                    && !isset($this->getRequest()->getParams()['save-order'])) {
                     if (!!$order->getData('pickup_outlet_id')
                         && $order->getData('pickup_outlet_id') != $order->getData('outlet_id')) {
                         if ($order->getData('pickup_outlet_id') != $searchCriteria->getData('outletId')) {
