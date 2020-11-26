@@ -209,6 +209,8 @@ class CreditmemoManagement extends ServiceAbstract
         $this->creditmemoLoader->setOrderId($orderId);
         $this->creditmemoLoader->setCreditmemo($this->getCreditmemoData());
         $creditmemo = $this->creditmemoLoader->load();
+        
+        $creditmemo->setData('cpos_creditmemo_from_store_id', $storeId);
 
         // Support create refund for online order
         $order = $creditmemo->getOrder();

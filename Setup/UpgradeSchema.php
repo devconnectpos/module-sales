@@ -95,6 +95,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.3.5', '<')) {
             $this->addSellerUsernameInOrder($setup);
         }
+        if (version_compare($context->getVersion(), '0.3.7', '<')) {
+            $this->addCreditmemoFromStore($setup);
+        }
     }
 
     /**
@@ -1048,5 +1051,22 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 'comment' => 'Seller Username',
             ]
         );
+    }
+    
+    protected function addCreditmemoFromStore(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+        
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_creditmemo'), 'cpos_creditmemo_from_store_id')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('sales_creditmemo'),
+                'cpos_creditmemo_from_store_id',
+                [
+                    'type'    => Table::TYPE_INTEGER,
+                    'length'  => 5,
+                    'comment' => 'Creditmemo From Store',
+                ]
+            );
+        }
     }
 }
