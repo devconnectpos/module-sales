@@ -144,7 +144,10 @@ class ShipmentManagement extends ServiceAbstract
         }
         $is_pwa = $this->getRequest()->getParam('is_pwa');
         if ($is_pwa !== null && (int) $is_pwa === 1) {
-            $order = $this->ship($orderId);
+            $order = $this->orderFactory->create()->load($orderId);
+            if ($order->canShip()) {
+                $order = $this->ship($orderId);
+            }
             $this->invoiceManagement->checkPayment($order);
             $this->savePaymentTransaction();
         } else {

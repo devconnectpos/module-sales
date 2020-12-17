@@ -116,7 +116,7 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 
         return $this;
     }
-    
+
     protected $bundleOptionCustomPrice = [];
 
     /**
@@ -134,7 +134,7 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 			$config = ['qty' => $config];
 		}
 		$config = new DataObject($config);
-		
+
 		if (!$product instanceof Product) {
 			$productId = $product;
 			$product   = $this->_objectManager->create(
@@ -154,27 +154,33 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 		}
 		$this->attachDataSupportSplitItem($product);
 		$this->attachCustomSaleData($product, $config);
-		
+
 		$item = $this->quoteInitializer->init($this->getQuote(), $product, $config);
-		
+
 		if (is_string($item)) {
 			throw new LocalizedException(__($item));
 		}
+
+        // Set extra data like serial number to the quote item and remove it from item buy request
+        if (is_object($config) && $config instanceof DataObject) {
+            $item->setData('serial_number', $config->getData('serial_number'));
+        }
+
 		$item->checkData();
 		$this->setRecollect(true);
-		
+
 		$integrateHelper = $this->_objectManager->get("SM\\Integrate\\Helper\\Data");
 		$typeId = $item->getProduct()->getTypeId();
 		if($typeId == 'bundle' && $integrateHelper->isExistKensiumCart())
 		{
 			$this->bundleOptionCustomPrice = [];
-			
+
 			$bundlePrice = $this->calculateBundlePrice($item, $product);
-			
+
 			$item->setCustomPrice($bundlePrice);
 			$item->setOriginalCustomPrice($bundlePrice);
 			$item->getProduct()->setIsSuperMode(true);
-			
+
 			//set custom price for bundle children
 			$children = $item->getChildren();
 			$i = 0;
@@ -185,21 +191,21 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 				$i++;
 			}
 		}
-		
+
 		return $this;
 	}
-	
+
 	protected function calculateBundlePrice($item, $product)
 	{
 		$infoBuyRequest = $item->getBuyRequest()->toArray();
 		$bundleOptions = $this->resolveBundleOptions($product, $infoBuyRequest['bundle_option']);
 		$productId = $product->getId();
 		$connection = $this->_objectManager->get(\Magento\Framework\App\ResourceConnection::class)->getConnection();
-		
+
 		//init base price and final price, will update through the foreach loop base on options
 		$basePrice = $item->getProduct()->getPrice();
 		$finalPrice = $basePrice;
-		
+
 		$i = 0;
 		foreach($bundleOptions as $optionId => $selectionId) {
 			if (is_array($optionId)) {
@@ -212,9 +218,9 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 					$selectionId = null;
 				}
 			}
-			
+
 			$isAffect = $this->checkOptionAffectBasePrice($connection, $optionId);
-			
+
 			if (null === $selectionId) {
 				$optionPrice = 0;
 				$priceType = 0;
@@ -222,42 +228,42 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 				$optionPrice = $this->getOptionPrice($connection, $optionId, $selectionId, $productId);
 				$priceType = $this->getOptionPriceType($connection, $optionId, $selectionId, $productId);
 			}
-			
+
 			if($priceType != 0) { //type percent
 				$optionPrice = ($optionPrice * $basePrice / 100);
 			}
-			
+
 			//store bundle option custom price
 			$this->bundleOptionCustomPrice[$i] = $optionPrice;
 			$i++;
-			
+
 			//update final price
 			$finalPrice += $optionPrice;
-			
+
 			if ($isAffect == 1) { //option affects base price
 				//update base price
 				$basePrice += $optionPrice;
 			}
 		}
-		
+
 		return $finalPrice;
 	}
-	
+
 	protected function checkOptionAffectBasePrice($connection, $optionId)
 	{
 		return $connection->fetchOne("SELECT affect_base_price FROM catalog_product_bundle_option where option_id = '" . $optionId . "'");
 	}
-	
+
 	protected function getOptionPrice($connection, $optionId, $selectionId, $productId)
 	{
 		return $connection->fetchOne("SELECT selection_price_value FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $productId . "' ");
 	}
-	
+
 	protected function getOptionPriceType($connection, $optionId, $selectionId, $productId)
 	{
 		return $connection->fetchOne("SELECT selection_price_type FROM catalog_product_bundle_selection WHERE selection_id = '" . $selectionId . "' AND option_id = '" . $optionId . "' AND parent_product_id = '" . $productId . "' ");
 	}
-	
+
 	/**
 	 * @param \Magento\Catalog\Model\Product $product
 	 * @param array $originalBundleOptions
@@ -273,7 +279,7 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 		    $optionData               = $option->getData();
 		    $outputOptions[]          = $optionData;
 	    }
-	    
+
 	    $result = [];
 	    foreach ($outputOptions as $outputOption) {
 		    $resultKey = $outputOption['option_id'];
@@ -356,14 +362,14 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 
         return $this;
     }
-    
+
     protected function getBundleBlock()
     {
 	    return $this->_objectManager->create(
 		    '\Magento\Bundle\Block\Adminhtml\Catalog\Product\Composite\Fieldset\Bundle'
 	    );
     }
-	
+
 	/**
 	 * @return \Magento\Framework\Registry
 	 */
@@ -371,7 +377,7 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 	{
 		return $this->_coreRegistry;
 	}
-	
+
 	/**
 	 * @param $product
 	 *
@@ -383,7 +389,7 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 		$this->getRegistry()->unregister('product');
 		$this->getRegistry()->register('current_product', $product);
 		$this->getRegistry()->register('product', $product);
-		
+
 		return $this;
 	}
 }

@@ -26,6 +26,7 @@
 
     <type name="Magento\Quote\Model\Quote\Item\ToOrderItem">
         <plugin name="connectpos_custom_sale_name" type="SM\Sales\Plugin\ChangeCustomSaleOrderItemName" sortOrder="10"/>
+        <plugin name="convert_quote_item_fields_to_order_item" type="SM\Sales\Plugin\ConvertQuoteItemFieldsToOrderItem" sortOrder="10"/>
     </type>
 
     <virtualType name="Magento\Sales\Model\ResourceModel\Order\Grid">

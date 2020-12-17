@@ -18,6 +18,7 @@ use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\App\Response\Http\FileFactory;
 use Magento\Framework\DataObject;
 use Magento\Framework\EntityManager\MetadataPool;
+use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Filesystem;
 use Magento\Framework\Registry;
 use Magento\Quote\Api\CartRepositoryInterface;
@@ -40,6 +41,7 @@ use SM\Performance\Helper\RealtimeManager;
 use SM\Product\Helper\ProductHelper;
 use SM\RefundWithoutReceipt\Model\RefundWithoutReceiptTransactionFactory;
 use SM\Sales\Helper\Data as SalesHelper;
+use SM\Sales\Helper\OrderItemValidator;
 use SM\Sales\Model\FeedbackFactory;
 use SM\Sales\Model\OrderSyncErrorFactory;
 use SM\Sales\Model\ResourceModel\Feedback\CollectionFactory as feedbackCollectionFactory;
@@ -267,6 +269,7 @@ class OrderManagement extends ServiceAbstract
     private $cartRepository;
 
     protected $paymentData = [];
+
     /**
      * @var OutletRepository
      */
@@ -276,6 +279,12 @@ class OrderManagement extends ServiceAbstract
      * @var FileFactory
      */
     protected $fileFactory;
+
+
+    /**
+     * @var OrderItemValidator
+     */
+    protected $orderItemValidator;
 
     /**
      * @var bool
@@ -366,7 +375,8 @@ class OrderManagement extends ServiceAbstract
         SalesHelper $salesHelper,
         CartRepositoryInterface $cartRepository,
         OutletRepository $outletRepository,
-        FileFactory $fileFactory
+        FileFactory $fileFactory,
+        OrderItemValidator $orderItemValidator
     ) {
         $this->retailTransactionFactory = $retailTransactionFactory;
         $this->customerSession = $customerSession;
@@ -407,8 +417,9 @@ class OrderManagement extends ServiceAbstract
         $this->orderRepository = $orderRepository;
         $this->salesHelper = $salesHelper;
         $this->cartRepository = $cartRepository;
-        parent::__construct($context->getRequest(), $dataConfig, $storeManager);
         $this->outletRepository = $outletRepository;
+        $this->orderItemValidator = $orderItemValidator;
+        parent::__construct($context->getRequest(), $dataConfig, $storeManager);
         $this->fileFactory = $fileFactory;
     }
 
@@ -803,6 +814,10 @@ class OrderManagement extends ServiceAbstract
                 }
             }
 
+            // XRT-6030 for syncing order to client ERP
+            $this->getContext()
+                ->getEventManager()
+                ->dispatch('sales_order_place_after', ['order' => $order]);
             return new DataObject(
                 [
                     'entity_id' => $order->getEntityId().",".$refundOrder->getEntityId(),
@@ -813,6 +828,10 @@ class OrderManagement extends ServiceAbstract
         }
 
         if (isset($data['is_pwa']) && $data['is_pwa'] === true) {
+            // XRT-6030 for syncing order to client ERP
+            $this->getContext()
+                ->getEventManager()
+                ->dispatch('sales_order_place_after', ['order' => $order]);
             return new DataObject(
                 [
                     'entity_id' => $order->getEntityId(),
@@ -821,6 +840,10 @@ class OrderManagement extends ServiceAbstract
             );
         }
 
+        // XRT-6030 for syncing order to client ERP
+        $this->getContext()
+            ->getEventManager()
+            ->dispatch('sales_order_place_after', ['order' => $order]);
         return new DataObject(
             [
                 'entity_id' => $order->getEntityId(),
@@ -1331,16 +1354,14 @@ class OrderManagement extends ServiceAbstract
         /**
          * Change shipping address flag
          */
-        if (!$this->getOrderCreateModel()->getQuote()->isVirtual() && $this->getRequest()->getPost('reset_shipping')
-        ) {
+        if (!$this->getOrderCreateModel()->getQuote()->isVirtual() && $this->getRequest()->getPost('reset_shipping')) {
             $this->getOrderCreateModel()->resetShippingMethod();
         }
 
         /**
          * Adding products to quote from special grid
          */
-        if ($this->getRequest()->has('items') && !$this->getRequest()->getPost('update_items') && !($action == 'save')
-        ) {
+        if ($this->getRequest()->has('items') && !$this->getRequest()->getPost('update_items') && !($action == 'save')) {
             $items = $this->requestOrderData['items'];
             $items = $this->processFiles($items);
             $this->getOrderCreateModel()->getQuote()->removeAllItems();
@@ -1645,95 +1666,20 @@ class OrderManagement extends ServiceAbstract
      */
     private function transformData($configData = null)
     {
-        $configData = $this->getConfigLoaderData();
+        if (!$configData) {
+            $configData = $this->getConfigLoaderData();
+        }
+
         $data = $this->requestOrderData;
         $order = $data['order'];
         $items = $data['items'];
 
         if (is_array($items)) {
-            foreach ($items as $key => $value) {
-                if (isset($value['gift_card'])) {
-                    if (isset($items[$key]['gift_card']['aw_gc_amount'])) {
-                        $items[$key]['gift_card']['giftcard_amount'] = $items[$key]['gift_card']['aw_gc_amount'];
-                    }
-                    if (isset($items[$key]['gift_card']['aw_gc_custom_amount'])) {
-                        $items[$key]['gift_card']['custom_giftcard_amount'] = $items[$key]['gift_card']['aw_gc_custom_amount'];
-                    }
-                    if (isset($items[$key]['gift_card']['aw_gc_sender_name'])) {
-                        $items[$key]['gift_card']['giftcard_sender_name'] = $items[$key]['gift_card']['aw_gc_sender_name'];
-                    }
-                    if (isset($items[$key]['gift_card']['aw_gc_sender_email'])) {
-                        $items[$key]['gift_card']['giftcard_sender_email'] = $items[$key]['gift_card']['aw_gc_sender_email'];
-                    }
-                    if (isset($items[$key]['gift_card']['aw_gc_recipient_name'])) {
-                        $items[$key]['gift_card']['giftcard_recipient_name'] = $items[$key]['gift_card']['aw_gc_recipient_name'];
-                    }
-                    if (isset($items[$key]['gift_card']['aw_gc_recipient_email'])) {
-                        $items[$key]['gift_card']['giftcard_recipient_email'] = $items[$key]['gift_card']['aw_gc_recipient_email'];
-                    }
-                    if (isset($items[$key]['gift_card']['aw_gc_headline'])) {
-                        $items[$key]['gift_card']['giftcard_headline'] = $items[$key]['gift_card']['aw_gc_headline'];
-                    }
-                    if (isset($items[$key]['gift_card']['aw_gc_message'])) {
-                        $items[$key]['gift_card']['giftcard_message'] = $items[$key]['gift_card']['aw_gc_message'];
-                    }
-                    if (isset($items[$key]['gift_card']['aw_gc_code'])) {
-                        $queue = $this->registry->registry('aw_gc_code');
-                        if (!$queue || $queue->isEmpty()) {
-                            $queue = new \SplQueue();
-                        }
-                        $queue->enqueue($items[$key]['gift_card']['aw_gc_code']);
-                        $this->registry->unregister('aw_gc_code');
-                        $this->registry->register('aw_gc_code', $queue);
-                    }
-                }
-                if (isset($value['options']) && isset($value['product_options_custom_option'])) {
-                    foreach ($value['product_options_custom_option'] as $opt) {
-                        if (isset($opt['option_type'])
-                            && $this->_isMultipleSelection($opt['option_type'])
-                            && isset($value['options'][$opt['option_id']])
-                            && is_string($value['options'][$opt['option_id']])
-                        ) {
-                            $items[$key]['options'][$opt['option_id']] = explode(",", $value['options'][$opt['option_id']]);
-                        }
-                    }
-                }
-            }
-            $data['items'] = $items;
+            $data['items'] = $this->transformItemData($items);
         }
 
-        if (isset($order['billing_address']['first_name'])) {
-            $order['billing_address']['firstname'] = $order['billing_address']['first_name'];
-        }
-        if (isset($order['billing_address']['middle_name'])) {
-            $order['billing_address']['middlename'] = $order['billing_address']['middle_name'];
-        }
-        if (isset($order['billing_address']['last_name'])) {
-            $order['billing_address']['lastname'] = $order['billing_address']['last_name'];
-        }
-        if (!is_array($order['billing_address']['street'])) {
-            $order['billing_address']['street'] = [$order['billing_address']['street']];
-        }
-        if ($order['billing_address']['region_id'] == "*") {
-            $order['billing_address']['region_id'] = null;
-        }
-
-        if (isset($order['shipping_address']['first_name'])) {
-            $order['shipping_address']['firstname'] = $order['shipping_address']['first_name'];
-        }
-        if (isset($order['shipping_address']['middle_name'])) {
-            $order['shipping_address']['middlename'] = $order['shipping_address']['middle_name'];
-        }
-        if (isset($order['shipping_address']['last_name'])) {
-            $order['shipping_address']['lastname'] = $order['shipping_address']['last_name'];
-        }
-        if (!is_array($order['shipping_address']['street'])) {
-            $order['shipping_address']['street'] = [$order['shipping_address']['street']];
-        }
-        // fix region id for magento 2.2.3 or above
-        if ($order['shipping_address']['region_id'] == "*") {
-            $order['shipping_address']['region_id'] = null;
-        }
+        $order['billing_address'] = $this->transformAddressData($order['billing_address']);
+        $order['shipping_address'] = $this->transformAddressData($order['shipping_address']);
 
         if ($this->checkIsRefundToGiftCard()) {
             foreach ($order['payment_data'] as $paymentDatum) {
@@ -1821,6 +1767,111 @@ class OrderManagement extends ServiceAbstract
         $this->requestOrderData = $data;
 
         return $this;
+    }
+
+    /**
+     * @param array  $orderAddress
+     *
+     * @return array
+     */
+    private function transformAddressData(array $orderAddress)
+    {
+        $addressData = $orderAddress;
+
+        if (isset($orderAddress['first_name'])) {
+            $addressData['firstname'] = $orderAddress['first_name'];
+        }
+
+        if (isset($orderAddress['last_name'])) {
+            $addressData['lastname'] = $orderAddress['last_name'];
+        }
+
+        if (!is_array($orderAddress['street'])) {
+            $addressData['street'] = [$orderAddress['street']];
+        }
+
+        // fix region id for magento 2.2.3 or above
+        if ($orderAddress['region_id'] == "*") {
+            $addressData['region_id'] = null;
+        }
+
+        return $addressData;
+    }
+
+    /**
+     * @param $items
+     *
+     * @return mixed
+     * @throws AlreadyExistsException
+     */
+    private function transformItemData($items)
+    {
+        $cachedSerialNumber = "";
+        foreach ($items as $key => $value) {
+            if (isset($value['gift_card'])) {
+                if (isset($items[$key]['gift_card']['aw_gc_amount'])) {
+                    $items[$key]['gift_card']['giftcard_amount'] = $items[$key]['gift_card']['aw_gc_amount'];
+                }
+                if (isset($items[$key]['gift_card']['aw_gc_custom_amount'])) {
+                    $items[$key]['gift_card']['custom_giftcard_amount'] = $items[$key]['gift_card']['aw_gc_custom_amount'];
+                }
+                if (isset($items[$key]['gift_card']['aw_gc_sender_name'])) {
+                    $items[$key]['gift_card']['giftcard_sender_name'] = $items[$key]['gift_card']['aw_gc_sender_name'];
+                }
+                if (isset($items[$key]['gift_card']['aw_gc_sender_email'])) {
+                    $items[$key]['gift_card']['giftcard_sender_email'] = $items[$key]['gift_card']['aw_gc_sender_email'];
+                }
+                if (isset($items[$key]['gift_card']['aw_gc_recipient_name'])) {
+                    $items[$key]['gift_card']['giftcard_recipient_name'] = $items[$key]['gift_card']['aw_gc_recipient_name'];
+                }
+                if (isset($items[$key]['gift_card']['aw_gc_recipient_email'])) {
+                    $items[$key]['gift_card']['giftcard_recipient_email'] = $items[$key]['gift_card']['aw_gc_recipient_email'];
+                }
+                if (isset($items[$key]['gift_card']['aw_gc_headline'])) {
+                    $items[$key]['gift_card']['giftcard_headline'] = $items[$key]['gift_card']['aw_gc_headline'];
+                }
+                if (isset($items[$key]['gift_card']['aw_gc_message'])) {
+                    $items[$key]['gift_card']['giftcard_message'] = $items[$key]['gift_card']['aw_gc_message'];
+                }
+                if (isset($items[$key]['gift_card']['aw_gc_code'])) {
+                    $queue = $this->registry->registry('aw_gc_code');
+                    if (!$queue || $queue->isEmpty()) {
+                        $queue = new \SplQueue();
+                    }
+                    $queue->enqueue($items[$key]['gift_card']['aw_gc_code']);
+                    $this->registry->unregister('aw_gc_code');
+                    $this->registry->register('aw_gc_code', $queue);
+                }
+            }
+
+            if (isset($value['options']) && isset($value['product_options_custom_option'])) {
+                foreach ($value['product_options_custom_option'] as $opt) {
+                    if (isset($opt['option_type'])
+                        && $this->_isMultipleSelection($opt['option_type'])
+                        && isset($value['options'][$opt['option_id']])
+                        && is_string($value['options'][$opt['option_id']])
+                    ) {
+                        $items[$key]['options'][$opt['option_id']] = explode(",", $value['options'][$opt['option_id']]);
+                    }
+                }
+            }
+
+            if (isset($value['serial_number']) && !empty($value['serial_number'])) {
+                // Check if there already exists the same item with this serial number
+                if (!empty($cachedSerialNumber) && $cachedSerialNumber === $value['serial_number']) {
+                    throw new AlreadyExistsException(__('There exists an item with the same serial number %1 in cart!', $value['serial_number']));
+                }
+
+                if (!$this->orderItemValidator->validateSerialNumber($value['serial_number'])) {
+                    throw new AlreadyExistsException(__('There exists an order item with the same serial number %1!', $value['serial_number']));
+                }
+
+                $items[$key]['serial_number'] = $value['serial_number'];
+                $cachedSerialNumber = $value['serial_number'];
+            }
+        }
+
+        return $items;
     }
 
     /**
