@@ -613,6 +613,7 @@ class InvoiceManagement extends ServiceAbstract
             if ($this->integrateHelper->isIntegrateRP()) {
                 if (($this->integrateHelper->isRewardPointMagento2EE() && $mage2EEConfig)
                     || ($this->integrateHelper->isAHWRewardPoints() && $aheadWorkConfig)
+                    || ($this->integrateHelper->isAmastyRewardPoints())
                 ) {
                     $order->setData('reward_points_refunded', floatval($reward_point_deduct));
                     $order->setData('previous_reward_points_balance', floatval($currentRewardPointBalance));

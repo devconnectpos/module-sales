@@ -98,6 +98,42 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.3.7', '<')) {
             $this->addCreditmemoFromStore($setup);
         }
+        if (version_compare($context->getVersion(), '0.3.8', '<=')) {
+            $this->addSerialNumberToSalesItem($setup);
+        }
+    }
+
+    protected function addSerialNumberToSalesItem(SchemaSetupInterface $installer)
+    {
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote_item'), 'serial_number')) {
+            $installer->getConnection()->dropColumn($installer->getTable('quote_item'), 'serial_number');
+        }
+
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order_item'), 'serial_number')) {
+            $installer->getConnection()->dropColumn($installer->getTable('sales_order_item'), 'serial_number');
+        }
+
+        $installer->getConnection()->addColumn(
+            $installer->getTable('quote_item'),
+            'serial_number',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'length'  => 250,
+                'comment' => 'Serial number',
+            ]
+        );
+
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order_item'),
+            'serial_number',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'length'  => 250,
+                'comment' => 'Serial number',
+            ]
+        );
+
+        $installer->endSetup();
     }
 
     /**
@@ -108,7 +144,8 @@ class UpgradeSchema implements UpgradeSchemaInterface
         $installer = $setup;
 
         if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'user_id')
-            && $installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'retail_has_shipment')) {
+            && $installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'retail_has_shipment')
+        ) {
             return;
         }
 
@@ -856,7 +893,7 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 [
                     'type'    => Table::TYPE_INTEGER,
                     'comment' => 'Print time counter',
-                    'default' => 0
+                    'default' => 0,
                 ]
             );
         }
@@ -937,34 +974,34 @@ class UpgradeSchema implements UpgradeSchemaInterface
         $table = $setup->getTable('sales_order_grid');
 
         $setup->getConnection()
-              ->addIndex(
-                  $table,
-                  $setup->getIdxName(
-                      $table,
-                      [
-                          'increment_id',
-                          'billing_name',
-                          'shipping_name',
-                          'shipping_address',
-                          'billing_address',
-                          'customer_email',
-                          'customer_name',
-                          'retail_id'
-                      ],
-                      \Magento\Framework\DB\Adapter\AdapterInterface::INDEX_TYPE_FULLTEXT
-                  ),
-                  [
-                      'increment_id',
-                      'billing_name',
-                      'shipping_name',
-                      'shipping_address',
-                      'billing_address',
-                      'customer_email',
-                      'customer_name',
-                      'retail_id'
-                  ],
-                  \Magento\Framework\DB\Adapter\AdapterInterface::INDEX_TYPE_FULLTEXT
-              );
+            ->addIndex(
+                $table,
+                $setup->getIdxName(
+                    $table,
+                    [
+                        'increment_id',
+                        'billing_name',
+                        'shipping_name',
+                        'shipping_address',
+                        'billing_address',
+                        'customer_email',
+                        'customer_name',
+                        'retail_id',
+                    ],
+                    \Magento\Framework\DB\Adapter\AdapterInterface::INDEX_TYPE_FULLTEXT
+                ),
+                [
+                    'increment_id',
+                    'billing_name',
+                    'shipping_name',
+                    'shipping_address',
+                    'billing_address',
+                    'customer_email',
+                    'customer_name',
+                    'retail_id',
+                ],
+                \Magento\Framework\DB\Adapter\AdapterInterface::INDEX_TYPE_FULLTEXT
+            );
     }
 
     protected function addEstimatedAvailabilityToOrder(SchemaSetupInterface $setup)
@@ -983,7 +1020,7 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 'length'   => '12,4',
                 'nullable' => true,
                 'default'  => 0,
-                'comment'  => 'Estimated Availability'
+                'comment'  => 'Estimated Availability',
             ]
         );
         $installer->getConnection()->addColumn(
@@ -994,7 +1031,7 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 'length'   => '12,4',
                 'nullable' => true,
                 'default'  => 0,
-                'comment'  => 'Estimated Availability'
+                'comment'  => 'Estimated Availability',
             ]
         );
         $installer->getConnection()->addColumn(
@@ -1005,7 +1042,7 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 'length'   => '12,4',
                 'nullable' => true,
                 'default'  => 0,
-                'comment'  => 'Estimated Availability'
+                'comment'  => 'Estimated Availability',
             ]
         );
     }
@@ -1052,11 +1089,11 @@ class UpgradeSchema implements UpgradeSchemaInterface
             ]
         );
     }
-    
+
     protected function addCreditmemoFromStore(SchemaSetupInterface $setup)
     {
         $installer = $setup;
-        
+
         if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_creditmemo'), 'cpos_creditmemo_from_store_id')) {
             $installer->getConnection()->addColumn(
                 $installer->getTable('sales_creditmemo'),

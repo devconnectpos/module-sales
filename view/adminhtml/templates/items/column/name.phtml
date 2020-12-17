@@ -14,10 +14,17 @@
 	     class="product-title">
 		<?= $block->escapeHtml($_item->getName()) ?>
 	</div>
+
+    <?php if ($_item->getData('serial_number')): ?>
+        <div class="product-serial_number-block">
+            <span><?= $block->escapeHtml(__('Serial Number'))?>:</span> <?= /* @noEscape */ $block->escapeHtml($_item->getData('serial_number')) ?>
+        </div>
+    <?php endif ?>
+
 	<div class="product-sku-block">
 		<span><?= $block->escapeHtml(__('SKU'))?>:</span> <?= /* @noEscape */ implode('<br />', $this->helper(\Magento\Catalog\Helper\Data::class)->splitSku($block->escapeHtml($block->getSku()))) ?>
 	</div>
-	
+
 	<?php if ($block->getOrderOptions()) : ?>
 		<dl class="item-options">
 			<?php foreach ($block->getOrderOptions() as $_option) : ?>
