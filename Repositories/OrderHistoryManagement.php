@@ -697,7 +697,7 @@ class OrderHistoryManagement extends ServiceAbstract
                 ]
             );
 
-            $products = $this->productManagement->loadPWAProducts($searchCriteria)->getItems();
+            $products = $this->productManagement->loadXProducts($searchCriteria)->getItems();
 
             if (count($products) > 0) {
                 $xOrderItem->setData('product', $products[0]);
@@ -713,6 +713,14 @@ class OrderHistoryManagement extends ServiceAbstract
                     $buyRequest['item_note'] = $additionalOption['value'];
                 }
             }
+        }
+        
+        if ($item->getData('cpos_discount_per_item_percent')) {
+            $buyRequest['retail_discount_per_items_percent'] = $item->getData('cpos_discount_per_item_percent');
+        }
+    
+        if ($item->getData('cpos_discount_per_item')) {
+            $buyRequest['discount_per_item'] = $item->getData('cpos_discount_per_item');
         }
 
         $xOrderItem->setData('buy_request', $buyRequest);

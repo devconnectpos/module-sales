@@ -48,11 +48,19 @@ class OrderItemManagement extends ServiceAbstract
     }
 
     /**
-     * @throws \Exception
+     * @param $data
+     *
+     * @return array
+     * @throws AlreadyExistsException
+     * @throws \ReflectionException
      */
-    public function updateOrderItem()
+    public function updateOrderItem($data = null)
     {
-        $data = $this->getRequest()->getParams()['item_data'];
+        if (!$data) {
+            $params = $this->getRequest()->getParams();
+            $data = $params['item_data'] ?? [];
+        }
+
         $itemId = $data['item_id'] ?? 0;
 
         if (!$itemId) {
@@ -69,5 +77,34 @@ class OrderItemManagement extends ServiceAbstract
         $item = $this->orderItemRepository->save($item);
 
         return $this->orderHistoryManagement->getIndividualOrderItemData($item, $item->getStoreId());
+    }
+
+    /**
+     * @return array
+     * @throws AlreadyExistsException
+     * @throws \ReflectionException
+     */
+    public function massUpdateOrderItem() {
+        $params = $this->getRequest()->getParams();
+        $massItems = $params['items'] ?? [];
+        $itemOutputs = [];
+        $updatedSerialNumber = [];
+
+        foreach ($massItems as $item) {
+            if (!isset($item['item_data'])) {
+                continue;
+            }
+
+            $itemData = $item['item_data'];
+
+            if (in_array($itemData['serial_number'], $updatedSerialNumber)) {
+                throw new AlreadyExistsException(__('There exists an order item with the same serial number %1!', $itemData['serial_number']));
+            }
+
+            $itemOutputs[] = $this->updateOrderItem($item['item_data']);
+            $updatedSerialNumber[] = $itemData['serial_number'];
+        }
+
+        return $itemOutputs;
     }
 }

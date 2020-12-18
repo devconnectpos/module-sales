@@ -16,7 +16,7 @@
 	</div>
 
     <?php if ($_item->getData('serial_number')): ?>
-        <div class="product-serial_number-block">
+        <div class="product-sku-block">
             <span><?= $block->escapeHtml(__('Serial Number'))?>:</span> <?= /* @noEscape */ $block->escapeHtml($_item->getData('serial_number')) ?>
         </div>
     <?php endif ?>

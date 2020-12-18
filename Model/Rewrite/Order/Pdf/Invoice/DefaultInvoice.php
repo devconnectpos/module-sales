@@ -5,12 +5,12 @@ namespace SM\Sales\Model\Rewrite\Order\Pdf\Invoice;
 
 class DefaultInvoice extends \Magento\Sales\Model\Order\Pdf\Items\Invoice\DefaultInvoice
 {
-    
+
     /**
      * @var \Magento\Sales\Api\OrderItemRepositoryInterface
      */
     private $orderItemRepository;
-    
+
     public function __construct(
         \Magento\Framework\Model\Context $context,
         \Magento\Framework\Registry $registry,
@@ -26,7 +26,7 @@ class DefaultInvoice extends \Magento\Sales\Model\Order\Pdf\Items\Invoice\Defaul
         parent::__construct($context, $registry, $taxData, $filesystem, $filterManager, $string, $resource, $resourceCollection, $data);
         $this->orderItemRepository = $orderItemRepository;
     }
-    
+
     /**
      * Draw item line
      *
@@ -39,33 +39,37 @@ class DefaultInvoice extends \Magento\Sales\Model\Order\Pdf\Items\Invoice\Defaul
         $pdf = $this->getPdf();
         $page = $this->getPage();
         $lines = [];
-        
-        
+
         // draw Product name
+        $splitName = $this->string->split(html_entity_decode($item->getName()), 35, true, true);
+        if ($item->getOrderItem()->getData('serial_number')) {
+            $splitName[] = 'Serial Number: '.$item->getOrderItem()->getData('serial_number');
+        }
+
         $lines[0] = [
             [
-       // phpcs:ignore Magento2.Functions.DiscouragedFunction
-                'text' => $this->string->split(html_entity_decode($item->getName()), 35, true, true),
-                'feed' => 35
+                // phpcs:ignore Magento2.Functions.DiscouragedFunction
+                'text' => $splitName,
+                'feed' => 35,
             ],
         ];
-        
+
         // draw SKU
         $lines[0][] = [
-      // phpcs:ignore Magento2.Functions.DiscouragedFunction
-            'text' => $this->string->split(html_entity_decode($this->getSku($item)), 17),
-            'feed' => 290,
+            // phpcs:ignore Magento2.Functions.DiscouragedFunction
+            'text'  => $this->string->split(html_entity_decode($this->getSku($item)), 17),
+            'feed'  => 290,
             'align' => 'right',
         ];
-        
+
         // draw QTY
         $lines[0][] = ['text' => $item->getQty() * 1, 'feed' => 435, 'align' => 'right'];
-        
+
         // draw item Prices
         $i = 0;
         $prices = $this->getItemPricesForDisplay();
-        $feedPrice = 395;
-        $feedSubtotal = $feedPrice + 170;
+        $feedPrice = 360;
+        $feedSubtotal = $feedPrice + 205;
         foreach ($prices as $priceData) {
             if (isset($priceData['label'])) {
                 // draw Price label
@@ -76,29 +80,29 @@ class DefaultInvoice extends \Magento\Sales\Model\Order\Pdf\Items\Invoice\Defaul
             }
             // draw Price
             $lines[$i][] = [
-                'text' => $priceData['price'],
-                'feed' => $feedPrice,
-                'font' => 'bold',
+                'text'  => $priceData['price'],
+                'feed'  => $feedPrice,
+                'font'  => 'bold',
                 'align' => 'right',
             ];
             // draw Subtotal
             $lines[$i][] = [
-                'text' => $priceData['subtotal'],
-                'feed' => $feedSubtotal,
-                'font' => 'bold',
+                'text'  => $priceData['subtotal'],
+                'feed'  => $feedSubtotal,
+                'font'  => 'bold',
                 'align' => 'right',
             ];
             $i++;
         }
-        
+
         // draw Tax
         $lines[0][] = [
-            'text' => $order->formatPriceTxt($item->getTaxAmount()),
-            'feed' => 495,
-            'font' => 'bold',
+            'text'  => $order->formatPriceTxt($item->getTaxAmount()),
+            'feed'  => 495,
+            'font'  => 'bold',
             'align' => 'right',
         ];
-        
+
         // custom options
         $options = $this->getItemOptions();
         if ($options) {
@@ -109,7 +113,7 @@ class DefaultInvoice extends \Magento\Sales\Model\Order\Pdf\Items\Invoice\Defaul
                     'font' => 'italic',
                     'feed' => 35,
                 ];
-                
+
                 // Checking whether option value is not null
                 if ($option['value'] !== null) {
                     if (isset($option['print_value'])) {
@@ -124,19 +128,20 @@ class DefaultInvoice extends \Magento\Sales\Model\Order\Pdf\Items\Invoice\Defaul
                 }
             }
         }
-        
+
         $orderItem = $this->orderItemRepository->get($item->getOrderItemId());
         if (isset($orderItem->getBuyRequest()['custom_sale'])
             && isset($orderItem->getBuyRequest()['custom_sale']['note'])
-            && $orderItem->getBuyRequest()['custom_sale']['note'] != "") {
+            && $orderItem->getBuyRequest()['custom_sale']['note'] != ""
+        ) {
             $lines[][] = [
-                'text' => $this->string->split($this->filterManager->stripTags('Note: ' . $orderItem->getBuyRequest()['custom_sale']['note']), 35, true, true),
+                'text' => $this->string->split($this->filterManager->stripTags('Note: '.$orderItem->getBuyRequest()['custom_sale']['note']), 35, true, true),
                 'feed' => 35,
             ];
         }
-        
+
         $lineBlock = ['lines' => $lines, 'height' => 20];
-        
+
         $page = $pdf->drawLineBlocks($page, [$lineBlock], ['table_header' => true]);
         $this->setPage($page);
     }
