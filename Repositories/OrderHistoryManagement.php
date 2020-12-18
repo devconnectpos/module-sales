@@ -714,6 +714,14 @@ class OrderHistoryManagement extends ServiceAbstract
                 }
             }
         }
+        
+        if ($item->getData('cpos_discount_per_item_percent')) {
+            $buyRequest['retail_discount_per_items_percent'] = $item->getData('cpos_discount_per_item_percent');
+        }
+    
+        if ($item->getData('cpos_discount_per_item')) {
+            $buyRequest['discount_per_item'] = $item->getData('cpos_discount_per_item');
+        }
 
         $xOrderItem->setData('buy_request', $buyRequest);
         $xOrderItem->setData('serial_number', $item->getData('serial_number'));
