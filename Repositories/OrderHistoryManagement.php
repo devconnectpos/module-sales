@@ -697,7 +697,7 @@ class OrderHistoryManagement extends ServiceAbstract
                 ]
             );
 
-            $products = $this->productManagement->loadPWAProducts($searchCriteria)->getItems();
+            $products = $this->productManagement->loadXProducts($searchCriteria)->getItems();
 
             if (count($products) > 0) {
                 $xOrderItem->setData('product', $products[0]);

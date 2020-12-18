@@ -15,5 +15,11 @@
                 <argument name="template" translate="true" xsi:type="string">SM_Sales::items/column/name.phtml</argument>
             </action>
         </referenceBlock>
+
+        <referenceBlock name="order_items.bundle">
+            <action method="setTemplate">
+                <argument name="template" translate="true" xsi:type="string">SM_Sales::bundle/items/renderer.phtml</argument>
+            </action>
+        </referenceBlock>
     </body>
 </page>
