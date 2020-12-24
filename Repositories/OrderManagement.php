@@ -521,9 +521,9 @@ class OrderManagement extends ServiceAbstract
             $data = $this->getRequest()->getParams();
         }
 
-        if (isset($data['previous_quote_id'])) {
+        if (isset($data['previous_quote_id']) && $data['previous_quote_id'] !== null) {
             $previousQuote = $this->cartRepository->get($data['previous_quote_id']);
-            if ($previousQuote->getIsActive() === true) {
+            if ($previousQuote->getIsActive()) {
                 $previousQuote->setIsActive(false);
                 $this->cartRepository->save($previousQuote);
             }

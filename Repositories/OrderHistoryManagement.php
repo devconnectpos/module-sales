@@ -191,7 +191,7 @@ class OrderHistoryManagement extends ServiceAbstract
 
             /** @var \Magento\Sales\Model\Order $order */
             foreach ($collection as $order) {
-                $order = $this->orderFactory->create()->loadByIncrementId($order->getIncrementId());
+                $order = $this->orderRepository->get($order->getId());
                 if (!$searchCriteria->getData('isSearchOnline')
                     && $order->getShippingMethod() === 'smstorepickup_smstorepickup'
                     && !isset($this->getRequest()->getParams()['save-order'])
@@ -202,13 +202,17 @@ class OrderHistoryManagement extends ServiceAbstract
                         if ($order->getData('pickup_outlet_id') != $searchCriteria->getData('outletId')) {
                             continue;
                         }
-                    } elseif (!!$order->getData('outlet_id') && $order->getData('outlet_id') != $searchCriteria->getData('outletId')) {
+                    } elseif (!!$order->getData('outlet_id')
+                        && $order->getData('outlet_id') != $searchCriteria->getData('outletId')) {
                         continue;
                     }
                 }
                 $customerPhone = "";
                 $xOrder = new XOrder($order->getData());
-                $xOrder->setData('created_at', $this->retailHelper->convertTimeDBUsingTimeZone($order->getCreatedAt(), $storeId));
+                $xOrder->setData(
+                    'created_at',
+                    $this->retailHelper->convertTimeDBUsingTimeZone($order->getCreatedAt(), $storeId)
+                );
                 $xOrder->setData('status', $order->getStatusLabel());
                 if ($order->getCustomerId()) {
                     $customer = $this->customerFactory->create()->load($order->getCustomerId());
@@ -227,7 +231,21 @@ class OrderHistoryManagement extends ServiceAbstract
                         'phone' => $customerPhone,
                     ]
                 );
-
+                $itemTaxes = [];
+                $itemAppliedTaxes = $order->getExtensionAttributes()->getItemAppliedTaxes();
+                if (!empty($itemAppliedTaxes)) {
+                    foreach ($itemAppliedTaxes as $itemAppliedTax) {
+                        $appliedTaxes = [];
+                        foreach ($itemAppliedTax->getAppliedTaxes() as $appliedTax) {
+                            $appliedTaxes[] = $appliedTax->getData();
+                        }
+                        $itemTax = $itemAppliedTax->getData();
+                        $itemTax['applied_taxes'] = $appliedTaxes;
+                        $itemTaxes[] = $itemTax;
+                    }
+                }
+                
+                $xOrder->setData('item_applied_taxes', $itemTaxes);
                 $xOrder->setData('items', $this->getOrderItemData($order->getItemsCollection()->getItems()));
 
                 if ($billingAdd = $order->getBillingAddress()) {
@@ -239,7 +257,7 @@ class OrderHistoryManagement extends ServiceAbstract
                     $xOrder->setData('shipping_address', $customerShippingAdd);
                 }
                 if ($order->getShippingMethod() === 'smstorepickup_smstorepickup'
-                    && is_null($order->getData('retail_status'))
+                    && $order->getData('retail_status') === null
                 ) {
                     if (!$order->hasCreditmemos()) {
                         if ($order->canInvoice()) {
