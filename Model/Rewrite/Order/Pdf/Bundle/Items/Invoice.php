@@ -9,6 +9,7 @@ namespace SM\Sales\Model\Rewrite\Order\Pdf\Bundle\Items;
 use Magento\Bundle\Model\Sales\Order\Pdf\Items\AbstractItems;
 use Magento\Framework\App\ObjectManager;
 use Magento\Framework\Serialize\Serializer\Json;
+use Magento\Framework\Stdlib\StringUtils;
 
 /**
  * Order invoice pdf default items renderer
@@ -16,49 +17,19 @@ use Magento\Framework\Serialize\Serializer\Json;
 class Invoice extends AbstractItems
 {
     /**
-     * @var \Magento\Framework\Stdlib\StringUtils
+     * @return mixed|\Magento\Framework\Stdlib\StringUtils
      */
-    protected $string;
+    protected function getString()
+    {
+        return ObjectManager::getInstance()->get(StringUtils::class);
+    }
 
     /**
-     * Constructor
-     *
-     * @param \Magento\Framework\Model\Context                        $context
-     * @param \Magento\Framework\Registry                             $registry
-     * @param \Magento\Tax\Helper\Data                                $taxData
-     * @param \Magento\Framework\Filesystem                           $filesystem
-     * @param \Magento\Framework\Filter\FilterManager                 $filterManager
-     * @param \Magento\Framework\Stdlib\StringUtils                   $coreString
-     * @param \Magento\Framework\Model\ResourceModel\AbstractResource $resource
-     * @param \Magento\Framework\Data\Collection\AbstractDb           $resourceCollection
-     * @param array                                                   $data
-     * @param \Magento\Framework\Serialize\Serializer\Json|null       $serializer
-     * @SuppressWarnings(PHPMD.ExcessiveParameterList)
+     * @return mixed|\Magento\Framework\Serialize\Serializer\Json
      */
-    public function __construct(
-        \Magento\Framework\Model\Context $context,
-        \Magento\Framework\Registry $registry,
-        \Magento\Tax\Helper\Data $taxData,
-        \Magento\Framework\Filesystem $filesystem,
-        \Magento\Framework\Filter\FilterManager $filterManager,
-        \Magento\Framework\Stdlib\StringUtils $coreString,
-        \Magento\Framework\Model\ResourceModel\AbstractResource $resource = null,
-        \Magento\Framework\Data\Collection\AbstractDb $resourceCollection = null,
-        array $data = [],
-        Json $serializer = null
-    ) {
-        $this->string = $coreString;
-        parent::__construct(
-            $context,
-            $registry,
-            $taxData,
-            $filesystem,
-            $filterManager,
-            $resource,
-            $resourceCollection,
-            $data,
-            $serializer
-        );
+    protected function getSerializer()
+    {
+        return ObjectManager::getInstance()->get(Json::class);
     }
 
     /**
@@ -100,7 +71,7 @@ class Invoice extends AbstractItems
                 if ($prevOptionId != $attributes['option_id']) {
                     $line[0] = [
                         'font' => 'italic',
-                        'text' => $this->string->split($attributes['option_label'], 45, true, true),
+                        'text' => $this->getString()->split($attributes['option_label'], 45, true, true),
                         'feed' => 35,
                     ];
 
@@ -119,7 +90,7 @@ class Invoice extends AbstractItems
                 $feed = 35;
                 $name = $childItem->getName();
             }
-            $splitName = $this->string->split($name, 35, true, true);
+            $splitName = $this->getString()->split($name, 35, true, true);
             if ($childItem->getOrderItem()->getData('serial_number')) {
                 $splitName[] = 'Serial Number: '.$childItem->getOrderItem()->getData('serial_number');
             }
@@ -128,7 +99,7 @@ class Invoice extends AbstractItems
             // draw SKUs
             if (!$childItem->getOrderItem()->getParentItem()) {
                 $text = [];
-                foreach ($this->string->split($item->getSku(), 17) as $part) {
+                foreach ($this->getString()->split($item->getSku(), 17) as $part) {
                     $text[] = $part;
                 }
                 $line[] = ['text' => $text, 'feed' => 255];
@@ -157,7 +128,7 @@ class Invoice extends AbstractItems
                 foreach ($options['options'] as $option) {
                     $lines = [];
                     $lines[][] = [
-                        'text' => $this->string->split(
+                        'text' => $this->getString()->split(
                             $this->filterManager->stripTags($option['label']),
                             40,
                             true,
@@ -178,7 +149,7 @@ class Invoice extends AbstractItems
                             );
                         $values = explode(', ', $printValue);
                         foreach ($values as $value) {
-                            foreach ($this->string->split($value, 30, true, true) as $subValue) {
+                            foreach ($this->getString()->split($value, 30, true, true) as $subValue) {
                                 $text[] = $subValue;
                             }
                         }
