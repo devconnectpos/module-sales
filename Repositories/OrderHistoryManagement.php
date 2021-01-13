@@ -244,7 +244,7 @@ class OrderHistoryManagement extends ServiceAbstract
                         $itemTaxes[] = $itemTax;
                     }
                 }
-                
+
                 $xOrder->setData('item_applied_taxes', $itemTaxes);
                 $xOrder->setData('items', $this->getOrderItemData($order->getItemsCollection()->getItems()));
 
@@ -708,10 +708,12 @@ class OrderHistoryManagement extends ServiceAbstract
         $xOrderItem->setData('children', $children);
 
         if ($storeId !== null) {
+            $searchCriteriaReq = $this->getRequest()->getParam('searchCriteria');
             $searchCriteria = new \Magento\Framework\DataObject(
                 [
                     'storeId'   => $storeId,
                     'entity_id' => $item->getProductId(),
+                    'warehouse_id' => $searchCriteriaReq && isset($searchCriteriaReq['warehouse_id']) ? $searchCriteriaReq['warehouse_id'] : null
                 ]
             );
 
@@ -732,11 +734,11 @@ class OrderHistoryManagement extends ServiceAbstract
                 }
             }
         }
-        
+
         if ($item->getData('cpos_discount_per_item_percent')) {
             $buyRequest['retail_discount_per_items_percent'] = $item->getData('cpos_discount_per_item_percent');
         }
-    
+
         if ($item->getData('cpos_discount_per_item')) {
             $buyRequest['discount_per_item'] = $item->getData('cpos_discount_per_item');
         }

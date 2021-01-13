@@ -818,6 +818,7 @@ class OrderManagement extends ServiceAbstract
             $this->getContext()
                 ->getEventManager()
                 ->dispatch('sales_order_place_after', ['order' => $order]);
+
             return new DataObject(
                 [
                     'entity_id' => $order->getEntityId().",".$refundOrder->getEntityId(),
@@ -832,6 +833,7 @@ class OrderManagement extends ServiceAbstract
             $this->getContext()
                 ->getEventManager()
                 ->dispatch('sales_order_place_after', ['order' => $order]);
+
             return new DataObject(
                 [
                     'entity_id' => $order->getEntityId(),
@@ -844,6 +846,7 @@ class OrderManagement extends ServiceAbstract
         $this->getContext()
             ->getEventManager()
             ->dispatch('sales_order_place_after', ['order' => $order]);
+
         return new DataObject(
             [
                 'entity_id' => $order->getEntityId(),
@@ -1583,6 +1586,7 @@ class OrderManagement extends ServiceAbstract
             'discount'                     => isset($totals['discount']) ? $totals['discount']->getValue() : 0,
             'grand_total'                  => $totals['grand_total']->getData('value'),
             'applied_taxes'                => $address->getData('applied_taxes') ? $this->retailHelper->unserialize($address->getData('applied_taxes')) : null,
+            'item_applied_taxes'           => $this->processQuoteItemAppliedTaxes($address),
             'cart_fixed_rules'             => $address->getData('cart_fixed_rules'),
             'applied_rule_ids'             => $address->getData('applied_rule_ids'),
             'retail_discount_per_item'     => $this->getQuote()->getData('retail_discount_per_item'),
@@ -1634,6 +1638,43 @@ class OrderManagement extends ServiceAbstract
         $data['quote_id'] = $this->getQuote()->getId();
 
         return $data;
+    }
+
+    /**
+     * @param $quoteAddress
+     *
+     * @return array
+     */
+    protected function processQuoteItemAppliedTaxes($quoteAddress)
+    {
+        $itemAppliedTaxes = $quoteAddress->getItemsAppliedTaxes();
+
+        if (empty($itemAppliedTaxes)) {
+            return [];
+        }
+
+        $itemAppliedTaxesModified = [];
+
+        $count = 0;
+
+        foreach ($itemAppliedTaxes as $key => $itemAppliedTaxItem) {
+            if (!is_array($itemAppliedTaxItem) || empty($itemAppliedTaxItem)) {
+                continue;
+            }
+
+            foreach ($itemAppliedTaxItem as $itemAppliedTax) {
+                $itemAppliedTaxesModified[$count]['type'] = $itemAppliedTax['item_type'];
+                $itemAppliedTaxesModified[$count]['item_id'] = $itemAppliedTax['item_id'];
+                $itemAppliedTaxesModified[$count]['associated_item_id'] = $itemAppliedTax['associated_item_id'];
+                $itemAppliedTax['extension_attributes']['rates'] = $itemAppliedTax['rates'];
+                unset($itemAppliedTax['rates']);
+                $itemAppliedTaxesModified[$count]['applied_taxes'][] = $itemAppliedTax;
+            }
+
+            $count++;
+        }
+
+        return $itemAppliedTaxesModified;
     }
 
     /**
@@ -1770,7 +1811,7 @@ class OrderManagement extends ServiceAbstract
     }
 
     /**
-     * @param array  $orderAddress
+     * @param array $orderAddress
      *
      * @return array
      */
