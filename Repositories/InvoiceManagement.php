@@ -97,6 +97,11 @@ class InvoiceManagement extends ServiceAbstract
     private $currencyModel;
 
     /**
+     * @var \Magento\Sales\Api\OrderRepositoryInterface
+     */
+    private $orderRepository;
+
+    /**
      * InvoiceManagement constructor.
      *
      * @param RequestInterface         $requestInterface
@@ -136,7 +141,8 @@ class InvoiceManagement extends ServiceAbstract
         Loader $configLoader,
         CustomerFactory $customerFactory,
         ScopeConfigInterface $scopeConfig,
-        Currency $currencyModel
+        Currency $currencyModel,
+        \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
     ) {
         $this->orderHistoryManagement = $orderHistoryManagement;
         $this->orderFactory = $orderFactory;
@@ -153,6 +159,7 @@ class InvoiceManagement extends ServiceAbstract
         $this->customerFactory = $customerFactory;
         $this->scopeConfig = $scopeConfig;
         $this->currencyModel = $currencyModel;
+        $this->orderRepository = $orderRepository;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -444,14 +451,15 @@ class InvoiceManagement extends ServiceAbstract
         }
         if (isset($data['order_id']) && isset($data['payment_data']) && is_array($data['payment_data'])) {
             /** @var \Magento\Sales\Model\Order $order */
-            $order = $this->orderFactory->create();
-            $order->load($data['order_id']);
+            try {
+                $order = $this->orderRepository->get($data['order_id']);
+            } catch (\Exception $e) {
+                throw new Exception("Can not find order");
+            }
+
             $allowedCurrencies = $this->storeManager->getStore($order->getData('store_id'))->getAvailableCurrencyCodes();
             $rates = $this->currencyModel->getCurrencyRates($baseCurrencyCode, array_values($allowedCurrencies));
             $currentCurrencyCode = $this->storeManager->getStore($order->getData('store_id'))->getCurrentCurrencyCode();
-            if (!$order->getId()) {
-                throw new Exception("Can not find order");
-            }
 
             // If order was created on online/backend so we will not add payment data into it
             if ($order->getPayment()->getMethod() != RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE && $order->getShippingMethod() !== 'smstorepickup_smstorepickup') {

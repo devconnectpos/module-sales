@@ -99,6 +99,10 @@ class CreditmemoManagement extends ServiceAbstract
      */
     private $invoiceFactory;
 
+    /**
+     * @var \Magento\Sales\Api\OrderRepositoryInterface
+     */
+    private $orderRepository;
 
     /**
      * CreditmemoManagement constructor.
@@ -119,6 +123,8 @@ class CreditmemoManagement extends ServiceAbstract
      * @param \SM\Sales\Repositories\OrderHistoryManagement            $orderHistoryManagement
      * @param \Magento\Framework\Event\ManagerInterface                $eventManagement
      * @param \Magento\Sales\Model\Order\InvoiceFactory                $invoiceFactory
+     * @param \Magento\Customer\Model\CustomerFactory                  $customerFactory
+     * @param \Magento\Sales\Api\OrderRepositoryInterface              $orderRepository
      */
     public function __construct(
         RequestInterface $requestInterface,
@@ -137,22 +143,24 @@ class CreditmemoManagement extends ServiceAbstract
         OrderHistoryManagement $orderHistoryManagement,
         ManagerInterface $eventManagement,
         InvoiceFactory $invoiceFactory,
-        \Magento\Customer\Model\CustomerFactory $customerFactory
+        \Magento\Customer\Model\CustomerFactory $customerFactory,
+        \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
     ) {
-        $this->taxConfig              = $taxConfig;
-        $this->invoiceManagement      = $invoiceManagement;
-        $this->session                = $session;
-        $this->creditmemoLoader       = $creditmemoLoader;
-        $this->blockItem              = $blockItem;
-        $this->objectManager          = $objectManager;
-        $this->creditmemoSender       = $creditmemoSender;
+        $this->taxConfig = $taxConfig;
+        $this->invoiceManagement = $invoiceManagement;
+        $this->session = $session;
+        $this->creditmemoLoader = $creditmemoLoader;
+        $this->blockItem = $blockItem;
+        $this->objectManager = $objectManager;
+        $this->creditmemoSender = $creditmemoSender;
         $this->orderHistoryManagement = $orderHistoryManagement;
-        $this->paymentHelper          = $paymentHelper;
-        $this->retailHelper           = $retailHelper;
-        $this->integrateHelperData    = $integrateHelperData;
-        $this->eventManagement        = $eventManagement;
-        $this->invoiceFactory         = $invoiceFactory;
-        $this->customerFactory                = $customerFactory;
+        $this->paymentHelper = $paymentHelper;
+        $this->retailHelper = $retailHelper;
+        $this->integrateHelperData = $integrateHelperData;
+        $this->eventManagement = $eventManagement;
+        $this->invoiceFactory = $invoiceFactory;
+        $this->customerFactory = $customerFactory;
+        $this->orderRepository = $orderRepository;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -205,20 +213,24 @@ class CreditmemoManagement extends ServiceAbstract
     {
         $orderId = $this->getRequest()->getParam('order_id');
         $storeId = $this->getRequest()->getParam('store_id');
-        $data    = $this->getCreditmemoData();
+        $data = $this->getCreditmemoData();
         $this->creditmemoLoader->setOrderId($orderId);
-        $this->creditmemoLoader->setCreditmemo($this->getCreditmemoData());
+        $this->creditmemoLoader->setCreditmemo($data);
         $creditmemo = $this->creditmemoLoader->load();
-        
+
         $creditmemo->setData('cpos_creditmemo_from_store_id', $storeId);
 
         // Support create refund for online order
-        $order = $creditmemo->getOrder();
+        $order = $this->orderRepository->get($creditmemo->getOrderId());
 
         if ($order->getInvoiceCollection()->getSize() == 1) {
-            $creditmemo->setInvoice($this->invoiceFactory->create()->load($order->getInvoiceCollection()
-                                                                                ->getFirstItem()
-                                                                                ->getData('entity_id')));
+            $creditmemo->setInvoice(
+                $this->invoiceFactory->create()->load(
+                    $order->getInvoiceCollection()
+                        ->getFirstItem()
+                        ->getData('entity_id')
+                )
+            );
         }
 
         if ($creditmemo) {
@@ -264,7 +276,7 @@ class CreditmemoManagement extends ServiceAbstract
                 $this->creditmemoSender->send($creditmemo);
             }
             $eventData = [
-                'order' => $creditmemo
+                'order' => $creditmemo,
             ];
             $this->eventManagement->dispatch(
                 'disable_giftcard_refund',
@@ -273,7 +285,8 @@ class CreditmemoManagement extends ServiceAbstract
 
             if (isset($data['refund_to_store_credit'])) {
                 if ($this->integrateHelperData->isIntegrateStoreCredit()
-                    && $this->integrateHelperData->isExistStoreCreditMagento2EE()) {
+                    && $this->integrateHelperData->isExistStoreCreditMagento2EE()
+                ) {
                     $storeCreditData = $this->integrateHelperData
                         ->getStoreCreditIntegrateManagement()
                         ->getCurrentIntegrateModel()
@@ -293,9 +306,10 @@ class CreditmemoManagement extends ServiceAbstract
                 && $this->integrateHelperData->isAHWGiftCardExist()
                 && ($this->integrateHelperData->isIntegrateGC()
                     || ($order->getData('is_pwa') == 1
-                        && $this->integrateHelperData->isIntegrateGCInPWA()))) {
-                $created_at              = $this->retailHelper->getCurrentTime();
-                $giftCardPaymentId       = $this->paymentHelper->getPaymentIdByType(
+                        && $this->integrateHelperData->isIntegrateGCInPWA()))
+            ) {
+                $created_at = $this->retailHelper->getCurrentTime();
+                $giftCardPaymentId = $this->paymentHelper->getPaymentIdByType(
                     RetailPayment::GIFT_CARD_PAYMENT_TYPE
                 );
                 $data['payment_data'][0] = [
@@ -308,7 +322,7 @@ class CreditmemoManagement extends ServiceAbstract
                     "allow_amount_tendered" => true,
                     "is_purchase"           => 0,
                     "created_at"            => $created_at,
-                    "payment_data"          => []
+                    "payment_data"          => [],
                 ];
             }
             // fix refund amount
@@ -321,7 +335,7 @@ class CreditmemoManagement extends ServiceAbstract
                     "outlet_id"    => $this->getRequest()->getParam('outlet_id'),
                     "register_id"  => $this->getRequest()->getParam('register_id'),
                     "user_name"    => $this->getRequest()->getParam('user_name'),
-                    'store_id'     => $storeId
+                    'store_id'     => $storeId,
                 ],
                 true
             );
@@ -337,66 +351,66 @@ class CreditmemoManagement extends ServiceAbstract
      */
     public function getOutputCreditmemo(Creditmemo $creditmemo)
     {
-        $data             = [
+        $data = [
             'order_id'  => $creditmemo->getOrderId(),
-            'retail_id' => $creditmemo->getOrder()->getData('retail_id')
+            'retail_id' => $creditmemo->getOrder()->getData('retail_id'),
         ];
         $data['customer'] = [
-            'customer_id' => $creditmemo->getOrder()->getCustomerId()
+            'customer_id' => $creditmemo->getOrder()->getCustomerId(),
         ];
 
         $data['items'] = [];
         $this->blockItem->setOrder($creditmemo->getOrder());
-//        var_dump($creditmemo->getData());die;
+        //        var_dump($creditmemo->getData());die;
         foreach ($creditmemo->getAllItems() as $item) {
             /** @var \Magento\Sales\Model\Order\Creditmemo\Item $item */
-            $_item               = [];
-            $_item['item_id']    = $item->getOrderItemId();
+            $_item = [];
+            $_item['item_id'] = $item->getOrderItemId();
             $_item['product_id'] = $item->getProductId();
-            $_item['name']       = $item->getName();
-            $_item['sku']        = $item->getSku();
-            $_item['parent_id']  = $item->getOrderItem()->getParentItemId();
-            $_item['type_id']    = $item->getOrderItem()->getProductType();
+            $_item['name'] = $item->getName();
+            $_item['sku'] = $item->getSku();
+            $_item['parent_id'] = $item->getOrderItem()->getParentItemId();
+            $_item['type_id'] = $item->getOrderItem()->getProductType();
             if ($item->getOrderItem()->isChildrenCalculated()) {
                 $_item['children_calculated'] = $item->getOrderItem()->isChildrenCalculated();
             }
-            $_item['price']              = $item->getPrice();
-            $_item['price_incl_tax']     = $item->getPriceInclTax();
-            $_item['qty_ordered']        = $item->getOrderItem()->getQtyOrdered() * 1;
-            $_item['qty_invoiced']       = $item->getOrderItem()->getQtyInvoiced() * 1;
-            $_item['qty_shipped']        = $item->getOrderItem()->getQtyShipped() * 1;
-            $_item['qty_refunded']       = $item->getOrderItem()->getQtyRefunded() * 1;
-            $_item['qty_canceled']       = $item->getOrderItem()->getQtyCanceled() * 1;
-            $_item['can_back_to_stock']  = ($this->blockItem->canParentReturnToStock($item)
-                                            && $this->blockItem->canReturnItemToStock($item)) ? true : false;
-            $_item['back_to_stock']      = $_item['can_back_to_stock'] ? true : false;
-            $_item['can_edit_qty']       = $this->blockItem->canEditQty();
-            $_item['qty_to_refund']      = $item->getOrderItem()->getQtyToRefund();
-            $_item['qty']                = $item->getQty();
-            $_item['row_total']          = $item->getRowTotal();
+            $_item['price'] = $item->getPrice();
+            $_item['price_incl_tax'] = $item->getPriceInclTax();
+            $_item['qty_ordered'] = $item->getOrderItem()->getQtyOrdered() * 1;
+            $_item['qty_invoiced'] = $item->getOrderItem()->getQtyInvoiced() * 1;
+            $_item['qty_shipped'] = $item->getOrderItem()->getQtyShipped() * 1;
+            $_item['qty_refunded'] = $item->getOrderItem()->getQtyRefunded() * 1;
+            $_item['qty_canceled'] = $item->getOrderItem()->getQtyCanceled() * 1;
+            $_item['can_back_to_stock'] = ($this->blockItem->canParentReturnToStock($item)
+                && $this->blockItem->canReturnItemToStock($item)) ? true : false;
+            $_item['back_to_stock'] = $_item['can_back_to_stock'] ? true : false;
+            $_item['can_edit_qty'] = $this->blockItem->canEditQty();
+            $_item['qty_to_refund'] = $item->getOrderItem()->getQtyToRefund();
+            $_item['qty'] = $item->getQty();
+            $_item['row_total'] = $item->getRowTotal();
             $_item['row_total_incl_tax'] = $item->getRowTotalInclTax();
-            $_item['tax_amount']         = $item->getTaxAmount();
-            $_item['discount_amount']    = $item->getDiscountAmount();
-            $_item['is_qty_decimal']     = $item->getOrderItem()->getIsQtyDecimal();
-            $productOption               = $item->getOrderItem()->getProductOptions();
+            $_item['tax_amount'] = $item->getTaxAmount();
+            $_item['discount_amount'] = $item->getDiscountAmount();
+            $_item['is_qty_decimal'] = $item->getOrderItem()->getIsQtyDecimal();
+            $productOption = $item->getOrderItem()->getProductOptions();
             if (isset($productOption['info_buyRequest']['custom_sale'])) {
                 $_item['custom_sale_name'] = $productOption['info_buyRequest']['custom_sale']['name'];
             }
             $data['items'][] = $_item;
         }
 
-        $totals                               = [];
-        $totals['subtotal']                   = $creditmemo->getSubtotal();
-        $totals['subtotal_incl_tax']          = $creditmemo->getSubtotalInclTax();
-        $totals['shipping']                   = $creditmemo->getShippingAmount();
-        $totals['shipping_incl_tax']          = $creditmemo->getShippingInclTax();
-        $totals['discount_amount']            = $creditmemo->getDiscountAmount();
-        $totals['tax_amount']                 = $creditmemo->getTaxAmount();
-        $totals['grand_total']                = $creditmemo->getGrandTotal();
-        $totals['has_shipment']               = $creditmemo->getOrder()->getShippingAmount() ? true : false;
-        $data['base_customer_balance_amount']             = $creditmemo->getData('base_customer_balance_amount');
-        $data['customer_balance_amount']             = $creditmemo->getData('customer_balance_amount');
-        $data['totals']                       = $totals;
+        $totals = [];
+        $totals['subtotal'] = $creditmemo->getSubtotal();
+        $totals['subtotal_incl_tax'] = $creditmemo->getSubtotalInclTax();
+        $totals['shipping'] = $creditmemo->getShippingAmount();
+        $totals['shipping_incl_tax'] = $creditmemo->getShippingInclTax();
+        $totals['discount_amount'] = $creditmemo->getDiscountAmount();
+        $totals['tax_amount'] = $creditmemo->getTaxAmount();
+        $totals['grand_total'] = $creditmemo->getGrandTotal();
+        $totals['has_shipment'] = $creditmemo->getOrder()->getShippingAmount() ? true : false;
+        $data['base_customer_balance_amount'] = $creditmemo->getData('base_customer_balance_amount');
+        $data['customer_balance_amount'] = $creditmemo->getData('customer_balance_amount');
+        $data['totals'] = $totals;
         $data['adjustment'] = $creditmemo->getAdjustmentPositive() - $creditmemo->getAdjustmentNegative();
         $data['is_display_shipping_incl_tax'] = $this->taxConfig->displaySalesShippingInclTax(
             $creditmemo->getOrder()->getStoreId()
@@ -407,14 +421,32 @@ class CreditmemoManagement extends ServiceAbstract
         } else {
             $shipping = $creditmemo->getShippingAmount();
         }
-        $data['shipping_method']     = $creditmemo->getOrder()->getData('shipping_method');
-        $data['shipping_amount']     = $shipping;
+        $data['shipping_method'] = $creditmemo->getOrder()->getData('shipping_method');
+        $data['shipping_amount'] = $shipping;
         $data['retail_has_shipment'] = $creditmemo->getOrder()->getData('retail_has_shipment');
-        $data['total_paid']          = $creditmemo->getOrder()->getData('total_paid');
-        $data['total_refunded']      = $creditmemo->getOrder()->getData('total_refunded');
-        $data['xRefNum']             = $creditmemo->getOrder()->getData('xRefNum');
-        $data['transId']             = $creditmemo->getOrder()->getData('transId');
-        $data['is_pwa']             = $creditmemo->getOrder()->getData('is_pwa');
+        $data['total_paid'] = $creditmemo->getOrder()->getData('total_paid');
+        $data['total_refunded'] = $creditmemo->getOrder()->getData('total_refunded');
+        $data['xRefNum'] = $creditmemo->getOrder()->getData('xRefNum');
+        $data['transId'] = $creditmemo->getOrder()->getData('transId');
+        $data['is_pwa'] = $creditmemo->getOrder()->getData('is_pwa');
+
+        $order = $this->orderRepository->get($creditmemo->getOrderId());
+        $itemAppliedTaxes = $order->getExtensionAttributes()->getItemAppliedTaxes();
+        $itemTaxes = [];
+
+        if (!empty($itemAppliedTaxes)) {
+            foreach ($itemAppliedTaxes as $itemAppliedTax) {
+                $appliedTaxes = [];
+                foreach ($itemAppliedTax->getAppliedTaxes() as $appliedTax) {
+                    $appliedTaxes[] = $appliedTax->getData();
+                }
+                $itemTax = $itemAppliedTax->getData();
+                $itemTax['applied_taxes'] = $appliedTaxes;
+                $itemTaxes[] = $itemTax;
+            }
+        }
+
+        $data['item_applied_taxes'] = $itemTaxes;
 
         return $data;
     }
@@ -425,11 +457,11 @@ class CreditmemoManagement extends ServiceAbstract
     private function getCurrentRate()
     {
         if ($this->currentRate === null) {
-            $orderId            = $this->getRequest()->getParam('order_id');
-            $order              = $this->objectManager->create('Magento\Sales\Model\Order')->load($orderId);
+            $orderId = $this->getRequest()->getParam('order_id');
+            $order = $this->orderRepository->get($orderId);
             $this->currentRate = $order->getStore()
-                                        ->getBaseCurrency()
-                                        ->convert(1, $order->getOrderCurrencyCode());
+                ->getBaseCurrency()
+                ->convert(1, $order->getOrderCurrencyCode());
         }
 
         return $this->currentRate;
@@ -437,6 +469,7 @@ class CreditmemoManagement extends ServiceAbstract
 
     /**
      * @param $payments
+     *
      * @return float|int
      */
     public function getStoreCreditByPayments($payments)
@@ -447,12 +480,14 @@ class CreditmemoManagement extends ServiceAbstract
                 $storeCredit += $payment['refund_amount'] / $this->getCurrentRate();
             }
         }
+
         return $storeCredit;
     }
 
     /**
      * @param $storeCredit
      * @param $payments
+     *
      * @return float|int
      */
     public function getStoreCreditData($storeCredit, $payments)
@@ -462,8 +497,8 @@ class CreditmemoManagement extends ServiceAbstract
         } else {
             $storeCreditData = $this->getStoreCreditByPayments($payments);
         }
-        return $storeCreditData;
 
+        return $storeCreditData;
     }
 
     /**
