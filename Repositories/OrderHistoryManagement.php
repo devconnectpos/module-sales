@@ -49,7 +49,11 @@ class OrderHistoryManagement extends ServiceAbstract
      * @var \SM\Integrate\Helper\Data
      */
     protected $integrateHelperData;
-
+    /**
+     * @var \SM\XRetail\Model\OutletRepository
+     */
+    protected $outletRepository;
+    
     /**
      * @var \Magento\Catalog\Model\Product\Media\Config
      */
@@ -101,7 +105,7 @@ class OrderHistoryManagement extends ServiceAbstract
      * @var \Magento\Sales\Model\ResourceModel\Order\Tax\CollectionFactory
      */
     private $taxCollectionFactory;
-
+    
     /**
      * OrderHistoryManagement constructor.
      *
@@ -122,6 +126,7 @@ class OrderHistoryManagement extends ServiceAbstract
      * @param \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
      * @param XOrder\XOrderItemFactory $xOrderItemFactory
      * @param \Magento\Sales\Model\ResourceModel\Order\Tax\CollectionFactory $taxCollectionFactory
+     * @param \SM\XRetail\Model\OutletRepository $outletRepository
      */
     public function __construct(
         RequestInterface $requestInterface,
@@ -140,7 +145,8 @@ class OrderHistoryManagement extends ServiceAbstract
         \SM\Product\Repositories\ProductManagement $productManagement,
         \Magento\Sales\Api\OrderRepositoryInterface $orderRepository,
         \SM\Core\Api\Data\XOrder\XOrderItemFactory $xOrderItemFactory,
-        \Magento\Sales\Model\ResourceModel\Order\Tax\CollectionFactory $taxCollectionFactory
+        \Magento\Sales\Model\ResourceModel\Order\Tax\CollectionFactory $taxCollectionFactory,
+        \SM\XRetail\Model\OutletRepository $outletRepository
     ) {
         $this->productMediaConfig = $productMediaConfig;
         $this->productRepository = $productRepository;
@@ -156,6 +162,7 @@ class OrderHistoryManagement extends ServiceAbstract
         $this->orderRepository = $orderRepository;
         $this->xOrderItemFactory = $xOrderItemFactory;
         $this->taxCollectionFactory = $taxCollectionFactory;
+        $this->outletRepository = $outletRepository;
 
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
@@ -709,18 +716,29 @@ class OrderHistoryManagement extends ServiceAbstract
 
         if ($storeId !== null) {
             $searchCriteriaReq = $this->getRequest()->getParam('searchCriteria');
-            $searchCriteria = new \Magento\Framework\DataObject(
-                [
-                    'storeId'   => $storeId,
-                    'entity_id' => $item->getProductId(),
-                    'warehouse_id' => $searchCriteriaReq && isset($searchCriteriaReq['warehouse_id']) ? $searchCriteriaReq['warehouse_id'] : null
-                ]
-            );
+            $warehouseId = null;
+            if ($searchCriteriaReq && isset($searchCriteriaReq['warehouse_id'])) {
+                $warehouseId = $searchCriteriaReq['warehouse_id'];
+            }
+            if ($warehouseId == null && $this->getRequest()->getParam('outlet_id')) {
+                $outlet = $this->outletRepository->getById($this->getRequest()->getParam('outlet_id'));
+                $warehouseId = $outlet->getData('warehouse_id');
+            }
 
-            $products = $this->productManagement->loadXProducts($searchCriteria)->getItems();
-
-            if (count($products) > 0) {
-                $xOrderItem->setData('product', $products[0]);
+            if ($warehouseId) {
+                $searchCriteria = new \Magento\Framework\DataObject(
+                    [
+                        'storeId'   => $storeId,
+                        'entity_id' => $item->getProductId(),
+                        'warehouse_id' => $warehouseId
+                    ]
+                );
+    
+                $products = $this->productManagement->loadXProducts($searchCriteria)->getItems();
+                
+                if (count($products) > 0) {
+                    $xOrderItem->setData('product', $products[0]);
+                }
             }
         }
 

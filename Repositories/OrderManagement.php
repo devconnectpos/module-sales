@@ -174,6 +174,10 @@ class OrderManagement extends ServiceAbstract
      */
     protected $invoiceRepository;
     /**
+     * @var \Magento\Quote\Api\CartManagementInterface
+     */
+    protected $cartManagement;
+    /**
      * @var \SM\Shift\Helper\Data
      */
     private $shiftHelper;
@@ -291,49 +295,53 @@ class OrderManagement extends ServiceAbstract
      */
     protected $isSplitOrder = false;
 
+    protected $quote = null;
+
     /**
      * OrderManagement constructor.
      *
-     * @param DataConfig                             $dataConfig
-     * @param Data                                   $retailHelper
-     * @param StoreManagerInterface                  $storeManager
-     * @param Context                                $context
-     * @param Registry                               $registry
-     * @param UserOrderCounterFactory                $userOrderCounterFactory
-     * @param ShipmentManagement                     $shipmentManagement
-     * @param InvoiceManagement                      $invoiceManagement
-     * @param Product                                $catalogProduct
-     * @param Session                                $customerSession
-     * @param PaymentHelper                          $paymentHelper
-     * @param RetailTransactionFactory               $retailTransactionFactory
-     * @param ShiftHelper                            $shiftHelper
-     * @param IntegrateHelper                        $integrateHelperData
-     * @param RPIntegrateManagement                  $RPIntegrateManagement
-     * @param StoreCreditIntegrateManagement         $storeCreditIntegrateManagement
-     * @param GCIntegrateManagement                  $GCIntegrateManagement
-     * @param OrderSyncErrorFactory                  $orderSyncErrorFactory
-     * @param FeedbackFactory                        $feedbackFactory
-     * @param feedbackCollectionFactory              $feedbackCollectionFactory
-     * @param OrderHistoryManagement                 $orderHistoryManagement
-     * @param TaxHelper                              $taxHelper
-     * @param CollectionFactory                      $collectionFactory
-     * @param ResourceConnection                     $resourceConnection
-     * @param OrderFactory                           $orderFactory
-     * @param MetadataPool                           $metadataPool
-     * @param RealtimeManager                        $realtimeManager
-     * @param WarehouseIntegrateManagement           $warehouseIntegrateManagement
-     * @param ProductHelper                          $productHelper
+     * @param DataConfig $dataConfig
+     * @param Data $retailHelper
+     * @param StoreManagerInterface $storeManager
+     * @param Context $context
+     * @param Registry $registry
+     * @param UserOrderCounterFactory $userOrderCounterFactory
+     * @param ShipmentManagement $shipmentManagement
+     * @param InvoiceManagement $invoiceManagement
+     * @param Product $catalogProduct
+     * @param Session $customerSession
+     * @param PaymentHelper $paymentHelper
+     * @param RetailTransactionFactory $retailTransactionFactory
+     * @param ShiftHelper $shiftHelper
+     * @param IntegrateHelper $integrateHelperData
+     * @param RPIntegrateManagement $RPIntegrateManagement
+     * @param StoreCreditIntegrateManagement $storeCreditIntegrateManagement
+     * @param GCIntegrateManagement $GCIntegrateManagement
+     * @param OrderSyncErrorFactory $orderSyncErrorFactory
+     * @param FeedbackFactory $feedbackFactory
+     * @param feedbackCollectionFactory $feedbackCollectionFactory
+     * @param OrderHistoryManagement $orderHistoryManagement
+     * @param TaxHelper $taxHelper
+     * @param CollectionFactory $collectionFactory
+     * @param ResourceConnection $resourceConnection
+     * @param OrderFactory $orderFactory
+     * @param MetadataPool $metadataPool
+     * @param RealtimeManager $realtimeManager
+     * @param WarehouseIntegrateManagement $warehouseIntegrateManagement
+     * @param ProductHelper $productHelper
      * @param RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory
-     * @param Loader                                 $loader
-     * @param Currency                               $currencyModel
-     * @param Filesystem                             $filesystem
-     * @param InvoiceRepository                      $invoiceRepository
-     * @param ShippingHelper                         $shippingHelper
-     * @param OrderRepositoryInterface               $orderRepository
-     * @param SalesHelper                            $salesHelper
-     * @param CartRepositoryInterface                $cartRepository
-     * @param OutletRepository                       $outletRepository
-     * @param FileFactory                            $fileFactory
+     * @param Loader $loader
+     * @param Currency $currencyModel
+     * @param Filesystem $filesystem
+     * @param InvoiceRepository $invoiceRepository
+     * @param ShippingHelper $shippingHelper
+     * @param OrderRepositoryInterface $orderRepository
+     * @param SalesHelper $salesHelper
+     * @param CartRepositoryInterface $cartRepository
+     * @param OutletRepository $outletRepository
+     * @param FileFactory $fileFactory
+     * @param OrderItemValidator $orderItemValidator
+     * @param \Magento\Quote\Api\CartManagementInterface $cartManagement
      */
     public function __construct(
         DataConfig $dataConfig,
@@ -376,7 +384,8 @@ class OrderManagement extends ServiceAbstract
         CartRepositoryInterface $cartRepository,
         OutletRepository $outletRepository,
         FileFactory $fileFactory,
-        OrderItemValidator $orderItemValidator
+        OrderItemValidator $orderItemValidator,
+        \Magento\Quote\Api\CartManagementInterface $cartManagement
     ) {
         $this->retailTransactionFactory = $retailTransactionFactory;
         $this->customerSession = $customerSession;
@@ -419,8 +428,10 @@ class OrderManagement extends ServiceAbstract
         $this->cartRepository = $cartRepository;
         $this->outletRepository = $outletRepository;
         $this->orderItemValidator = $orderItemValidator;
-        parent::__construct($context->getRequest(), $dataConfig, $storeManager);
         $this->fileFactory = $fileFactory;
+        $this->cartManagement = $cartManagement;
+        
+        parent::__construct($context->getRequest(), $dataConfig, $storeManager);
     }
 
     /**
@@ -499,21 +510,29 @@ class OrderManagement extends ServiceAbstract
 
         return $result;
     }
-
+    
     /**
      * @param bool $isSaveOrder
      *
      * @param null $data
      * @param bool $isSplitting
-     *
+     * @param null $carriers
      * @return array|null
-     * @throws \ReflectionException
+     * @throws \Magento\Framework\Exception\CouldNotSaveException
      * @throws \Magento\Framework\Exception\NoSuchEntityException
+     * @throws \ReflectionException
      */
-    public function processLoadOrderData($isSaveOrder = false, $data = null, $isSplitting = false)
+    public function processLoadOrderData($isSaveOrder = false, $data = null, $isSplitting = false, $carriers = null)
     {
-        if (!$isSaveOrder && $isSplitting) {
-            $this->cartRepository->delete($this->getQuote());
+        if ($isSplitting) {
+            $cartId = $this->cartManagement->createEmptyCartForCustomer($data['customer_id']);
+            /** @var \Magento\Quote\Model\Quote $quote */
+            $quote = $this->cartRepository->get($cartId);
+            $quote->setIsActive(true);
+            $quote->getShippingAddress()->setShippingMethod($data['order']['shipping_method']);
+            $this->cartRepository->save($quote);
+            $this->quote = $quote;
+            $this->getOrderCreateModel()->setQuote($quote);
         }
         // see XRT-388: not collect all selection of bundle product because it not salable
         $this->catalogProduct->setSkipSaleableCheck(true);
@@ -522,10 +541,14 @@ class OrderManagement extends ServiceAbstract
         }
 
         if (isset($data['previous_quote_id']) && $data['previous_quote_id'] !== null) {
-            $previousQuote = $this->cartRepository->get($data['previous_quote_id']);
-            if ($previousQuote->getIsActive()) {
-                $previousQuote->setIsActive(false);
-                $this->cartRepository->save($previousQuote);
+            try {
+                $previousQuote = $this->cartRepository->get($data['previous_quote_id']);
+                if ($previousQuote->getIsActive()) {
+                    $previousQuote->setIsActive(false);
+                    $this->cartRepository->save($previousQuote);
+                }
+            } catch (\Magento\Framework\Exception\NoSuchEntityException $noSuchEntityException) {
+                // don't throw error when get an inactive quote
             }
         }
 
@@ -560,7 +583,7 @@ class OrderManagement extends ServiceAbstract
                 // We must get quote after session has been created
                 ->checkShippingMethod()
                 ->checkDiscountWholeOrder()
-                ->processActionData($isSaveOrder ? "check" : null);
+                ->processActionData($isSaveOrder ? "check" : null, $carriers);
         } catch (Exception $e) {
             $this->clear();
             throw new Exception($e->getMessage());
@@ -1404,19 +1427,21 @@ class OrderManagement extends ServiceAbstract
         $this->checkExchange($action == 'check');
 
         $this->getOrderCreateModel()->saveQuote();
-
-        if (!$this->getOrderCreateModel()->getQuote()->isVirtual()) {
-            $this->getOrderCreateModel()
+    
+        $this->getQuote()
+            ->setTotalsCollectedFlag(false)
+            ->collectTotals();
+    
+        if (!$this->getQuote()->isVirtual()) {
+            $this->getQuote()
                 ->getShippingAddress()
                 ->setLimitCarrier($carriers)
                 ->setCollectShippingRates(true)
                 ->collectShippingRates();
+            $this->getQuote()
+                ->setTotalsCollectedFlag(false)
+                ->collectTotals();
         }
-
-        $this->getOrderCreateModel()
-            ->getQuote()
-            ->setTotalsCollectedFlag(false)
-            ->collectTotals();
 
         $orderData = $this->requestOrderData['order'];
         $couponCode = '';
@@ -1486,6 +1511,9 @@ class OrderManagement extends ServiceAbstract
      */
     protected function getQuote()
     {
+        if ($this->quote !== null) {
+            return $this->quote;
+        }
         return $this->getSession()->getQuote();
     }
 
@@ -2369,43 +2397,30 @@ class OrderManagement extends ServiceAbstract
      */
     public function calculateShippingRates()
     {
-        $configData = $this->getConfigLoaderData();
-        $this->catalogProduct->setSkipSaleableCheck(true);
         $allowShippingCarriers = $this->shippingHelper->getAllowedShippingMethods();
-        $this->requestOrderData = $this->getRequest()->getParams();
+        $data = $this->getRequest()->getParams();
+        $this->processLoadOrderData(false, $data, false, $allowShippingCarriers);
 
-        $this->transformData($configData)
-            ->checkShift()
-            ->checkCustomerGroup()
-            ->checkOutlet()
-            ->checkRegister()
-            ->checkRetailAdditionData()
-            ->checkOfflineMode()
-            ->checkIntegrateWh();
-
-        try {
-            $this->initSession()
-                // We must get quote after session has been created
-                ->checkShippingMethod()
-                ->checkDiscountWholeOrder()
-                ->processActionData(null, $allowShippingCarriers);
-        } catch (Exception $e) {
-            $this->clear();
-            throw new Exception($e->getMessage());
-        }
-        $quote = $this->getOrderCreateModel()->getQuote();
-
-        $shippingAddress = $quote->getShippingAddress();
-        $rates = $shippingAddress->setCollectShippingRates(true)->collectShippingRates()->getGroupedAllShippingRates();
+        $shippingAddress = $this->getQuote()->getShippingAddress();
+        $rates           = $shippingAddress->getGroupedAllShippingRates();
 
         $arr = [];
         foreach ($rates as $rate) {
             foreach ($rate as $item) {
+                $this->getContext()
+                    ->getEventManager()
+                    ->dispatch('connectpos_before_adding_shipping_rate', [
+                        'rate' => $item,
+                        'quote' => $this->getQuote(),
+                    ]);
                 $rateData = $item->getData();
+
                 if (isset($rateData['error_message']) && $rateData['error_message']) {
                     continue;
                 }
-                if (in_array($rateData['carrier'], $allowShippingCarriers) || strpos($rateData['carrier'], 'shq') !== false) {
+
+                if (in_array($rateData['carrier'], $allowShippingCarriers)
+                    || (strpos($rateData['carrier'], 'shq') !== false)) {
                     $arr[] = $rateData;
                 }
             }
