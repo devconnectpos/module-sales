@@ -21,6 +21,7 @@ use Magento\Framework\EntityManager\MetadataPool;
 use Magento\Framework\Exception\AlreadyExistsException;
 use Magento\Framework\Filesystem;
 use Magento\Framework\Registry;
+use Magento\Quote\Api\CartManagementInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
@@ -50,11 +51,13 @@ use SM\Shift\Model\RetailTransactionFactory;
 use SM\Shipping\Helper\Shipping as ShippingHelper;
 use SM\Shipping\Model\Carrier\RetailShipping;
 use SM\Shipping\Model\Carrier\RetailStorePickUp;
+use SM\Shipping\Model\ShippingCarrierAdditionalDataFactory;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Model\OutletRepository;
 use SM\XRetail\Model\UserOrderCounterFactory;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
+use SM\DiscountWholeOrder\Observer\WholeOrderDiscount\AbstractWholeOrderDiscountRule;
 
 /**
  * Class OrderManagement
@@ -174,9 +177,13 @@ class OrderManagement extends ServiceAbstract
      */
     protected $invoiceRepository;
     /**
-     * @var \Magento\Quote\Api\CartManagementInterface
+     * @var CartManagementInterface
      */
     protected $cartManagement;
+    /**
+     * @var ShippingCarrierAdditionalDataFactory
+     */
+    protected $carrierAdditionalDataFactory;
     /**
      * @var \SM\Shift\Helper\Data
      */
@@ -296,7 +303,7 @@ class OrderManagement extends ServiceAbstract
     protected $isSplitOrder = false;
 
     protected $quote = null;
-
+    
     /**
      * OrderManagement constructor.
      *
@@ -341,7 +348,8 @@ class OrderManagement extends ServiceAbstract
      * @param OutletRepository $outletRepository
      * @param FileFactory $fileFactory
      * @param OrderItemValidator $orderItemValidator
-     * @param \Magento\Quote\Api\CartManagementInterface $cartManagement
+     * @param CartManagementInterface $cartManagement
+     * @param ShippingCarrierAdditionalDataFactory $carrierAdditionalDataFactory
      */
     public function __construct(
         DataConfig $dataConfig,
@@ -385,7 +393,8 @@ class OrderManagement extends ServiceAbstract
         OutletRepository $outletRepository,
         FileFactory $fileFactory,
         OrderItemValidator $orderItemValidator,
-        \Magento\Quote\Api\CartManagementInterface $cartManagement
+        CartManagementInterface $cartManagement,
+        ShippingCarrierAdditionalDataFactory $carrierAdditionalDataFactory
     ) {
         $this->retailTransactionFactory = $retailTransactionFactory;
         $this->customerSession = $customerSession;
@@ -430,7 +439,8 @@ class OrderManagement extends ServiceAbstract
         $this->orderItemValidator = $orderItemValidator;
         $this->fileFactory = $fileFactory;
         $this->cartManagement = $cartManagement;
-        
+        $this->carrierAdditionalDataFactory = $carrierAdditionalDataFactory;
+
         parent::__construct($context->getRequest(), $dataConfig, $storeManager);
     }
 
@@ -1475,6 +1485,14 @@ class OrderManagement extends ServiceAbstract
                 }
             }
         }
+        if (self::$SAVE_ORDER === true) {
+            $appliedRuleIds = explode(',', $this->getQuote()->getAppliedRuleIds());
+            if ($appliedRuleIds && is_array($appliedRuleIds) &&
+                ($key = array_search(AbstractWholeOrderDiscountRule::RULE_ID, $appliedRuleIds)) !== false) {
+                unset($appliedRuleIds[$key]);
+            }
+            $this->getQuote()->setAppliedRuleIds(implode(',', $appliedRuleIds));
+        }
 
         return $this;
     }
@@ -2417,6 +2435,15 @@ class OrderManagement extends ServiceAbstract
 
                 if (isset($rateData['error_message']) && $rateData['error_message']) {
                     continue;
+                }
+
+                if ($rateData['carrier'] === 'matrixrate') {
+                    $additionalDataModel = $this->carrierAdditionalDataFactory->create()
+                        ->loadByCarrierCode($rateData['carrier']);
+                    if (!$additionalDataModel->getId()) {
+                        $additionalDataModel->setAdditionalData(['is_require_address' => false])->save();
+                    }
+                    $rateData['additional_data'] = $additionalDataModel->getAdditionalData();
                 }
 
                 if (in_array($rateData['carrier'], $allowShippingCarriers)
