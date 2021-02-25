@@ -1640,7 +1640,7 @@ class OrderManagement extends ServiceAbstract
         ];
 
         $data['items'] = $this->orderHistoryManagement->getOrderItemData($address->getAllItems());
-        if ($this->integrateHelperData->isIntegrateWH() || $this->integrateHelperData->isMagentoInventory()) {
+        if ($this->integrateHelperData->isIntegrateWH() || $this->integrateHelperData->isMagentoInventory() || $this->integrateHelperData->isMagestoreInventory()) {
             foreach ($data['items'] as $item) {
                 $isSalable = $this->warehouseIntegrateManagement->isSalableQty($item);
                 if (!$isSalable) {
@@ -2290,7 +2290,7 @@ class OrderManagement extends ServiceAbstract
 
     protected function checkIntegrateWh()
     {
-        if ($this->integrateHelperData->isIntegrateWH()) {
+        if ($this->integrateHelperData->isIntegrateWH() || $this->integrateHelperData->isMagestoreInventory()) {
             WarehouseIntegrateManagement::setWarehouseId($this->getRequest()->getParam('warehouse_id'));
         }
 

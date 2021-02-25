@@ -361,7 +361,7 @@ class CreditmemoManagement extends ServiceAbstract
 
         $data['items'] = [];
         $this->blockItem->setOrder($creditmemo->getOrder());
-        //        var_dump($creditmemo->getData());die;
+
         foreach ($creditmemo->getAllItems() as $item) {
             /** @var \Magento\Sales\Model\Order\Creditmemo\Item $item */
             $_item = [];
@@ -381,9 +381,10 @@ class CreditmemoManagement extends ServiceAbstract
             $_item['qty_shipped'] = $item->getOrderItem()->getQtyShipped() * 1;
             $_item['qty_refunded'] = $item->getOrderItem()->getQtyRefunded() * 1;
             $_item['qty_canceled'] = $item->getOrderItem()->getQtyCanceled() * 1;
-            $_item['can_back_to_stock'] = ($this->blockItem->canParentReturnToStock($item)
-                && $this->blockItem->canReturnItemToStock($item)) ? true : false;
-            $_item['back_to_stock'] = $_item['can_back_to_stock'] ? true : false;
+            $_item['can_back_to_stock'] = $this->blockItem->canParentReturnToStock($item)
+                && $this->blockItem->canReturnItemToStock($item);
+            $backToStock = $this->retailHelper->getStoreConfig('xretail/pos/auto_return_to_stock') && $_item['can_back_to_stock'];
+            $_item['back_to_stock'] = $backToStock;
             $_item['can_edit_qty'] = $this->blockItem->canEditQty();
             $_item['qty_to_refund'] = $item->getOrderItem()->getQtyToRefund();
             $_item['qty'] = $item->getQty();
