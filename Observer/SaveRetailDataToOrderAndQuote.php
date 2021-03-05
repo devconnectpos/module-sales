@@ -13,23 +13,23 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
      * @var \Magento\Framework\Registry
      */
     protected $registry;
-	/**
-	 * @var \SM\Integrate\Helper\Data
-	 */
-	private $integrateHelper;
-	
-	/**
-	 * SaveOutletIdToOrderAndQuote constructor.
-	 *
-	 * @param \Magento\Framework\Registry $registry
-	 * @param \SM\Integrate\Helper\Data $integrateHelper
-	 */
+    /**
+     * @var \SM\Integrate\Helper\Data
+     */
+    private $integrateHelper;
+
+    /**
+     * SaveOutletIdToOrderAndQuote constructor.
+     *
+     * @param \Magento\Framework\Registry $registry
+     * @param \SM\Integrate\Helper\Data $integrateHelper
+     */
     public function __construct(
         Registry $registry,
-		\SM\Integrate\Helper\Data $integrateHelper
+        \SM\Integrate\Helper\Data $integrateHelper
     ) {
         $this->registry = $registry;
-	    $this->integrateHelper = $integrateHelper;
+        $this->integrateHelper = $integrateHelper;
     }
 
     /**
@@ -39,7 +39,7 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
      */
     public function execute(Observer $observer)
     {
-    	/** @var \Magento\Sales\Api\Data\OrderInterface $order */
+        /** @var \Magento\Sales\Api\Data\OrderInterface $order */
         $order = $observer->getData('order');
         /** @var \Magento\Quote\Api\Data\CartInterface $quote */
         $quote = $observer->getData('quote');
@@ -65,11 +65,11 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
         if (!!$retailNote) {
             $quote->setData('retail_note', $retailNote);
             $order->setData('retail_note', $retailNote);
-            
+
             //save pos retail note to bold commerce order comment field
             if ($this->integrateHelper->isIntegrateBoldOrderComment()) {
-            	$quote->setData(\Bold\OrderComment\Model\Data\OrderComment::COMMENT_FIELD_NAME, $retailNote);
-            	$order->setData(\Bold\OrderComment\Model\Data\OrderComment::COMMENT_FIELD_NAME, $retailNote);
+                $quote->setData(\Bold\OrderComment\Model\Data\OrderComment::COMMENT_FIELD_NAME, $retailNote);
+                $order->setData(\Bold\OrderComment\Model\Data\OrderComment::COMMENT_FIELD_NAME, $retailNote);
             }
         }
 
@@ -128,6 +128,11 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
         }
 
         $pickup_outlet_id = $this->registry->registry('pickup_outlet_id');
+        if ($quote->getShippingAddress()->getShippingMethod() == 'smstorepickup_smstorepickup'
+            && !$pickup_outlet_id
+            && $quote->getOutletId()) {
+            $pickup_outlet_id = $quote->getOutletId();
+        }
         if (!!$pickup_outlet_id) {
             $quote->setData('pickup_outlet_id', $pickup_outlet_id);
             $order->setData('pickup_outlet_id', $pickup_outlet_id);

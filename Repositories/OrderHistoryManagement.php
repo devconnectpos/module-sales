@@ -53,7 +53,7 @@ class OrderHistoryManagement extends ServiceAbstract
      * @var \SM\XRetail\Model\OutletRepository
      */
     protected $outletRepository;
-    
+
     /**
      * @var \Magento\Catalog\Model\Product\Media\Config
      */
@@ -105,7 +105,7 @@ class OrderHistoryManagement extends ServiceAbstract
      * @var \Magento\Sales\Model\ResourceModel\Order\Tax\CollectionFactory
      */
     private $taxCollectionFactory;
-    
+
     /**
      * OrderHistoryManagement constructor.
      *
@@ -192,7 +192,7 @@ class OrderHistoryManagement extends ServiceAbstract
         $collection = $this->getOrderCollection($searchCriteria);
 
         $orders = [];
-        if (1 < $searchCriteria->getData('currentPage')) {
+        if ($collection->getLastPageNumber() < $searchCriteria->getData('currentPage')) {
         } else {
             $storeId = $searchCriteria->getData('storeId');
 
@@ -380,7 +380,6 @@ class OrderHistoryManagement extends ServiceAbstract
                     $totals['reward_point_discount_amount'] = -$order->getData('reward_currency_amount');
                 }
 
-
                 if ($this->integrateHelperData->isIntegrateStoreCredit()
                     && $this->integrateHelperData->isExistStoreCreditMagento2EE()
                 ) {
@@ -516,7 +515,7 @@ class OrderHistoryManagement extends ServiceAbstract
         }
 
         $collection
-            ->setOrder('entity_id')
+            ->setOrder('created_at')
             ->setCurPage(is_nan($searchCriteria->getData('currentPage')) ? 1 : $searchCriteria->getData('currentPage'))
             ->setPageSize(
                 is_nan($searchCriteria->getData('pageSize'))
@@ -531,21 +530,21 @@ class OrderHistoryManagement extends ServiceAbstract
         }
         if ($dateTo = $searchCriteria->getData('dateTo')) {
             $collection->getSelect()
-                ->where('created_at <= ?', $dateTo.' 23:59:59');
+                ->where('created_at <= ?', $dateTo . ' 23:59:59');
         }
         if ($searchString = $searchCriteria->getData('searchString')) {
             $fieldSearch = ['retail_id', 'customer_email', 'increment_id'];
             $fieldSearchValue = [
-                ['like' => '%'.$searchString.'%'],
-                ['like' => '%'.$searchString.'%'],
-                ['like' => '%'.$searchString.'%'],
+                ['like' => '%' . $searchString . '%'],
+                ['like' => '%' . $searchString . '%'],
+                ['like' => '%' . $searchString . '%'],
             ];
             $arrString = explode(' ', $searchString);
             foreach ($arrString as $customerNameSearchValue) {
                 $fieldSearch[] = 'customer_firstname';
-                $fieldSearchValue[] = ['like' => '%'.$customerNameSearchValue.'%'];
+                $fieldSearchValue[] = ['like' => '%' . $customerNameSearchValue . '%'];
                 $fieldSearch[] = 'customer_lastname';
-                $fieldSearchValue[] = ['like' => '%'.$customerNameSearchValue.'%'];
+                $fieldSearchValue[] = ['like' => '%' . $customerNameSearchValue . '%'];
             }
             $collection->addFieldToFilter($fieldSearch, $fieldSearchValue);
         }
@@ -604,7 +603,7 @@ class OrderHistoryManagement extends ServiceAbstract
         }
         if ($dateTo = $searchCriteria->getData('dateTo')) {
             $collection->getSelect()
-                ->where('created_at <= ?', $dateTo.' 23:59:59');
+                ->where('created_at <= ?', $dateTo . ' 23:59:59');
         }
 
         return $collection;
@@ -733,9 +732,9 @@ class OrderHistoryManagement extends ServiceAbstract
                         'warehouse_id' => $warehouseId
                     ]
                 );
-    
+
                 $products = $this->productManagement->loadXProducts($searchCriteria)->getItems();
-                
+
                 if (count($products) > 0) {
                     $xOrderItem->setData('product', $products[0]);
                 }
