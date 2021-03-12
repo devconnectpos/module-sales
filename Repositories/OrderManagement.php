@@ -762,7 +762,7 @@ class OrderManagement extends ServiceAbstract
             if (isset($order) && !!$order->getId()) {
                 $order->setData('retail_note', $order->getData('retail_note').' - '.$e->getMessage());
                 $this->orderRepository->save($order);
-            } elseif ($data['orderOffline']) {
+            } elseif (isset($data['orderOffline']) && $data['orderOffline']) {
                 $this->saveOrderError($data['orderOffline'], $e);
             }
 
@@ -2505,7 +2505,7 @@ class OrderManagement extends ServiceAbstract
             ->addFieldToFilter('customer_id', ['eq' => $customerId])
             ->addFieldToFilter('grand_total', ['eq' => $grandTotal]);
 
-        return $orderModel->getSize() > 0;
+        return $orderModel->count() > 0;
     }
 
     public static function checkClickAndCollectOrderByCode($code)
