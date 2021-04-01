@@ -2568,7 +2568,7 @@ class OrderManagement extends ServiceAbstract
     }
 
     /**
-     * @return array|\Magento\Framework\App\ResponseInterface
+     * @return array|int|\Magento\Framework\App\ResponseInterface|void
      * @throws \Exception
      */
     public function printMagentoInvoice()
@@ -2592,11 +2592,11 @@ class OrderManagement extends ServiceAbstract
         $fileContent = ['type' => 'string', 'value' => $pdf->render(), 'rm' => true];
 
         return $this->fileFactory->create(
-            'invoice'.$date.'.pdf',
+            'invoice' . $date . '.pdf',
             $fileContent,
             DirectoryList::VAR_DIR,
             'application/pdf'
-        );
+        )->sendResponse();
     }
 
     protected function _isMultipleSelection($type)

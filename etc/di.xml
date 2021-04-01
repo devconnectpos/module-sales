@@ -52,4 +52,19 @@
     <preference for="Magento\Bundle\Model\Sales\Order\Pdf\Items\Invoice" type="SM\Sales\Model\Rewrite\Order\Pdf\Bundle\Items\Invoice"/>
 
     <preference for="Magento\Sales\Block\Adminhtml\Order\View\Info" type="SM\Sales\Block\Adminhtml\Order\View\Info"/>
+
+    <type name="Webkul\Preorder\Helper\Data">
+        <plugin name="connectpos-webkul-preorder-custom-price" type="SM\Sales\Plugin\WebkulPreorder\CustomPrice" sortOrder="1"/>
+    </type>
+
+    <type name="Webkul\Preorder\Model\Creditmemo\Total\PreorderFee">
+        <plugin name="connectpos-webkul-creditmemo-preorder-fee" type="SM\Sales\Plugin\WebkulPreorder\CreditmemoTotal" sortOrder="1"/>
+    </type>
+    <type name="Webkul\Preorder\Model\Quote\Total\PreorderFee">
+        <plugin name="connectpos-webkul-creditmemo-preorder-fee" type="SM\Sales\Plugin\WebkulPreorder\QuoteTotal" sortOrder="1"/>
+    </type>
+    <type name="Webkul\Preorder\Model\Invoice\Total\PreorderFee">
+        <plugin name="connectpos-webkul-creditmemo-preorder-fee" type="SM\Sales\Plugin\WebkulPreorder\InvoiceTotal" sortOrder="1"/>
+    </type>
+
 </config>
