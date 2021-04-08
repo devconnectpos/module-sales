@@ -5,6 +5,8 @@ namespace SM\Sales\Observer;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Registry;
+use SM\Integrate\Helper\Data;
+use SM\XRetail\Model\OutletFactory;
 
 class SaveRetailDataToOrderAndQuote implements ObserverInterface
 {
@@ -14,7 +16,11 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
      */
     protected $registry;
     /**
-     * @var \SM\Integrate\Helper\Data
+     * @var OutletFactory
+     */
+    protected $outletFactory;
+    /**
+     * @var Data
      */
     private $integrateHelper;
 
@@ -22,14 +28,16 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
      * SaveOutletIdToOrderAndQuote constructor.
      *
      * @param \Magento\Framework\Registry $registry
-     * @param \SM\Integrate\Helper\Data $integrateHelper
+     * @param Data $integrateHelper
      */
     public function __construct(
         Registry $registry,
-        \SM\Integrate\Helper\Data $integrateHelper
+        Data $integrateHelper,
+        OutletFactory $outletFactory
     ) {
         $this->registry = $registry;
         $this->integrateHelper = $integrateHelper;
+        $this->outletFactory = $outletFactory;
     }
 
     /**
@@ -46,8 +54,11 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
 
         $outletId = $this->registry->registry('outlet_id');
         if (!!$outletId) {
+            $outlet = $this->outletFactory->create()->load($outletId);
             $quote->setData('outlet_id', $outletId);
+            $quote->setData('outlet_name', $outlet->getName());
             $order->setData('outlet_id', $outletId);
+            $order->setData('outlet_name', $outlet->getName());
         }
         $register_id = $this->registry->registry('register_id');
         if (!!$register_id) {

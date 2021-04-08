@@ -101,6 +101,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.3.8', '<=')) {
             $this->addSerialNumberToSalesItem($setup);
         }
+        if (version_compare($context->getVersion(), '0.3.9', '<=')) {
+            $this->addOutletNameToOrder($setup);
+        }
     }
 
     protected function addSerialNumberToSalesItem(SchemaSetupInterface $installer)
@@ -1102,6 +1105,45 @@ class UpgradeSchema implements UpgradeSchemaInterface
                     'type'    => Table::TYPE_INTEGER,
                     'length'  => 5,
                     'comment' => 'Creditmemo From Store',
+                ]
+            );
+        }
+    }
+
+    protected function addOutletNameToOrder(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'outlet_name')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('sales_order'),
+                'outlet_name',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'length'  => 50,
+                    'comment' => 'Outlet Name',
+                ]
+            );
+        }
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'outlet_name')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('quote'),
+                'outlet_name',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'length'  => 50,
+                    'comment' => 'Outlet Name',
+                ]
+            );
+        }
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'outlet_name')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('sales_order_grid'),
+                'outlet_name',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'length'  => 50,
+                    'comment' => 'Outlet Name',
                 ]
             );
         }
