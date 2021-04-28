@@ -34,6 +34,7 @@
             <argument name="columns" xsi:type="array">
                 <item name="retail_id" xsi:type="string">sales_order.retail_id</item>
                 <item name="sm_seller_username" xsi:type="string">sales_order.sm_seller_username</item>
+                <item name="outlet_name" xsi:type="string">sales_order.outlet_name</item>
             </argument>
         </arguments>
     </virtualType>
@@ -43,6 +44,7 @@
             <argument name="columns" xsi:type="array">
                 <item name="retail_id" xsi:type="string">sales_order.retail_id</item>
                 <item name="sm_seller_username" xsi:type="string">sales_order.sm_seller_username</item>
+                <item name="outlet_name" xsi:type="string">sales_order.outlet_name</item>
             </argument>
         </arguments>
     </virtualType>

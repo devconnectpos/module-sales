@@ -53,7 +53,10 @@ class OrderHistoryManagement extends ServiceAbstract
      * @var \SM\XRetail\Model\OutletRepository
      */
     protected $outletRepository;
-
+    /**
+     * @var \SM\Core\Api\Data\XOrderFactory
+     */
+    protected $xOrderFactory;
     /**
      * @var \Magento\Catalog\Model\Product\Media\Config
      */
@@ -145,6 +148,7 @@ class OrderHistoryManagement extends ServiceAbstract
         \SM\Product\Repositories\ProductManagement $productManagement,
         \Magento\Sales\Api\OrderRepositoryInterface $orderRepository,
         \SM\Core\Api\Data\XOrder\XOrderItemFactory $xOrderItemFactory,
+        \SM\Core\Api\Data\XOrderFactory $xOrderFactory,
         \Magento\Sales\Model\ResourceModel\Order\Tax\CollectionFactory $taxCollectionFactory,
         \SM\XRetail\Model\OutletRepository $outletRepository
     ) {
@@ -163,6 +167,7 @@ class OrderHistoryManagement extends ServiceAbstract
         $this->xOrderItemFactory = $xOrderItemFactory;
         $this->taxCollectionFactory = $taxCollectionFactory;
         $this->outletRepository = $outletRepository;
+        $this->xOrderFactory = $xOrderFactory;
 
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
@@ -215,7 +220,8 @@ class OrderHistoryManagement extends ServiceAbstract
                     }
                 }
                 $customerPhone = "";
-                $xOrder = new XOrder($order->getData());
+                $xOrder = $this->xOrderFactory->create();
+                $xOrder = $xOrder->addData(($order->getData()));
                 $xOrder->setData(
                     'created_at',
                     $this->retailHelper->convertTimeDBUsingTimeZone($order->getCreatedAt(), $storeId)
@@ -733,10 +739,11 @@ class OrderHistoryManagement extends ServiceAbstract
                     ]
                 );
 
-                $products = $this->productManagement->loadXProducts($searchCriteria)->getItems();
-
-                if (count($products) > 0) {
-                    $xOrderItem->setData('product', $products[0]);
+                try {
+                    $p = $this->productRepository->getById($item->getProductId());
+                    $p = $this->productManagement->processXProduct($p, $storeId, $warehouseId);
+                    $xOrderItem->setData('product', $p);
+                } catch (\Exception $e) {
                 }
             }
         }

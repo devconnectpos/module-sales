@@ -22,4 +22,7 @@
         <observer name="connectpos_quote_update_item_comment" instance="\SM\Sales\Observer\UpdateQuoteItemComment"/>
     </event>
 
+    <event name="sales_order_place_after">
+        <observer name="add_order_increment_id_prefix" instance="SM\Sales\Observer\AddIncrementIdPrefix"/>
+    </event>
 </config>

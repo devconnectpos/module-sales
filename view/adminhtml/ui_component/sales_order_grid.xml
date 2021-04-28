@@ -19,5 +19,23 @@
                 </item>
             </argument>
         </column>
+        <column name="outlet_name">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="visible" xsi:type="boolean">true</item>
+                    <item name="filter" xsi:type="string">text</item>
+                    <item name="label" xsi:type="string" translate="true">Outlet</item>
+                </item>
+            </argument>
+        </column>
+        <column name="outlet_payment_method" class="SM\Sales\Ui\Component\Listing\Column\OutletPaymentMethod">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="visible" xsi:type="boolean">true</item>
+                    <item name="filter" xsi:type="string">text</item>
+                    <item name="label" xsi:type="string" translate="true">Outlet Payment Method</item>
+                </item>
+            </argument>
+        </column>
     </columns>
 </listing>
