@@ -852,6 +852,10 @@ class OrderManagement extends ServiceAbstract
                 ->getEventManager()
                 ->dispatch('sales_order_place_after', ['order' => $order]);
 
+            $this->getContext()
+                ->getEventManager()
+                ->dispatch('cpos_sales_order_place_after', ['order' => $order]);
+
             return new DataObject(
                 [
                     'entity_id' => $order->getEntityId().",".$refundOrder->getEntityId(),
@@ -879,7 +883,10 @@ class OrderManagement extends ServiceAbstract
         $this->getContext()
             ->getEventManager()
             ->dispatch('sales_order_place_after', ['order' => $order]);
-
+        // XRT-6654 for Mr S Leather team to sync orders to Acumatica
+        $this->getContext()
+            ->getEventManager()
+            ->dispatch('cpos_sales_order_place_after', ['order' => $order]);
         return new DataObject(
             [
                 'entity_id' => $order->getEntityId(),
