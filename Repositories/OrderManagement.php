@@ -303,53 +303,53 @@ class OrderManagement extends ServiceAbstract
     protected $isSplitOrder = false;
 
     protected $quote = null;
-    
+
     /**
      * OrderManagement constructor.
      *
-     * @param DataConfig $dataConfig
-     * @param Data $retailHelper
-     * @param StoreManagerInterface $storeManager
-     * @param Context $context
-     * @param Registry $registry
-     * @param UserOrderCounterFactory $userOrderCounterFactory
-     * @param ShipmentManagement $shipmentManagement
-     * @param InvoiceManagement $invoiceManagement
-     * @param Product $catalogProduct
-     * @param Session $customerSession
-     * @param PaymentHelper $paymentHelper
-     * @param RetailTransactionFactory $retailTransactionFactory
-     * @param ShiftHelper $shiftHelper
-     * @param IntegrateHelper $integrateHelperData
-     * @param RPIntegrateManagement $RPIntegrateManagement
-     * @param StoreCreditIntegrateManagement $storeCreditIntegrateManagement
-     * @param GCIntegrateManagement $GCIntegrateManagement
-     * @param OrderSyncErrorFactory $orderSyncErrorFactory
-     * @param FeedbackFactory $feedbackFactory
-     * @param feedbackCollectionFactory $feedbackCollectionFactory
-     * @param OrderHistoryManagement $orderHistoryManagement
-     * @param TaxHelper $taxHelper
-     * @param CollectionFactory $collectionFactory
-     * @param ResourceConnection $resourceConnection
-     * @param OrderFactory $orderFactory
-     * @param MetadataPool $metadataPool
-     * @param RealtimeManager $realtimeManager
-     * @param WarehouseIntegrateManagement $warehouseIntegrateManagement
-     * @param ProductHelper $productHelper
+     * @param DataConfig                             $dataConfig
+     * @param Data                                   $retailHelper
+     * @param StoreManagerInterface                  $storeManager
+     * @param Context                                $context
+     * @param Registry                               $registry
+     * @param UserOrderCounterFactory                $userOrderCounterFactory
+     * @param ShipmentManagement                     $shipmentManagement
+     * @param InvoiceManagement                      $invoiceManagement
+     * @param Product                                $catalogProduct
+     * @param Session                                $customerSession
+     * @param PaymentHelper                          $paymentHelper
+     * @param RetailTransactionFactory               $retailTransactionFactory
+     * @param ShiftHelper                            $shiftHelper
+     * @param IntegrateHelper                        $integrateHelperData
+     * @param RPIntegrateManagement                  $RPIntegrateManagement
+     * @param StoreCreditIntegrateManagement         $storeCreditIntegrateManagement
+     * @param GCIntegrateManagement                  $GCIntegrateManagement
+     * @param OrderSyncErrorFactory                  $orderSyncErrorFactory
+     * @param FeedbackFactory                        $feedbackFactory
+     * @param feedbackCollectionFactory              $feedbackCollectionFactory
+     * @param OrderHistoryManagement                 $orderHistoryManagement
+     * @param TaxHelper                              $taxHelper
+     * @param CollectionFactory                      $collectionFactory
+     * @param ResourceConnection                     $resourceConnection
+     * @param OrderFactory                           $orderFactory
+     * @param MetadataPool                           $metadataPool
+     * @param RealtimeManager                        $realtimeManager
+     * @param WarehouseIntegrateManagement           $warehouseIntegrateManagement
+     * @param ProductHelper                          $productHelper
      * @param RefundWithoutReceiptTransactionFactory $refundWithoutReceiptTransactionFactory
-     * @param Loader $loader
-     * @param Currency $currencyModel
-     * @param Filesystem $filesystem
-     * @param InvoiceRepository $invoiceRepository
-     * @param ShippingHelper $shippingHelper
-     * @param OrderRepositoryInterface $orderRepository
-     * @param SalesHelper $salesHelper
-     * @param CartRepositoryInterface $cartRepository
-     * @param OutletRepository $outletRepository
-     * @param FileFactory $fileFactory
-     * @param OrderItemValidator $orderItemValidator
-     * @param CartManagementInterface $cartManagement
-     * @param ShippingCarrierAdditionalDataFactory $carrierAdditionalDataFactory
+     * @param Loader                                 $loader
+     * @param Currency                               $currencyModel
+     * @param Filesystem                             $filesystem
+     * @param InvoiceRepository                      $invoiceRepository
+     * @param ShippingHelper                         $shippingHelper
+     * @param OrderRepositoryInterface               $orderRepository
+     * @param SalesHelper                            $salesHelper
+     * @param CartRepositoryInterface                $cartRepository
+     * @param OutletRepository                       $outletRepository
+     * @param FileFactory                            $fileFactory
+     * @param OrderItemValidator                     $orderItemValidator
+     * @param CartManagementInterface                $cartManagement
+     * @param ShippingCarrierAdditionalDataFactory   $carrierAdditionalDataFactory
      */
     public function __construct(
         DataConfig $dataConfig,
@@ -520,13 +520,14 @@ class OrderManagement extends ServiceAbstract
 
         return $result;
     }
-    
+
     /**
      * @param bool $isSaveOrder
      *
      * @param null $data
      * @param bool $isSplitting
      * @param null $carriers
+     *
      * @return array|null
      * @throws \Magento\Framework\Exception\CouldNotSaveException
      * @throws \Magento\Framework\Exception\NoSuchEntityException
@@ -629,7 +630,8 @@ class OrderManagement extends ServiceAbstract
         $customerId = isset($data['customer_id']) ? $data['customer_id'] : '';
         if (isset($data['orderOffline']) && $data['orderOffline']) {
             $grandTotal = $data['orderOffline']['totals']['grand_total'];
-            if ($retailId && $this->checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal)) {
+            $subtotal = $data['orderOffline']['totals']['subtotal'];
+            if ($retailId && $this->checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal)) {
                 throw new Exception(__('Duplicated order, cannot save!'));
             }
         }
@@ -887,6 +889,7 @@ class OrderManagement extends ServiceAbstract
         $this->getContext()
             ->getEventManager()
             ->dispatch('cpos_sales_order_place_after', ['order' => $order]);
+
         return new DataObject(
             [
                 'entity_id' => $order->getEntityId(),
@@ -1444,11 +1447,14 @@ class OrderManagement extends ServiceAbstract
         $this->checkExchange($action == 'check');
 
         $this->getOrderCreateModel()->saveQuote();
-    
+
+        // XRT-6583: Fix issue of missing shipping method in quote
+        $shippingMethod = $this->getQuote()->getShippingAddress()->getShippingMethod();
+
         $this->getQuote()
             ->setTotalsCollectedFlag(false)
             ->collectTotals();
-    
+
         if (!$this->getQuote()->isVirtual()) {
             $this->getQuote()
                 ->getShippingAddress()
@@ -1458,6 +1464,10 @@ class OrderManagement extends ServiceAbstract
             $this->getQuote()
                 ->setTotalsCollectedFlag(false)
                 ->collectTotals();
+        }
+
+        if (!empty($shippingMethod) && empty($this->getQuote()->getShippingAddress()->getShippingMethod())) {
+            $this->getQuote()->getShippingAddress()->setShippingMethod($shippingMethod);
         }
 
         $orderData = $this->requestOrderData['order'];
@@ -1494,8 +1504,9 @@ class OrderManagement extends ServiceAbstract
         }
         if (self::$SAVE_ORDER === true) {
             $appliedRuleIds = explode(',', $this->getQuote()->getAppliedRuleIds());
-            if ($appliedRuleIds && is_array($appliedRuleIds) &&
-                ($key = array_search(AbstractWholeOrderDiscountRule::RULE_ID, $appliedRuleIds)) !== false) {
+            if ($appliedRuleIds && is_array($appliedRuleIds)
+                && ($key = array_search(AbstractWholeOrderDiscountRule::RULE_ID, $appliedRuleIds)) !== false
+            ) {
                 unset($appliedRuleIds[$key]);
             }
             $this->getQuote()->setAppliedRuleIds(implode(',', $appliedRuleIds));
@@ -1539,6 +1550,7 @@ class OrderManagement extends ServiceAbstract
         if ($this->quote !== null) {
             return $this->quote;
         }
+
         return $this->getSession()->getQuote();
     }
 
@@ -2020,6 +2032,8 @@ class OrderManagement extends ServiceAbstract
         $retail_has_shipment = isset($this->requestOrderData['retail_has_shipment']) ? $this->requestOrderData['retail_has_shipment'] : false;
         $this->registry->unregister('retail_has_shipment');
         $this->registry->register('retail_has_shipment', $retail_has_shipment);
+        $this->registry->unregister('retail_shipping_method');
+        $this->registry->register('retail_shipping_method', $this->requestOrderData['order']['shipping_method']);
         self::$FROM_API = true;
 
         return $this;
@@ -2427,17 +2441,19 @@ class OrderManagement extends ServiceAbstract
         $this->processLoadOrderData(false, $data, false, $allowShippingCarriers);
 
         $shippingAddress = $this->getQuote()->getShippingAddress();
-        $rates           = $shippingAddress->getGroupedAllShippingRates();
+        $rates = $shippingAddress->getGroupedAllShippingRates();
 
         $arr = [];
         foreach ($rates as $rate) {
             foreach ($rate as $item) {
                 $this->getContext()
                     ->getEventManager()
-                    ->dispatch('connectpos_before_adding_shipping_rate', [
-                        'rate' => $item,
-                        'quote' => $this->getQuote(),
-                    ]);
+                    ->dispatch(
+                        'connectpos_before_adding_shipping_rate', [
+                            'rate'  => $item,
+                            'quote' => $this->getQuote(),
+                        ]
+                    );
                 $rateData = $item->getData();
 
                 if (isset($rateData['error_message']) && $rateData['error_message']) {
@@ -2454,7 +2470,8 @@ class OrderManagement extends ServiceAbstract
                 }
 
                 if (in_array($rateData['carrier'], $allowShippingCarriers)
-                    || (strpos($rateData['carrier'], 'shq') !== false)) {
+                    || (strpos($rateData['carrier'], 'shq') !== false)
+                ) {
                     $arr[] = $rateData;
                 }
             }
@@ -2502,7 +2519,7 @@ class OrderManagement extends ServiceAbstract
         }
     }
 
-    protected function checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal)
+    protected function checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal)
     {
         $orderModel = $this->orderCollectionFactory->create();
         $orderModel->addFieldToFilter('retail_id', ['eq' => $retailId])
@@ -2510,7 +2527,8 @@ class OrderManagement extends ServiceAbstract
             ->addFieldToFilter('register_id', ['eq' => $registerId])
             ->addFieldToFilter('user_id', ['eq' => $userId])
             ->addFieldToFilter('customer_id', ['eq' => $customerId])
-            ->addFieldToFilter('grand_total', ['eq' => $grandTotal]);
+            ->addFieldToFilter('grand_total', ['eq' => $grandTotal])
+            ->addFieldToFilter('subtotal', ['eq' => $subtotal]);
 
         return $orderModel->count() > 0;
     }
@@ -2599,7 +2617,7 @@ class OrderManagement extends ServiceAbstract
         $fileContent = ['type' => 'string', 'value' => $pdf->render(), 'rm' => true];
 
         return $this->fileFactory->create(
-            'invoice' . $date . '.pdf',
+            'invoice'.$date.'.pdf',
             $fileContent,
             DirectoryList::VAR_DIR,
             'application/pdf'
