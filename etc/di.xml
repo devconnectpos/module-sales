@@ -63,10 +63,15 @@
         <plugin name="connectpos-webkul-creditmemo-preorder-fee" type="SM\Sales\Plugin\WebkulPreorder\CreditmemoTotal" sortOrder="1"/>
     </type>
     <type name="Webkul\Preorder\Model\Quote\Total\PreorderFee">
-        <plugin name="connectpos-webkul-creditmemo-preorder-fee" type="SM\Sales\Plugin\WebkulPreorder\QuoteTotal" sortOrder="1"/>
+        <plugin name="connectpos-webkul-quote-preorder-fee" type="SM\Sales\Plugin\WebkulPreorder\QuoteTotal" sortOrder="1"/>
     </type>
     <type name="Webkul\Preorder\Model\Invoice\Total\PreorderFee">
-        <plugin name="connectpos-webkul-creditmemo-preorder-fee" type="SM\Sales\Plugin\WebkulPreorder\InvoiceTotal" sortOrder="1"/>
+        <plugin name="connectpos-webkul-invoice-preorder-fee" type="SM\Sales\Plugin\WebkulPreorder\InvoiceTotal" sortOrder="1"/>
+    </type>
+
+
+    <type name="Magento\InventorySales\Model\IsProductSalableForRequestedQtyCondition\ProductSalableResult">
+        <plugin name="connectpos-allow-selling-out-of-stock-product" type="SM\Sales\Plugin\AlwaysIsSalable" sortOrder="1"/>
     </type>
 
 </config>

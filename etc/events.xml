@@ -25,4 +25,8 @@
     <event name="sales_order_place_after">
         <observer name="add_order_increment_id_prefix" instance="SM\Sales\Observer\AddIncrementIdPrefix"/>
     </event>
+
+    <event name="sales_order_shipment_save_before">
+        <observer name="connectpos-order-always-ship" instance="SM\Sales\Observer\AlwaysShipOrder"/>
+    </event>
 </config>

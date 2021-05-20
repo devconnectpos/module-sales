@@ -66,8 +66,14 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
         }
 
         if (!$this->getQuote()->isVirtual()) {
-            if (!$this->getQuote()->getShippingAddress()->getShippingMethod()) {
-                $this->_errors[] = __('Please specify a shipping method.');
+            $addressHasShippingMethod = $this->getQuote()->getShippingAddress()->getShippingMethod();
+            $requestedShippingMethod = $this->getRegistry()->registry('retail_shipping_method');
+            if (!$addressHasShippingMethod) {
+                if (empty($requestedShippingMethod)) {
+                    $this->_errors[] = __('Please specify a shipping method.');
+                } else {
+                    $this->_errors[] = __('Invalid configuration for shipping method %1, the method may restrict your customer shipping address state or country.', $requestedShippingMethod);
+                }
             }
         }
 
