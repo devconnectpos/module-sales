@@ -597,6 +597,11 @@ class OrderManagement extends ServiceAbstract
                 ->processActionData($isSaveOrder ? "check" : null, $carriers);
         } catch (Exception $e) {
             $this->clear();
+            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info("===> Unable to check invoice payments");
+            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
             throw new Exception($e->getMessage());
         }
 
@@ -637,7 +642,15 @@ class OrderManagement extends ServiceAbstract
         }
 
         //save origin payment data to local variable
-        $this->paymentData = $data['order']['payment_data'];
+        $paymentData = $data['order']['payment_data'] ?? [];
+
+        foreach ($paymentData as $paymentDatum) {
+            $amount = floatval($paymentDatum['amount']);
+            if ($amount == 0) {
+                continue;
+            }
+            $this->paymentData[] = $paymentDatum;
+        }
 
         $splitOrders = [$data];
         if ($this->canSplitOrder($data)) {
@@ -767,7 +780,11 @@ class OrderManagement extends ServiceAbstract
             } elseif (isset($data['orderOffline']) && $data['orderOffline']) {
                 $this->saveOrderError($data['orderOffline'], $e);
             }
-
+            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info("===> Unable to save order");
+            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
             throw new Exception($e->getMessage());
         } finally {
             $this->clear();
@@ -778,6 +795,7 @@ class OrderManagement extends ServiceAbstract
                     $this->addRewardPointData($order);
                 } catch (Exception $e) {
                 }
+
                 if ((isset($data['retail_has_shipment']) && !$data['retail_has_shipment'] && !$this->getQuote()->isVirtual() && !$isPendingOrder)
                     || ($this->integrateHelperData->isIntegrateAcumaticaCloudERP()
                         && $order->getShippingMethod() == 'retailshipping_retailshipping'
@@ -788,6 +806,12 @@ class OrderManagement extends ServiceAbstract
                             $this->shipmentDataManagement->ship($order->getId());
                         }
                     } catch (\Exception $e) {
+                        $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+                        $logger = new \Zend\Log\Logger();
+                        $logger->addWriter($writer);
+                        $logger->info('===> Unable to create shipment');
+                        $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+
                         // ship error
                         if ((int)$e->getCode() === 0) {
                             self::$MESSAGE_ERROR[] = 'can_not_create_shipment_with_negative_qty';
@@ -804,7 +828,11 @@ class OrderManagement extends ServiceAbstract
                         $this->invoiceManagement->checkPayment($order, $isPendingOrder);
                     }
                 } catch (\Exception $e) {
-                    // invoice error
+                    $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+                    $logger = new \Zend\Log\Logger();
+                    $logger->addWriter($writer);
+                    $logger->info("===> Unable to check invoice payments");
+                    $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
                 }
                 if (!isset($data['is_pwa']) || !$data['is_pwa'] === true) {
                     $this->saveOrderTaxInTableShift($order);
@@ -1787,6 +1815,17 @@ class OrderManagement extends ServiceAbstract
         $order['billing_address'] = $this->transformAddressData($order['billing_address']);
         $order['shipping_address'] = $this->transformAddressData($order['shipping_address']);
 
+        $requestedPaymentData = $order['payment_data'] ?? [];
+        $paymentData = [];
+
+        foreach ($requestedPaymentData as $paymentDatum) {
+            if ($paymentDatum['amount'] == 0) {
+                continue;
+            }
+            $paymentData[] = $paymentDatum;
+        }
+        $order['payment_data'] = $paymentData;
+
         if ($this->checkIsRefundToGiftCard()) {
             foreach ($order['payment_data'] as $paymentDatum) {
                 if ($paymentDatum['type'] == 'refund_gift_card') {
@@ -2313,6 +2352,7 @@ class OrderManagement extends ServiceAbstract
     {
         if ($this->integrateHelperData->isIntegrateWH() || $this->integrateHelperData->isMagestoreInventory()) {
             WarehouseIntegrateManagement::setWarehouseId($this->getRequest()->getParam('warehouse_id'));
+            WarehouseIntegrateManagement::setOutletId($this->getRequest()->getParam('outlet_id'));
         }
 
         return $this;
@@ -2322,6 +2362,7 @@ class OrderManagement extends ServiceAbstract
     {
         if ($this->integrateHelperData->isMagentoInventory()) {
             WarehouseIntegrateManagement::setWarehouseId($this->getRequest()->getParam('warehouse_id'));
+            WarehouseIntegrateManagement::setOutletId($this->getRequest()->getParam('outlet_id'));
         }
 
         return $this;
@@ -2368,8 +2409,7 @@ class OrderManagement extends ServiceAbstract
             $this->registry->register('is_pwa', 1);
         }
         $storeId = $this->getRequest()->getParam('store_id');
-        if ($this->productHelper->getPWAOutOfStockStatus($storeId) === 'no') {
-        } else {
+        if ($this->productHelper->getPWAOutOfStockStatus($storeId) !== 'no') {
             $this->registry->unregister('is_connectpos');
             $this->registry->register('is_connectpos', true);
         }

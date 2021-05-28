@@ -81,6 +81,11 @@ class ShipmentManagement extends ServiceAbstract
     private $shiftHelper;
 
     /**
+     * @var \Magento\Sales\Api\Data\ShipmentExtensionInterfaceFactory
+     */
+    private $shipmentExtensionInterfaceFactory;
+
+    /**
      * ShipmentManagement constructor.
      *
      * @param \Magento\Framework\App\RequestInterface                     $requestInterface
@@ -108,7 +113,8 @@ class ShipmentManagement extends ServiceAbstract
         EmailSender $emailSender,
         ShiftHelper $shiftHelper,
         RetailHelper $retailHelper,
-        RetailTransactionFactory $retailTransactionFactory
+        RetailTransactionFactory $retailTransactionFactory,
+        \Magento\Sales\Api\Data\ShipmentExtensionInterfaceFactory $shipmentExtensionInterfaceFactory
     ) {
         $this->orderFactory             = $orderFactory;
         $this->invoiceManagement        = $invoiceManagement;
@@ -121,6 +127,7 @@ class ShipmentManagement extends ServiceAbstract
         $this->shiftHelper              = $shiftHelper;
         $this->retailHelper             = $retailHelper;
         $this->retailTransactionFactory = $retailTransactionFactory;
+        $this->shipmentExtensionInterfaceFactory = $shipmentExtensionInterfaceFactory;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -277,7 +284,7 @@ class ShipmentManagement extends ServiceAbstract
             $shipment->register();
             $sourceCode = $this->request->getParam('sourceCode');
             if (!empty($sourceCode) && $this->integrateData->isMagentoInventory()) {
-                $shipmentExtension = $shipment->getExtensionAttributes();
+                $shipmentExtension = $shipment->getExtensionAttributes() ?? $this->shipmentExtensionInterfaceFactory->create();
                 $shipmentExtension->setSourceCode($sourceCode);
             }
 

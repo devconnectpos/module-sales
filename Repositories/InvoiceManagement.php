@@ -271,8 +271,7 @@ class InvoiceManagement extends ServiceAbstract
      */
     public function checkPayment($order, $isPendingOrder = false)
     {
-        if ($order instanceof Order) {
-        } else {
+        if (!($order instanceof Order)) {
             $orderModel = $this->orderFactory->create();
             $order = $orderModel->load($order);
         }
@@ -467,6 +466,12 @@ class InvoiceManagement extends ServiceAbstract
                 // save payment information to x-retail payment. It will display in order detail on CPOS
                 $splitData = json_decode($order->getPayment()->getAdditionalInformation('split_data'), true);
                 foreach ($data['payment_data'] as $payment) {
+                    $amount = floatval($payment['amount']);
+
+                    if ($amount == 0) {
+                        continue;
+                    }
+
                     $splitData[] = $payment;
                 }
             }
@@ -484,6 +489,12 @@ class InvoiceManagement extends ServiceAbstract
                 // within cash rounding payment
                 foreach ($data['payment_data'] as $payment_datum) {
                     if (isset($payment_datum['title']) && !($payment_datum['title'] === null)) {
+                        $amount = floatval($payment_datum['amount']);
+
+                        if ($amount == 0) {
+                            continue;
+                        }
+
                         $created_at = $this->retailHelper->getCurrentTime();
                         $transactionData = [
                             "payment_id"    => isset($payment_datum['id']) ? $payment_datum['id'] : null,
@@ -492,7 +503,7 @@ class InvoiceManagement extends ServiceAbstract
                             "register_id"   => $data['register_id'],
                             "payment_title" => $payment_datum['title'],
                             "payment_type"  => $payment_datum['type'],
-                            "amount"        => floatval($payment_datum['amount']),
+                            "amount"        => $amount,
                             "is_purchase"   => 0,
                             "created_at"    => $created_at,
                             "order_id"      => isset($data['order_id']) ? $data['order_id'] : '',
@@ -508,6 +519,12 @@ class InvoiceManagement extends ServiceAbstract
             } else {
                 foreach ($data['payment_data'] as $payment_datum) {
                     if (isset($payment_datum['title']) && !($payment_datum['title'] === null)) {
+                        $amount = floatval($payment_datum['amount']);
+
+                        if ($amount == 0) {
+                            continue;
+                        }
+
                         $created_at = $this->retailHelper->getCurrentTime();
                         $transactionData = [
                             "payment_id"    => isset($payment_datum['id']) ? $payment_datum['id'] : null,
@@ -516,7 +533,7 @@ class InvoiceManagement extends ServiceAbstract
                             "register_id"   => $data['register_id'],
                             "payment_title" => $payment_datum['title'],
                             "payment_type"  => $payment_datum['type'],
-                            "amount"        => floatval($payment_datum['amount']),
+                            "amount"        => $amount,
                             "is_purchase"   => 1,
                             "created_at"    => $created_at,
                             "order_id"      => isset($data['order_id']) ? $data['order_id'] : '',
@@ -544,7 +561,7 @@ class InvoiceManagement extends ServiceAbstract
                 ]
             );
 
-            return $this->orderHistoryManagement->loadOrders($criteria);
+            return $this->orderHistoryManagement->loadOrders($criteria, true);
         } else {
             throw new Exception("Must required data");
         }

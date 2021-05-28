@@ -192,7 +192,7 @@ class OrderHistoryManagement extends ServiceAbstract
      * @throws \Magento\Framework\Exception\LocalizedException
      * @throws \ReflectionException
      */
-    public function loadOrders(DataObject $searchCriteria)
+    public function loadOrders(DataObject $searchCriteria, $withoutCache = false)
     {
         $collection = $this->getOrderCollection($searchCriteria);
 
@@ -203,7 +203,11 @@ class OrderHistoryManagement extends ServiceAbstract
 
             /** @var \Magento\Sales\Model\Order $order */
             foreach ($collection as $order) {
-                $order = $this->orderRepository->get($order->getId());
+                if ($withoutCache) {
+                    $order = $order->load($order->getId());
+                } else {
+                    $order = $this->orderRepository->get($order->getId());
+                }
                 if (!$searchCriteria->getData('isSearchOnline')
                     && $order->getShippingMethod() === 'smstorepickup_smstorepickup'
                     && !isset($this->getRequest()->getParams()['save-order'])
@@ -245,7 +249,10 @@ class OrderHistoryManagement extends ServiceAbstract
                     ]
                 );
                 $itemTaxes = [];
-                $itemAppliedTaxes = $order->getExtensionAttributes()->getItemAppliedTaxes();
+                $itemAppliedTaxes = [];
+                if ($order->getExtensionAttributes()) {
+                    $itemAppliedTaxes = $order->getExtensionAttributes()->getItemAppliedTaxes();
+                }
                 if (!empty($itemAppliedTaxes)) {
                     foreach ($itemAppliedTaxes as $itemAppliedTax) {
                         $appliedTaxes = [];
@@ -355,7 +362,7 @@ class OrderHistoryManagement extends ServiceAbstract
                     'tax'                            => floatval($order->getTaxAmount()),
                     'applied_taxes'                  => $applied_taxes,
                     'discount'                       => floatval($order->getDiscountAmount()),
-                    'retail_discount_per_item'      => floatval($order->getData('discount_per_item')),
+                    'retail_discount_per_item'       => floatval($order->getData('discount_per_item')),
                     'grand_total'                    => floatval($order->getGrandTotal()),
                     'total_paid'                     => floatval($order->getTotalPaid()),
                     'total_refunded'                 => floatval($order->getTotalRefunded()),
@@ -363,6 +370,7 @@ class OrderHistoryManagement extends ServiceAbstract
                     'store_credit_discount_amount'   => null,
                     'gift_card_discount_amount'      => null,
                     'store_credit_balance'           => floatval($order->getData('store_credit_balance')),
+                    'store_credit_refunded'          => floatval($order->getData('customer_balance_refunded')),
                     'previous_reward_points_balance' => floatval($order->getData('previous_reward_points_balance')),
                     'reward_points_redeemed'         => floatval($order->getData('reward_points_redeemed')),
                     'reward_points_earned'           => floatval($order->getData('reward_points_earned')),
