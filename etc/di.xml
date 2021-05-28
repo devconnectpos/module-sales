@@ -68,10 +68,22 @@
     <type name="Webkul\Preorder\Model\Invoice\Total\PreorderFee">
         <plugin name="connectpos-webkul-invoice-preorder-fee" type="SM\Sales\Plugin\WebkulPreorder\InvoiceTotal" sortOrder="1"/>
     </type>
-
-
     <type name="Magento\InventorySales\Model\IsProductSalableForRequestedQtyCondition\ProductSalableResult">
         <plugin name="connectpos-allow-selling-out-of-stock-product" type="SM\Sales\Plugin\AlwaysIsSalable" sortOrder="1"/>
     </type>
-
+    <type name="Magento\InventorySourceDeductionApi\Model\SourceDeductionService">
+        <plugin name="connectpos-allow-product-negative-qty" type="SM\Sales\Plugin\AllowProductNegativeQty" sortOrder="1" />
+    </type>
+    <type name="Magento\InventorySourceSelectionApi\Model\Algorithms\Result\GetDefaultSortedSourcesResult">
+        <plugin name="connectpos-allow-virtual-product-negative-qty" type="SM\Sales\Plugin\AllowVirtualProductNegativeQty" sortOrder="1" />
+    </type>
+    <type name="Magento\CatalogInventory\Helper\Stock">
+        <plugin name="connectpos-bypass-stock-check-for-product-collection" type="SM\Sales\Plugin\BypassStockCheckForProductCollection" sortOrder="1" />
+    </type>
+    <type name="Magento\ConfigurableProduct\Model\Product\Type\Configurable">
+        <plugin name="connectpos-skip-config-child-product-stock-filter" type="SM\Sales\Plugin\SkipConfigChildProductStockFilter" sortOrder="1" />
+    </type>
+    <type name="Magento\InventoryConfigurableProduct\Plugin\Model\Product\Type\Configurable\IsSalableOptionPlugin">
+        <plugin name="connectpos-bypass-check-config-saleable-option" type="SM\Sales\Plugin\BypassCheckConfigSaleableOption" sortOrder="1" />
+    </type>
 </config>

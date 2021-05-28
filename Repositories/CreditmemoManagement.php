@@ -9,6 +9,7 @@ namespace SM\Sales\Repositories;
 
 use Exception;
 use Magento\Backend\Model\Session;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Event\ManagerInterface;
@@ -105,6 +106,16 @@ class CreditmemoManagement extends ServiceAbstract
     private $orderRepository;
 
     /**
+     * @var \Magento\Sales\Api\Data\CreditmemoExtensionInterfaceFactory
+     */
+    private $creditmemoExtensionInterfaceFactory;
+
+    /**
+     * @var \Magento\Framework\App\Config\ScopeConfigInterface
+     */
+    protected $scopeConfig;
+
+    /**
      * CreditmemoManagement constructor.
      *
      * @param \Magento\Framework\App\RequestInterface                  $requestInterface
@@ -144,7 +155,9 @@ class CreditmemoManagement extends ServiceAbstract
         ManagerInterface $eventManagement,
         InvoiceFactory $invoiceFactory,
         \Magento\Customer\Model\CustomerFactory $customerFactory,
-        \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
+        \Magento\Sales\Api\OrderRepositoryInterface $orderRepository,
+        \Magento\Sales\Api\Data\CreditmemoExtensionInterfaceFactory $creditmemoExtensionInterfaceFactory,
+        ScopeConfigInterface $scopeConfig
     ) {
         $this->taxConfig = $taxConfig;
         $this->invoiceManagement = $invoiceManagement;
@@ -161,6 +174,8 @@ class CreditmemoManagement extends ServiceAbstract
         $this->invoiceFactory = $invoiceFactory;
         $this->customerFactory = $customerFactory;
         $this->orderRepository = $orderRepository;
+        $this->creditmemoExtensionInterfaceFactory = $creditmemoExtensionInterfaceFactory;
+        $this->scopeConfig = $scopeConfig;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -260,33 +275,45 @@ class CreditmemoManagement extends ServiceAbstract
             }
 
             // check payment data
-            if (is_array($data['payment_data']) && count($data['payment_data']) <= 2) {
+            if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 1) {
                 // when exchange can have two payment method.
-            } else {
                 throw new Exception("Refund only accept one payment method");
+            }
+
+            if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 0) {
+                $amount = floatval($data['payment_data'][0]['amount']);
+
+                if ($amount == 0) {
+                    $data['payment_data'] = [];
+                }
+            }
+
+            foreach ($order->getAllItems() as &$item) {
+                foreach ($creditmemo->getAllItems() as &$refundedItem) {
+                    if ($refundedItem->getOrderItemId() != $item->getId()) {
+                        continue;
+                    }
+                    $item->setQtyRefunded($refundedItem->getQty());
+                }
             }
 
             $creditmemoManagement = $this->objectManager->create(
                 'Magento\Sales\Api\CreditmemoManagementInterface'
             );
             $creditmemo->setAutomaticallyCreated(true);
-            $creditmemoManagement->refund($creditmemo, (bool)$data['do_offline']);
 
-            if (!empty($data['send_email'])) {
-                $this->creditmemoSender->send($creditmemo);
-            }
-            $eventData = [
-                'order' => $creditmemo,
-            ];
-            $this->eventManagement->dispatch(
-                'disable_giftcard_refund',
-                $eventData
-            );
-
-            if (isset($data['refund_to_store_credit'])) {
+            if (isset($data['refund_to_store_credit']) || $this->scopeConfig->getValue('customer/magento_customerbalance/refund_automatically')) {
                 if ($this->integrateHelperData->isIntegrateStoreCredit()
                     && $this->integrateHelperData->isExistStoreCreditMagento2EE()
                 ) {
+                    $refundedStoreCredit = $data['store_credit'] ?? $order->getData('customer_balance_invoiced');
+                    $extensionAttributes = $creditmemo->getExtensionAttributes() ?? $this->creditmemoExtensionInterfaceFactory->create();
+                    $extensionAttributes->setBaseCustomerBalanceAmount($refundedStoreCredit);
+                    $extensionAttributes->setCustomerBalanceAmount($refundedStoreCredit);
+                    $creditmemo->setExtensionAttributes($extensionAttributes);
+                    $creditmemo->setBaseCustomerBalanceAmount($refundedStoreCredit);
+                    $creditmemo->setCustomerBalanceAmount($refundedStoreCredit);
+
                     $storeCreditData = $this->integrateHelperData
                         ->getStoreCreditIntegrateManagement()
                         ->getCurrentIntegrateModel()
@@ -295,8 +322,22 @@ class CreditmemoManagement extends ServiceAbstract
                             $this->storeManager->getStore($storeId)->getWebsiteId()
                         );
                     $order->setData('store_credit_balance', $storeCreditData)->save();
+                    $creditmemo->setOrder($order);
                 }
             }
+
+            $creditmemoManagement->refund($creditmemo, (bool)$data['do_offline']);
+
+            if (!empty($data['send_email'])) {
+                $this->creditmemoSender->send($creditmemo);
+            }
+
+            $this->eventManagement->dispatch(
+                'disable_giftcard_refund',
+                [
+                    'order' => $creditmemo,
+                ]
+            );
 
             // for case refund using only giftcard
             if (isset($data['payment_data'])
@@ -327,7 +368,6 @@ class CreditmemoManagement extends ServiceAbstract
             }
             // fix refund amount
             // $data['payment_data'][0]['amount'] = -$creditmemo->getGrandTotal();
-
             return $this->invoiceManagement->addPayment(
                 [
                     'payment_data' => $data['payment_data'],
@@ -432,7 +472,12 @@ class CreditmemoManagement extends ServiceAbstract
         $data['is_pwa'] = $creditmemo->getOrder()->getData('is_pwa');
 
         $order = $this->orderRepository->get($creditmemo->getOrderId());
-        $itemAppliedTaxes = $order->getExtensionAttributes()->getItemAppliedTaxes();
+        $itemAppliedTaxes = [];
+
+        if ($order->getExtensionAttributes()) {
+            $itemAppliedTaxes = $order->getExtensionAttributes()->getItemAppliedTaxes();
+        }
+
         $itemTaxes = [];
 
         if (!empty($itemAppliedTaxes)) {
