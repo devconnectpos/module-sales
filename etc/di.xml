@@ -86,4 +86,7 @@
     <type name="Magento\InventoryConfigurableProduct\Plugin\Model\Product\Type\Configurable\IsSalableOptionPlugin">
         <plugin name="connectpos-bypass-check-config-saleable-option" type="SM\Sales\Plugin\BypassCheckConfigSaleableOption" sortOrder="1" />
     </type>
+    <type name="Magento\Tax\Model\Sales\Total\Quote\CommonTaxCollector">
+        <plugin name="connectpos-prevent-custom-sale-tax-class-id-change" type="SM\Sales\Plugin\PreventCustomSaleTaxClassIdChange" sortOrder="1" />
+    </type>
 </config>
