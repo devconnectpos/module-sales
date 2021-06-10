@@ -28,7 +28,7 @@
                 </item>
             </argument>
         </column>
-        <column name="outlet_payment_method" class="SM\Sales\Ui\Component\Listing\Column\OutletPaymentMethod">
+        <column name="outlet_payment_method">
             <argument name="data" xsi:type="array">
                 <item name="config" xsi:type="array">
                     <item name="visible" xsi:type="boolean">true</item>
