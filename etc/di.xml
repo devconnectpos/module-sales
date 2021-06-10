@@ -35,6 +35,7 @@
                 <item name="retail_id" xsi:type="string">sales_order.retail_id</item>
                 <item name="sm_seller_username" xsi:type="string">sales_order.sm_seller_username</item>
                 <item name="outlet_name" xsi:type="string">sales_order.outlet_name</item>
+                <item name="outlet_payment_method" xsi:type="string">sales_order.outlet_payment_method</item>
             </argument>
         </arguments>
     </virtualType>
@@ -45,6 +46,7 @@
                 <item name="retail_id" xsi:type="string">sales_order.retail_id</item>
                 <item name="sm_seller_username" xsi:type="string">sales_order.sm_seller_username</item>
                 <item name="outlet_name" xsi:type="string">sales_order.outlet_name</item>
+                <item name="outlet_payment_method" xsi:type="string">sales_order.outlet_payment_method</item>
             </argument>
         </arguments>
     </virtualType>
@@ -88,5 +90,8 @@
     </type>
     <type name="Magento\Tax\Model\Sales\Total\Quote\CommonTaxCollector">
         <plugin name="connectpos-prevent-custom-sale-tax-class-id-change" type="SM\Sales\Plugin\PreventCustomSaleTaxClassIdChange" sortOrder="1" />
+    </type>
+    <type name="Magento\Catalog\Model\Product">
+        <plugin name="connectpos-make-custom-sale-always-saleable" type="SM\Sales\Plugin\MakeCustomSaleAlwaysSaleable" sortOrder="1" />
     </type>
 </config>

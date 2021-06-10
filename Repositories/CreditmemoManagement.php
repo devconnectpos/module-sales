@@ -307,22 +307,25 @@ class CreditmemoManagement extends ServiceAbstract
                     && $this->integrateHelperData->isExistStoreCreditMagento2EE()
                 ) {
                     $refundedStoreCredit = $data['store_credit'] ?? $order->getData('customer_balance_invoiced');
-                    $extensionAttributes = $creditmemo->getExtensionAttributes() ?? $this->creditmemoExtensionInterfaceFactory->create();
-                    $extensionAttributes->setBaseCustomerBalanceAmount($refundedStoreCredit);
-                    $extensionAttributes->setCustomerBalanceAmount($refundedStoreCredit);
-                    $creditmemo->setExtensionAttributes($extensionAttributes);
-                    $creditmemo->setBaseCustomerBalanceAmount($refundedStoreCredit);
-                    $creditmemo->setCustomerBalanceAmount($refundedStoreCredit);
 
-                    $storeCreditData = $this->integrateHelperData
-                        ->getStoreCreditIntegrateManagement()
-                        ->getCurrentIntegrateModel()
-                        ->getStoreCreditCollection(
-                            $this->getCustomerModel()->load($creditmemo->getOrder()->getCustomerId()),
-                            $this->storeManager->getStore($storeId)->getWebsiteId()
-                        );
-                    $order->setData('store_credit_balance', $storeCreditData)->save();
-                    $creditmemo->setOrder($order);
+                    if (!empty($refundedStoreCredit)) {
+                        $extensionAttributes = $creditmemo->getExtensionAttributes() ?? $this->creditmemoExtensionInterfaceFactory->create();
+                        $extensionAttributes->setBaseCustomerBalanceAmount($refundedStoreCredit);
+                        $extensionAttributes->setCustomerBalanceAmount($refundedStoreCredit);
+                        $creditmemo->setExtensionAttributes($extensionAttributes);
+                        $creditmemo->setBaseCustomerBalanceAmount($refundedStoreCredit);
+                        $creditmemo->setCustomerBalanceAmount($refundedStoreCredit);
+
+                        $storeCreditData = $this->integrateHelperData
+                            ->getStoreCreditIntegrateManagement()
+                            ->getCurrentIntegrateModel()
+                            ->getStoreCreditCollection(
+                                $this->getCustomerModel()->load($creditmemo->getOrder()->getCustomerId()),
+                                $this->storeManager->getStore($storeId)->getWebsiteId()
+                            );
+                        $order->setData('store_credit_balance', $storeCreditData)->save();
+                        $creditmemo->setOrder($order);
+                    }
                 }
             }
 
