@@ -600,7 +600,7 @@ class OrderManagement extends ServiceAbstract
             $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
             $logger = new \Zend\Log\Logger();
             $logger->addWriter($writer);
-            $logger->info("===> Unable to check invoice payments");
+            $logger->info("===> Unable to process load order data");
             $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
             throw new Exception($e->getMessage());
         }

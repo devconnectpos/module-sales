@@ -226,87 +226,94 @@ class CreditmemoManagement extends ServiceAbstract
      */
     protected function save()
     {
-        $orderId = $this->getRequest()->getParam('order_id');
-        $storeId = $this->getRequest()->getParam('store_id');
-        $data = $this->getCreditmemoData();
-        $this->creditmemoLoader->setOrderId($orderId);
-        $this->creditmemoLoader->setCreditmemo($data);
-        $creditmemo = $this->creditmemoLoader->load();
+        try {
+            $orderId = $this->getRequest()->getParam('order_id');
+            $storeId = $this->getRequest()->getParam('store_id');
+            $data = $this->getCreditmemoData();
+            $this->creditmemoLoader->setOrderId($orderId);
+            $this->creditmemoLoader->setCreditmemo($data);
+            $creditmemo = $this->creditmemoLoader->load();
 
-        $creditmemo->setData('cpos_creditmemo_from_store_id', $storeId);
+            $creditmemo->setData('cpos_creditmemo_from_store_id', $storeId);
 
-        // Support create refund for online order
-        $order = $this->orderRepository->get($creditmemo->getOrderId());
+            // Support create refund for online order
+            $order = $this->orderRepository->get($creditmemo->getOrderId());
 
-        if ($order->getInvoiceCollection()->getSize() == 1) {
-            $creditmemo->setInvoice(
-                $this->invoiceFactory->create()->load(
-                    $order->getInvoiceCollection()
-                        ->getFirstItem()
-                        ->getData('entity_id')
-                )
-            );
-        }
-
-        if ($creditmemo) {
-            if (!$creditmemo->isValidGrandTotal()) {
-                throw new LocalizedException(
-                    __('The credit memo\'s total must be positive.')
+            if ($order->getInvoiceCollection()->getSize() == 1) {
+                $creditmemo->setInvoice(
+                    $this->invoiceFactory->create()->load(
+                        $order->getInvoiceCollection()
+                            ->getFirstItem()
+                            ->getData('entity_id')
+                    )
                 );
             }
-            if (!empty($data['comment_text'])) {
-                $creditmemo->addComment(
-                    $data['comment_text'],
-                    isset($data['comment_customer_notify']),
-                    isset($data['is_visible_on_front'])
-                );
 
-                $creditmemo->setCustomerNote($data['comment_text']);
-                $creditmemo->setCustomerNoteNotify(isset($data['comment_customer_notify']));
-            }
-
-            if (isset($data['do_offline'])) {
-                //do not allow online refund for Refund to Store Credit
-                if (!$data['do_offline'] && !empty($data['refund_customerbalance_return_enable'])) {
+            if ($creditmemo) {
+                if (!$creditmemo->isValidGrandTotal()) {
                     throw new LocalizedException(
-                        __('Cannot create online refund for Refund to Store Credit.')
+                        __('The credit memo\'s total must be positive.')
                     );
                 }
-            }
+                if (!empty($data['comment_text'])) {
+                    $creditmemo->addComment(
+                        $data['comment_text'],
+                        isset($data['comment_customer_notify']),
+                        isset($data['is_visible_on_front'])
+                    );
 
-            // check payment data
-            if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 1) {
-                // when exchange can have two payment method.
-                throw new Exception("Refund only accept one payment method");
-            }
-
-            if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 0) {
-                $amount = floatval($data['payment_data'][0]['amount']);
-
-                if ($amount == 0) {
-                    $data['payment_data'] = [];
+                    $creditmemo->setCustomerNote($data['comment_text']);
+                    $creditmemo->setCustomerNoteNotify(isset($data['comment_customer_notify']));
                 }
-            }
 
-            foreach ($order->getAllItems() as &$item) {
-                foreach ($creditmemo->getAllItems() as &$refundedItem) {
-                    if ($refundedItem->getOrderItemId() != $item->getId()) {
-                        continue;
+                if (isset($data['do_offline'])) {
+                    //do not allow online refund for Refund to Store Credit
+                    if (!$data['do_offline'] && !empty($data['refund_customerbalance_return_enable'])) {
+                        throw new LocalizedException(
+                            __('Cannot create online refund for Refund to Store Credit.')
+                        );
                     }
-                    $item->setQtyRefunded($refundedItem->getQty());
                 }
-            }
 
-            $creditmemoManagement = $this->objectManager->create(
-                'Magento\Sales\Api\CreditmemoManagementInterface'
-            );
-            $creditmemo->setAutomaticallyCreated(true);
+                // check payment data
+                if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 1) {
+                    // when exchange can have two payment method.
+                    throw new Exception("Refund only accept one payment method");
+                }
 
-            if (isset($data['refund_to_store_credit']) || $this->scopeConfig->getValue('customer/magento_customerbalance/refund_automatically')) {
+                if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 0) {
+                    $amount = floatval($data['payment_data'][0]['amount']);
+
+                    if ($amount == 0) {
+                        $data['payment_data'] = [];
+                    }
+                }
+
+                foreach ($order->getAllItems() as &$item) {
+                    foreach ($creditmemo->getAllItems() as &$refundedItem) {
+                        if ($refundedItem->getOrderItemId() != $item->getId()) {
+                            continue;
+                        }
+                        $item->setQtyRefunded($refundedItem->getQty());
+                    }
+                }
+
+                $creditmemoManagement = $this->objectManager->create(
+                    'Magento\Sales\Api\CreditmemoManagementInterface'
+                );
+                $creditmemo->setAutomaticallyCreated(true);
+                $refundStoreCreditAuto = $this->scopeConfig->getValue('customer/magento_customerbalance/refund_automatically');
+
                 if ($this->integrateHelperData->isIntegrateStoreCredit()
                     && $this->integrateHelperData->isExistStoreCreditMagento2EE()
+                    && ((isset($data['refund_to_store_credit']) && $data['refund_to_store_credit'] == 1) || $refundStoreCreditAuto)
                 ) {
-                    $refundedStoreCredit = $data['store_credit'] ?? $order->getData('customer_balance_invoiced');
+                    $refundedStoreCredit = $order->getData('customer_balance_invoiced') ?? 0;
+
+                    if (isset($data['store_credit']) && is_numeric($data['store_credit']) && $data['store_credit'] > 0) {
+                        $refundedStoreCredit = $data['store_credit'];
+                    }
+
                     $extensionAttributes = $creditmemo->getExtensionAttributes() ?? $this->creditmemoExtensionInterfaceFactory->create();
                     $extensionAttributes->setBaseCustomerBalanceAmount($refundedStoreCredit);
                     $extensionAttributes->setCustomerBalanceAmount($refundedStoreCredit);
@@ -314,73 +321,82 @@ class CreditmemoManagement extends ServiceAbstract
                     $creditmemo->setBaseCustomerBalanceAmount($refundedStoreCredit);
                     $creditmemo->setCustomerBalanceAmount($refundedStoreCredit);
 
-                    $storeCreditData = $this->integrateHelperData
-                        ->getStoreCreditIntegrateManagement()
-                        ->getCurrentIntegrateModel()
-                        ->getStoreCreditCollection(
-                            $this->getCustomerModel()->load($creditmemo->getOrder()->getCustomerId()),
-                            $this->storeManager->getStore($storeId)->getWebsiteId()
-                        );
-                    $order->setData('store_credit_balance', $storeCreditData)->save();
-                    $creditmemo->setOrder($order);
+                    if ($refundedStoreCredit > 0) {
+                        $storeCreditData = $this->integrateHelperData
+                            ->getStoreCreditIntegrateManagement()
+                            ->getCurrentIntegrateModel()
+                            ->getStoreCreditCollection(
+                                $this->getCustomerModel()->load($creditmemo->getOrder()->getCustomerId()),
+                                $this->storeManager->getStore($storeId)->getWebsiteId()
+                            );
+                        $order->setData('store_credit_balance', $storeCreditData)->save();
+                        $creditmemo->setOrder($order);
+                    }
                 }
-            }
 
-            $creditmemoManagement->refund($creditmemo, (bool)$data['do_offline']);
+                $creditmemoManagement->refund($creditmemo, (bool)$data['do_offline']);
 
-            if (!empty($data['send_email'])) {
-                $this->creditmemoSender->send($creditmemo);
-            }
+                if (!empty($data['send_email'])) {
+                    $this->creditmemoSender->send($creditmemo);
+                }
 
-            $this->eventManagement->dispatch(
-                'disable_giftcard_refund',
-                [
-                    'order' => $creditmemo,
-                ]
-            );
-
-            // for case refund using only giftcard
-            if (isset($data['payment_data'])
-                && $data['payment_data'] == null
-                && isset($data['refund_to_gift_card'])
-                && $data['refund_to_gift_card'] == true
-                && $this->integrateHelperData->isAHWGiftCardExist()
-                && ($this->integrateHelperData->isIntegrateGC()
-                    || ($order->getData('is_pwa') == 1
-                        && $this->integrateHelperData->isIntegrateGCInPWA()))
-            ) {
-                $created_at = $this->retailHelper->getCurrentTime();
-                $giftCardPaymentId = $this->paymentHelper->getPaymentIdByType(
-                    RetailPayment::GIFT_CARD_PAYMENT_TYPE
+                $this->eventManagement->dispatch(
+                    'disable_giftcard_refund',
+                    [
+                        'order' => $creditmemo,
+                    ]
                 );
-                $data['payment_data'][0] = [
-                    "id"                    => $giftCardPaymentId,
-                    "type"                  => RetailPayment::GIFT_CARD_PAYMENT_TYPE,
-                    "title"                 => "Gift Card",
-                    "refund_amount"         => $creditmemo->getGrandTotal(),
-                    "data"                  => [],
-                    "isChanging"            => false,
-                    "allow_amount_tendered" => true,
-                    "is_purchase"           => 0,
-                    "created_at"            => $created_at,
-                    "payment_data"          => [],
-                ];
+
+                // for case refund using only giftcard
+                if (isset($data['payment_data'])
+                    && $data['payment_data'] == null
+                    && isset($data['refund_to_gift_card'])
+                    && $data['refund_to_gift_card'] == true
+                    && $this->integrateHelperData->isAHWGiftCardExist()
+                    && ($this->integrateHelperData->isIntegrateGC()
+                        || ($order->getData('is_pwa') == 1
+                            && $this->integrateHelperData->isIntegrateGCInPWA()))
+                ) {
+                    $created_at = $this->retailHelper->getCurrentTime();
+                    $giftCardPaymentId = $this->paymentHelper->getPaymentIdByType(
+                        RetailPayment::GIFT_CARD_PAYMENT_TYPE
+                    );
+                    $data['payment_data'][0] = [
+                        "id"                    => $giftCardPaymentId,
+                        "type"                  => RetailPayment::GIFT_CARD_PAYMENT_TYPE,
+                        "title"                 => "Gift Card",
+                        "refund_amount"         => $creditmemo->getGrandTotal(),
+                        "data"                  => [],
+                        "isChanging"            => false,
+                        "allow_amount_tendered" => true,
+                        "is_purchase"           => 0,
+                        "created_at"            => $created_at,
+                        "payment_data"          => [],
+                    ];
+                }
+                // fix refund amount
+                // $data['payment_data'][0]['amount'] = -$creditmemo->getGrandTotal();
+                return $this->invoiceManagement->addPayment(
+                    [
+                        'payment_data' => $data['payment_data'],
+                        'order_id'     => $this->getRequest()->getParam('order_id'),
+                        "outlet_id"    => $this->getRequest()->getParam('outlet_id'),
+                        "register_id"  => $this->getRequest()->getParam('register_id'),
+                        "user_name"    => $this->getRequest()->getParam('user_name'),
+                        'store_id'     => $storeId,
+                    ],
+                    true
+                );
+            } else {
+                throw new Exception("Can't find creditmemo data");
             }
-            // fix refund amount
-            // $data['payment_data'][0]['amount'] = -$creditmemo->getGrandTotal();
-            return $this->invoiceManagement->addPayment(
-                [
-                    'payment_data' => $data['payment_data'],
-                    'order_id'     => $this->getRequest()->getParam('order_id'),
-                    "outlet_id"    => $this->getRequest()->getParam('outlet_id'),
-                    "register_id"  => $this->getRequest()->getParam('register_id'),
-                    "user_name"    => $this->getRequest()->getParam('user_name'),
-                    'store_id'     => $storeId,
-                ],
-                true
-            );
-        } else {
-            throw new Exception("Can't find creditmemo data");
+        } catch (\Throwable $e) {
+            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info("===> Unable to save credit memo");
+            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+            throw $e;
         }
     }
 

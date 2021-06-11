@@ -110,26 +110,31 @@ class OrderHistoryManagement extends ServiceAbstract
     private $taxCollectionFactory;
 
     /**
+     * @var \SM\Shift\Model\ResourceModel\RetailTransaction\CollectionFactory
+     */
+    private $transactionCollection;
+
+    /**
      * OrderHistoryManagement constructor.
      *
-     * @param \Magento\Framework\App\RequestInterface $requestInterface
-     * @param \SM\XRetail\Helper\DataConfig $dataConfig
-     * @param \Magento\Catalog\Api\ProductRepositoryInterface $productRepository
-     * @param \SM\XRetail\Helper\Data $retailHelper
-     * @param \Magento\Store\Model\StoreManagerInterface $storeManager
-     * @param \Magento\Sales\Model\ResourceModel\Order\CollectionFactory $collectionFactory
-     * @param \SM\Customer\Helper\Data $customerHelper
-     * @param \SM\Integrate\Helper\Data $integrateHelperData
-     * @param \Magento\Catalog\Model\Product\Media\Config $productMediaConfig
-     * @param \Magento\Customer\Model\CustomerFactory $customerFactory
+     * @param \Magento\Framework\App\RequestInterface                        $requestInterface
+     * @param \SM\XRetail\Helper\DataConfig                                  $dataConfig
+     * @param \Magento\Catalog\Api\ProductRepositoryInterface                $productRepository
+     * @param \SM\XRetail\Helper\Data                                        $retailHelper
+     * @param \Magento\Store\Model\StoreManagerInterface                     $storeManager
+     * @param \Magento\Sales\Model\ResourceModel\Order\CollectionFactory     $collectionFactory
+     * @param \SM\Customer\Helper\Data                                       $customerHelper
+     * @param \SM\Integrate\Helper\Data                                      $integrateHelperData
+     * @param \Magento\Catalog\Model\Product\Media\Config                    $productMediaConfig
+     * @param \Magento\Customer\Model\CustomerFactory                        $customerFactory
      * @param \SM\Sales\Model\ResourceModel\OrderSyncError\CollectionFactory $orderErrorCollectionFactory
-     * @param \Magento\Quote\Api\CartRepositoryInterface $quoteRepository
-     * @param \Magento\Sales\Model\OrderFactory $orderFactory
-     * @param \SM\Product\Repositories\ProductManagement $productManagement
-     * @param \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
-     * @param XOrder\XOrderItemFactory $xOrderItemFactory
+     * @param \Magento\Quote\Api\CartRepositoryInterface                     $quoteRepository
+     * @param \Magento\Sales\Model\OrderFactory                              $orderFactory
+     * @param \SM\Product\Repositories\ProductManagement                     $productManagement
+     * @param \Magento\Sales\Api\OrderRepositoryInterface                    $orderRepository
+     * @param XOrder\XOrderItemFactory                                       $xOrderItemFactory
      * @param \Magento\Sales\Model\ResourceModel\Order\Tax\CollectionFactory $taxCollectionFactory
-     * @param \SM\XRetail\Model\OutletRepository $outletRepository
+     * @param \SM\XRetail\Model\OutletRepository                             $outletRepository
      */
     public function __construct(
         RequestInterface $requestInterface,
@@ -150,7 +155,8 @@ class OrderHistoryManagement extends ServiceAbstract
         \SM\Core\Api\Data\XOrder\XOrderItemFactory $xOrderItemFactory,
         \SM\Core\Api\Data\XOrderFactory $xOrderFactory,
         \Magento\Sales\Model\ResourceModel\Order\Tax\CollectionFactory $taxCollectionFactory,
-        \SM\XRetail\Model\OutletRepository $outletRepository
+        \SM\XRetail\Model\OutletRepository $outletRepository,
+        \SM\Shift\Model\ResourceModel\RetailTransaction\CollectionFactory $transactionCollection
     ) {
         $this->productMediaConfig = $productMediaConfig;
         $this->productRepository = $productRepository;
@@ -168,6 +174,7 @@ class OrderHistoryManagement extends ServiceAbstract
         $this->taxCollectionFactory = $taxCollectionFactory;
         $this->outletRepository = $outletRepository;
         $this->xOrderFactory = $xOrderFactory;
+        $this->transactionCollection = $transactionCollection;
 
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
@@ -219,7 +226,8 @@ class OrderHistoryManagement extends ServiceAbstract
                             continue;
                         }
                     } elseif (!!$order->getData('outlet_id')
-                        && $order->getData('outlet_id') != $searchCriteria->getData('outletId')) {
+                        && $order->getData('outlet_id') != $searchCriteria->getData('outletId')
+                    ) {
                         continue;
                     }
                 }
@@ -325,18 +333,46 @@ class OrderHistoryManagement extends ServiceAbstract
                         $xOrder->setData('payment', $paymentData);
                     }
                 } else {
-                    $xOrder->setData(
-                        'payment',
+                    $notCountedPaymentType = [
+                        \SM\Payment\Model\RetailPayment::GIFT_CARD_PAYMENT_TYPE,
+                        \SM\Payment\Model\RetailPayment::REWARD_POINT_PAYMENT_TYPE,
+                        \SM\Payment\Model\RetailPayment::STORE_CREDIT_PAYMENT_TYPE,
+                        \SM\Payment\Model\RetailPayment::REFUND_GC_PAYMENT_TYPE,
+                        \SM\Payment\Model\RetailPayment::REFUND_TO_STORE_CREDIT_PAYMENT_TYPE,
+                    ];
+                    $transCol = $this->transactionCollection->create();
+                    $transCol->addFieldToFilter('order_id', $order->getId())
+                        ->addFieldToFilter('payment_type', ['nin' => $notCountedPaymentType]);
+
+                    $paymentData = [
                         [
-                            [
-                                'title'                  => $order->getPayment()->getMethodInstance()->getTitle(),
-                                'amount'                 => $order->getTotalPaid(),
-                                'created_at'             => $order->getCreatedAt(),
-                                'type'                   => $order->getPayment()->getMethodInstance()->getCode(),
-                                'additional_information' => $order->getPayment()->getAdditionalInformation(),
-                            ],
-                        ]
-                    );
+                            'title'                  => $order->getPayment()->getMethodInstance()->getTitle(),
+                            'amount'                 => $order->getTotalPaid(),
+                            'created_at'             => $order->getCreatedAt(),
+                            'type'                   => $order->getPayment()->getMethodInstance()->getCode(),
+                            'additional_information' => $order->getPayment()->getAdditionalInformation(),
+                        ],
+                    ];
+
+                    /** @var \SM\Shift\Model\RetailTransaction $transaction */
+                    foreach ($transCol->getItems() as $transaction) {
+                        $trans = [
+                            'title'                  => $transaction->getData('payment_title'),
+                            'amount'                 => $transaction->getData('amount'),
+                            'created_at'             => $transaction->getData('created_at'),
+                            'type'                   => $transaction->getData('payment_type'),
+                            'additional_information' => $transaction->getData('rwr_transaction_id'),
+                            'is_purchase'            => $transaction->getData('is_purchase'),
+                        ];
+
+                        if (!$transaction->getData('is_purchase')) {
+                            $trans['refund_amount'] = abs(floatval($transaction->getData('amount')));
+                        }
+
+                        $paymentData[] = $trans;
+                    }
+
+                    $xOrder->setData('payment', $paymentData);
                 }
                 $xOrder->setData('outlet_id', $order->getData('outlet_id'));
                 $xOrder->setData('can_creditmemo', $order->canCreditmemo());
@@ -385,12 +421,14 @@ class OrderHistoryManagement extends ServiceAbstract
                 }
 
                 if ($this->integrateHelperData->isIntegrateRP()
-                    && $this->integrateHelperData->isAmastyRewardPoints()) {
+                    && $this->integrateHelperData->isAmastyRewardPoints()
+                ) {
                     $totals['reward_point_discount_amount'] = $order->getData('reward_currency_amount');
                 }
 
                 if ($this->integrateHelperData->isIntegrateRP()
-                    && $this->integrateHelperData->isRewardPointMagento2EE()) {
+                    && $this->integrateHelperData->isRewardPointMagento2EE()
+                ) {
                     $totals['reward_point_discount_amount'] = -$order->getData('reward_currency_amount');
                 }
 
@@ -544,21 +582,21 @@ class OrderHistoryManagement extends ServiceAbstract
         }
         if ($dateTo = $searchCriteria->getData('dateTo')) {
             $collection->getSelect()
-                ->where('created_at <= ?', $dateTo . ' 23:59:59');
+                ->where('created_at <= ?', $dateTo.' 23:59:59');
         }
         if ($searchString = $searchCriteria->getData('searchString')) {
             $fieldSearch = ['retail_id', 'customer_email', 'increment_id'];
             $fieldSearchValue = [
-                ['like' => '%' . $searchString . '%'],
-                ['like' => '%' . $searchString . '%'],
-                ['like' => '%' . $searchString . '%'],
+                ['like' => '%'.$searchString.'%'],
+                ['like' => '%'.$searchString.'%'],
+                ['like' => '%'.$searchString.'%'],
             ];
             $arrString = explode(' ', $searchString);
             foreach ($arrString as $customerNameSearchValue) {
                 $fieldSearch[] = 'customer_firstname';
-                $fieldSearchValue[] = ['like' => '%' . $customerNameSearchValue . '%'];
+                $fieldSearchValue[] = ['like' => '%'.$customerNameSearchValue.'%'];
                 $fieldSearch[] = 'customer_lastname';
-                $fieldSearchValue[] = ['like' => '%' . $customerNameSearchValue . '%'];
+                $fieldSearchValue[] = ['like' => '%'.$customerNameSearchValue.'%'];
             }
             $collection->addFieldToFilter($fieldSearch, $fieldSearchValue);
         }
@@ -617,7 +655,7 @@ class OrderHistoryManagement extends ServiceAbstract
         }
         if ($dateTo = $searchCriteria->getData('dateTo')) {
             $collection->getSelect()
-                ->where('created_at <= ?', $dateTo . ' 23:59:59');
+                ->where('created_at <= ?', $dateTo.' 23:59:59');
         }
 
         return $collection;
@@ -657,10 +695,10 @@ class OrderHistoryManagement extends ServiceAbstract
 
     /**
      * @param \Magento\Sales\Model\Order\Item $item
-     * @param $storeId
+     * @param                                 $storeId
      *
-     * @throws \ReflectionException
      * @return array
+     * @throws \ReflectionException
      */
     public function getIndividualOrderItemData($item, $storeId)
     {
@@ -741,9 +779,9 @@ class OrderHistoryManagement extends ServiceAbstract
             if ($warehouseId) {
                 $searchCriteria = new \Magento\Framework\DataObject(
                     [
-                        'storeId'   => $storeId,
-                        'entity_id' => $item->getProductId(),
-                        'warehouse_id' => $warehouseId
+                        'storeId'      => $storeId,
+                        'entity_id'    => $item->getProductId(),
+                        'warehouse_id' => $warehouseId,
                     ]
                 );
 
