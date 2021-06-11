@@ -35,7 +35,7 @@ class BypassStockCheckForProductCollection
     }
 
     /**
-     * @param $subject
+     * @param \Magento\CatalogInventory\Helper\Stock $subject
      * @param $proceed
      * @param $result
      */

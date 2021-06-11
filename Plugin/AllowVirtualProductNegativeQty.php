@@ -137,6 +137,16 @@ class AllowVirtualProductNegativeQty
                     ]
                 );
 
+                // Try to trim the SKU to make sure it is in the list
+                if (!isset($itemsTdDeliver[$normalizedSku])) {
+                    $normalizedSku = trim($normalizedSku);
+                }
+
+                // If we can't even find the SKU, just skip
+                if (!isset($itemsTdDeliver[$normalizedSku])) {
+                    continue;
+                }
+
                 $itemsTdDeliver[$normalizedSku] -= $qtyToDeduct;
             }
 
@@ -155,6 +165,11 @@ class AllowVirtualProductNegativeQty
                 ]
             );
         } catch (\Exception $e) {
+            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info('====> Error when deducting item quantity from stock');
+            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
         }
 
         return $proceed($inventoryRequest, $sortedSources);

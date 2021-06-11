@@ -22,6 +22,6 @@ class AllowCheckOutBackOrder
      */
     public function afterCheckQty(StockState $subject, $result)
     {
-        return OrderManagement::$ALLOW_BACK_ORDER == true ? OrderManagement::$ALLOW_BACK_ORDER : $result;
+        return OrderManagement::$ALLOW_BACK_ORDER ?: $result;
     }
 }

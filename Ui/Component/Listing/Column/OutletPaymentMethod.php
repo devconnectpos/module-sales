@@ -44,9 +44,6 @@ class OutletPaymentMethod extends Column
         if (isset($dataSource['data']['items'])) {
             foreach ($dataSource['data']['items'] as &$item) {
                 $notCountedPaymentType = [
-                    \SM\Payment\Model\RetailPayment::GIFT_CARD_PAYMENT_TYPE,
-                    \SM\Payment\Model\RetailPayment::REWARD_POINT_PAYMENT_TYPE,
-                    \SM\Payment\Model\RetailPayment::STORE_CREDIT_PAYMENT_TYPE,
                     \SM\Payment\Model\RetailPayment::REFUND_GC_PAYMENT_TYPE,
                     \SM\Payment\Model\RetailPayment::REFUND_TO_STORE_CREDIT_PAYMENT_TYPE,
                 ];
@@ -62,7 +59,6 @@ class OutletPaymentMethod extends Column
                     $paymentMethods[$transaction->getPaymentId()] = strtoupper($transaction->getPaymentTitle());
                 }
 
-                // $this->getData('name') returns the name of the column so in this case it would return export_status
                 $item[$this->getData('name')] = implode("-", $paymentMethods);
             }
         }

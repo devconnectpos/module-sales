@@ -104,6 +104,47 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.3.9', '<=')) {
             $this->addOutletNameToOrder($setup);
         }
+        if (version_compare($context->getVersion(), '0.4.0', '<=')) {
+            $this->addOutletPaymentMethodToOrder($setup);
+        }
+    }
+
+    protected function addOutletPaymentMethodToOrder(SchemaSetupInterface $installer) {
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'outlet_payment_method')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('sales_order'),
+                'outlet_payment_method',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'length'  => 255,
+                    'comment' => 'Outlet Payment Method',
+                ]
+            );
+        }
+
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'outlet_payment_method')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('quote'),
+                'outlet_payment_method',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'length'  => 255,
+                    'comment' => 'Outlet Payment Method',
+                ]
+            );
+        }
+
+        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'outlet_payment_method')) {
+            $installer->getConnection()->addColumn(
+                $installer->getTable('sales_order_grid'),
+                'outlet_payment_method',
+                [
+                    'type'    => Table::TYPE_TEXT,
+                    'length'  => 255,
+                    'comment' => 'Outlet Payment Method',
+                ]
+            );
+        }
     }
 
     protected function addSerialNumberToSalesItem(SchemaSetupInterface $installer)
