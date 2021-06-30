@@ -344,13 +344,19 @@ class OrderHistoryManagement extends ServiceAbstract
                     $transCol->addFieldToFilter('order_id', $order->getId())
                         ->addFieldToFilter('payment_type', ['nin' => $notCountedPaymentType]);
 
+                    $additionalInfo = $order->getPayment()->getAdditionalInformation();
+
+                    if (!is_null($order->getPayment()->getLastTransId())) {
+                        $additionalInfo['last_trans_id'] = $order->getPayment()->getLastTransId();
+                    }
+
                     $paymentData = [
                         [
                             'title'                  => $order->getPayment()->getMethodInstance()->getTitle(),
                             'amount'                 => $order->getTotalPaid(),
                             'created_at'             => $order->getCreatedAt(),
                             'type'                   => $order->getPayment()->getMethodInstance()->getCode(),
-                            'additional_information' => $order->getPayment()->getAdditionalInformation(),
+                            'additional_information' => $additionalInfo,
                         ],
                     ];
 
