@@ -664,7 +664,7 @@ class OrderManagement extends ServiceAbstract
 
         $criteria = $this->processCriterias($criteriaList);
 
-        return $this->orderHistoryManagement->loadOrders($criteria);
+        return $this->orderHistoryManagement->loadOrders($criteria, true);
     }
 
     /**
