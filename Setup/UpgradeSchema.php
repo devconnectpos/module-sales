@@ -26,11 +26,14 @@ class UpgradeSchema implements UpgradeSchemaInterface
      */
     protected $orderFactory;
 
+    protected $state;
+
     public function __construct(
         OrderFactory $orderFactory,
         State $state
     ) {
         $this->orderFactory = $orderFactory;
+        $this->state = $state;
         try {
             $state->setAreaCode(Area::AREA_FRONTEND);
         } catch (LocalizedException $e) {
@@ -42,70 +45,80 @@ class UpgradeSchema implements UpgradeSchemaInterface
      */
     public function upgrade(SchemaSetupInterface $setup, ModuleContextInterface $context)
     {
-        $installer = $setup;
-        $installer->startSetup();
-        if (version_compare($context->getVersion(), '0.1.1', '<')) {
-            $this->addRetailDataToOrder($setup);
-        }
-        if (version_compare($context->getVersion(), '0.1.6', '<')) {
-            $this->addOrderSyncErrorTable($setup);
-        }
-        if (version_compare($context->getVersion(), '0.1.7', '<')) {
-            $this->updateRetailToOrder($setup);
-        }
-        if (version_compare($context->getVersion(), '0.2.3', '<')) {
-            $this->addXRefNumOrderCardKnox($setup);
-        }
-        if (version_compare($context->getVersion(), '0.2.4', '<')) {
-            $this->addCashierUserInOrder($setup);
-        }
-        if (version_compare($context->getVersion(), '0.2.5', '<')) {
-            $this->addStorePickupOutletIdToQuote($setup);
-        }
-        if (version_compare($context->getVersion(), '0.2.7', '<')) {
-            $this->addRateOrder($setup);
-        }
-        if (version_compare($context->getVersion(), '0.2.7', '<')) {
-            $this->addFeedback($setup);
-        }
-        if (version_compare($context->getVersion(), '0.2.6', '<')) {
-            $this->addRewardPointsAndStoreCreditInfoToOrder($setup);
-        }
-        if (version_compare($context->getVersion(), '0.2.8', '<')) {
-            $this->addTransactionIdNumOrderAuthorize($setup);
-        }
-        if (version_compare($context->getVersion(), '0.2.9', '<')) {
-            $this->addRewardPointsEarnAmountToOrder($setup);
-        }
-        if (version_compare($context->getVersion(), '0.3.0', '<')) {
-            $this->addPrintTimeCounter($setup);
-        }
-        if (version_compare($context->getVersion(), '0.3.1', '<')) {
-            $this->modifyOutletRewardPointAndStoreCreditInfoToOrder($setup);
-        }
-        if (version_compare($context->getVersion(), '0.3.2', '<')) {
-            $this->upgradeUserNameToOrderAndQuote($setup);
-        }
-        if (version_compare($context->getVersion(), '0.3.3', '<')) {
-            $this->addIndexForRetailId($setup);
-        }
-        if (version_compare($context->getVersion(), '0.3.4', '<')) {
-            $this->addEstimatedAvailabilityToOrder($setup);
-        }
-        if (version_compare($context->getVersion(), '0.3.5', '<')) {
-            $this->addSellerUsernameInOrder($setup);
-        }
-        if (version_compare($context->getVersion(), '0.3.7', '<')) {
-            $this->addCreditmemoFromStore($setup);
-        }
-        if (version_compare($context->getVersion(), '0.3.8', '<=')) {
-            $this->addSerialNumberToSalesItem($setup);
-        }
-        if (version_compare($context->getVersion(), '0.3.9', '<=')) {
-            $this->addOutletNameToOrder($setup);
-        }
-        if (version_compare($context->getVersion(), '0.4.0', '<=')) {
-            $this->addOutletPaymentMethodToOrder($setup);
+        try {
+            $this->state->emulateAreaCode(Area::AREA_FRONTEND, function (SchemaSetupInterface $setup, ModuleContextInterface $context) {
+                $installer = $setup;
+                $installer->startSetup();
+                if (version_compare($context->getVersion(), '0.1.1', '<')) {
+                    $this->addRetailDataToOrder($setup);
+                }
+                if (version_compare($context->getVersion(), '0.1.6', '<')) {
+                    $this->addOrderSyncErrorTable($setup);
+                }
+                if (version_compare($context->getVersion(), '0.1.7', '<')) {
+                    $this->updateRetailToOrder($setup);
+                }
+                if (version_compare($context->getVersion(), '0.2.3', '<')) {
+                    $this->addXRefNumOrderCardKnox($setup);
+                }
+                if (version_compare($context->getVersion(), '0.2.4', '<')) {
+                    $this->addCashierUserInOrder($setup);
+                }
+                if (version_compare($context->getVersion(), '0.2.5', '<')) {
+                    $this->addStorePickupOutletIdToQuote($setup);
+                }
+                if (version_compare($context->getVersion(), '0.2.7', '<')) {
+                    $this->addRateOrder($setup);
+                }
+                if (version_compare($context->getVersion(), '0.2.7', '<')) {
+                    $this->addFeedback($setup);
+                }
+                if (version_compare($context->getVersion(), '0.2.6', '<')) {
+                    $this->addRewardPointsAndStoreCreditInfoToOrder($setup);
+                }
+                if (version_compare($context->getVersion(), '0.2.8', '<')) {
+                    $this->addTransactionIdNumOrderAuthorize($setup);
+                }
+                if (version_compare($context->getVersion(), '0.2.9', '<')) {
+                    $this->addRewardPointsEarnAmountToOrder($setup);
+                }
+                if (version_compare($context->getVersion(), '0.3.0', '<')) {
+                    $this->addPrintTimeCounter($setup);
+                }
+                if (version_compare($context->getVersion(), '0.3.1', '<')) {
+                    $this->modifyOutletRewardPointAndStoreCreditInfoToOrder($setup);
+                }
+                if (version_compare($context->getVersion(), '0.3.2', '<')) {
+                    $this->upgradeUserNameToOrderAndQuote($setup);
+                }
+                if (version_compare($context->getVersion(), '0.3.3', '<')) {
+                    $this->addIndexForRetailId($setup);
+                }
+                if (version_compare($context->getVersion(), '0.3.4', '<')) {
+                    $this->addEstimatedAvailabilityToOrder($setup);
+                }
+                if (version_compare($context->getVersion(), '0.3.5', '<')) {
+                    $this->addSellerUsernameInOrder($setup);
+                }
+                if (version_compare($context->getVersion(), '0.3.7', '<')) {
+                    $this->addCreditmemoFromStore($setup);
+                }
+                if (version_compare($context->getVersion(), '0.3.8', '<=')) {
+                    $this->addSerialNumberToSalesItem($setup);
+                }
+                if (version_compare($context->getVersion(), '0.3.9', '<=')) {
+                    $this->addOutletNameToOrder($setup);
+                }
+                if (version_compare($context->getVersion(), '0.4.0', '<=')) {
+                    $this->addOutletPaymentMethodToOrder($setup);
+                }
+            }, [$setup, $context]);
+        } catch (\Throwable $e) {
+            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info('====> Failed to upgrade Sales schema');
+            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
         }
     }
 
