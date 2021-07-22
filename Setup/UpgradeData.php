@@ -25,7 +25,8 @@ class UpgradeData implements \Magento\Framework\Setup\UpgradeDataInterface
             $this->addExchangeOrderIdAttributes($installer);
         }
         if (version_compare($context->getVersion(), '0.4.1', '<=')) {
-            $this->addOutletPaymentMethods($installer);
+            // Remove this one because of setup performance
+            //$this->addOutletPaymentMethods($installer);
         }
 
         $installer->endSetup();
