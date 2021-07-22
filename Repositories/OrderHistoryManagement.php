@@ -344,10 +344,30 @@ class OrderHistoryManagement extends ServiceAbstract
                     $transCol->addFieldToFilter('order_id', $order->getId())
                         ->addFieldToFilter('payment_type', ['nin' => $notCountedPaymentType]);
 
-                    $additionalInfo = $order->getPayment()->getAdditionalInformation();
+                    $orderPayment = $order->getPayment();
+                    $additionalInfo = $orderPayment->getAdditionalInformation();
+                    $additionalInfo = array_merge($additionalInfo, [
+                        'method'                 => $orderPayment->getMethod(),
+                        'last_trans_id'          => $orderPayment->getLastTransId(),
+                        'additional_data'        => $orderPayment->getAdditionalData(),
+                    ]);
 
-                    if (!is_null($order->getPayment()->getLastTransId())) {
-                        $additionalInfo['last_trans_id'] = $order->getPayment()->getLastTransId();
+                    if (!is_null($orderPayment->getCcTransId())) {
+                        $additionalInfo = array_merge($additionalInfo, [
+                            'cc_exp_month'           => $orderPayment->getCcExpMonth(),
+                            'cc_secure_verify'       => $orderPayment->getCcSecureVerify(),
+                            'cc_approval'            => $orderPayment->getCcApproval(),
+                            'cc_last_4'              => $orderPayment->getCcLast4(),
+                            'cc_status_description'  => $orderPayment->getCcStatusDescription(),
+                            'cc_cid_status'          => $orderPayment->getCcCidStatus(),
+                            'cc_owner'               => $orderPayment->getCcOwner(),
+                            'cc_type'                => $orderPayment->getCcType(),
+                            'po_number'              => $orderPayment->getPoNumber(),
+                            'cc_exp_year'            => $orderPayment->getCcExpYear(),
+                            'cc_status'              => $orderPayment->getCcStatus(),
+                            'cc_avs_status'          => $orderPayment->getCcAvsStatus(),
+                            'cc_trans_id'            => $orderPayment->getCcTransId(),
+                        ]);
                     }
 
                     $paymentData = [
@@ -367,7 +387,7 @@ class OrderHistoryManagement extends ServiceAbstract
                             'amount'                 => $transaction->getData('amount'),
                             'created_at'             => $transaction->getData('created_at'),
                             'type'                   => $transaction->getData('payment_type'),
-                            'additional_information' => $transaction->getData('rwr_transaction_id'),
+                            'additional_information' => ['last_trans_id' => $transaction->getData('rwr_transaction_id')],
                             'is_purchase'            => $transaction->getData('is_purchase'),
                         ];
 

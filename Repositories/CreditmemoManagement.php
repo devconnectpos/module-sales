@@ -357,7 +357,7 @@ class CreditmemoManagement extends ServiceAbstract
                         || ($order->getData('is_pwa') == 1
                             && $this->integrateHelperData->isIntegrateGCInPWA()))
                 ) {
-                    $created_at = $this->retailHelper->getCurrentTime();
+                    $createdAt = $this->retailHelper->getCurrentTime();
                     $giftCardPaymentId = $this->paymentHelper->getPaymentIdByType(
                         RetailPayment::GIFT_CARD_PAYMENT_TYPE
                     );
@@ -370,12 +370,10 @@ class CreditmemoManagement extends ServiceAbstract
                         "isChanging"            => false,
                         "allow_amount_tendered" => true,
                         "is_purchase"           => 0,
-                        "created_at"            => $created_at,
+                        "created_at"            => $createdAt,
                         "payment_data"          => [],
                     ];
                 }
-                // fix refund amount
-                // $data['payment_data'][0]['amount'] = -$creditmemo->getGrandTotal();
                 return $this->invoiceManagement->addPayment(
                     [
                         'payment_data' => $data['payment_data'],

@@ -773,7 +773,7 @@ class OrderManagement extends ServiceAbstract
                     ->getEventManager()
                     ->dispatch('connectpos_save_exchange_order_ids', ['order' => $order]);
             }
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             if (isset($order) && !!$order->getId()) {
                 $order->setData('retail_note', $order->getData('retail_note').' - '.$e->getMessage());
                 $this->orderRepository->save($order);
