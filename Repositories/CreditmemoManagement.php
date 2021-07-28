@@ -199,9 +199,32 @@ class CreditmemoManagement extends ServiceAbstract
     protected function load()
     {
         $orderId = $this->getRequest()->getParam('order_id');
-        $this->creditmemoLoader->setCreditmemo($this->getCreditmemoData());
+        $data = $this->getCreditmemoData();
+        $this->creditmemoLoader->setCreditmemo($data);
         $this->creditmemoLoader->setOrderId($orderId);
         $creditmemo = $this->creditmemoLoader->load();
+
+        // Calculate requested store credit difference then add to credit memo grand total to adjust the calculation
+        $refundStoreCreditAuto = $this->scopeConfig->getValue('customer/magento_customerbalance/refund_automatically');
+
+        if ($this->integrateHelperData->isIntegrateStoreCredit()
+            && $this->integrateHelperData->isExistStoreCreditMagento2EE()
+            && ((isset($data['refund_to_store_credit']) && $data['refund_to_store_credit'] == 1) || $refundStoreCreditAuto)
+        ) {
+            $refundedStoreCredit = 0;
+
+            if (isset($data['store_credit']) && is_numeric($data['store_credit']) && $data['store_credit'] > 0) {
+                $refundedStoreCredit = $data['store_credit'];
+            }
+
+            $storeCredit = $creditmemo->getData('customer_balance_amount') ?? 0;
+
+            if ($refundedStoreCredit > 0 && is_numeric($storeCredit) && $storeCredit > 0) {
+                $storeCreditDiff = abs($storeCredit) - abs($refundedStoreCredit);
+                $creditmemo->setGrandTotal($creditmemo->getGrandTotal() + $storeCreditDiff);
+                $creditmemo->setBaseGrandTotal($creditmemo->getBaseGrandTotal() + $storeCreditDiff);
+            }
+        }
 
         return $this->getOutputCreditmemo($creditmemo);
     }
@@ -237,6 +260,7 @@ class CreditmemoManagement extends ServiceAbstract
             $creditmemo->setData('cpos_creditmemo_from_store_id', $storeId);
 
             // Support create refund for online order
+            /** @var \Magento\Sales\Model\Order $order */
             $order = $this->orderRepository->get($creditmemo->getOrderId());
 
             if ($order->getInvoiceCollection()->getSize() == 1) {
