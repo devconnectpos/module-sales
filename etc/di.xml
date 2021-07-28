@@ -94,4 +94,7 @@
     <type name="Magento\Catalog\Model\Product">
         <plugin name="connectpos-make-custom-sale-always-saleable" type="SM\Sales\Plugin\MakeCustomSaleAlwaysSaleable" sortOrder="1" />
     </type>
+    <type name="Magento\Sales\Model\Order">
+        <plugin name="connectpos-fix-order-state-bug" type="SM\Sales\Plugin\FixOrderStateBug" sortOrder="99" />
+    </type>
 </config>
