@@ -11,7 +11,6 @@ use Exception;
 use Magento\Backend\Model\Session;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\RequestInterface;
-use Magento\Framework\DataObject;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\ObjectManagerInterface;
@@ -68,10 +67,7 @@ class CreditmemoManagement extends ServiceAbstract
      * @var \Magento\Tax\Model\Config
      */
     protected $taxConfig;
-    /**
-     * @var \SM\Sales\Repositories\OrderHistoryManagement
-     */
-    private $orderHistoryManagement;
+
     /**
      * @var
      */
@@ -116,6 +112,11 @@ class CreditmemoManagement extends ServiceAbstract
     protected $scopeConfig;
 
     /**
+     * @var \Magento\Sales\Model\ResourceModel\Order
+     */
+    protected $orderResource;
+
+    /**
      * CreditmemoManagement constructor.
      *
      * @param \Magento\Framework\App\RequestInterface                  $requestInterface
@@ -151,13 +152,13 @@ class CreditmemoManagement extends ServiceAbstract
         PaymentHelper $paymentHelper,
         Data $retailHelper,
         IntegrateHelper $integrateHelperData,
-        OrderHistoryManagement $orderHistoryManagement,
         ManagerInterface $eventManagement,
         InvoiceFactory $invoiceFactory,
         \Magento\Customer\Model\CustomerFactory $customerFactory,
         \Magento\Sales\Api\OrderRepositoryInterface $orderRepository,
         \Magento\Sales\Api\Data\CreditmemoExtensionInterfaceFactory $creditmemoExtensionInterfaceFactory,
-        ScopeConfigInterface $scopeConfig
+        ScopeConfigInterface $scopeConfig,
+        \Magento\Sales\Model\ResourceModel\Order $orderResource
     ) {
         $this->taxConfig = $taxConfig;
         $this->invoiceManagement = $invoiceManagement;
@@ -166,7 +167,6 @@ class CreditmemoManagement extends ServiceAbstract
         $this->blockItem = $blockItem;
         $this->objectManager = $objectManager;
         $this->creditmemoSender = $creditmemoSender;
-        $this->orderHistoryManagement = $orderHistoryManagement;
         $this->paymentHelper = $paymentHelper;
         $this->retailHelper = $retailHelper;
         $this->integrateHelperData = $integrateHelperData;
@@ -176,6 +176,7 @@ class CreditmemoManagement extends ServiceAbstract
         $this->orderRepository = $orderRepository;
         $this->creditmemoExtensionInterfaceFactory = $creditmemoExtensionInterfaceFactory;
         $this->scopeConfig = $scopeConfig;
+        $this->orderResource = $orderResource;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -203,28 +204,6 @@ class CreditmemoManagement extends ServiceAbstract
         $this->creditmemoLoader->setCreditmemo($data);
         $this->creditmemoLoader->setOrderId($orderId);
         $creditmemo = $this->creditmemoLoader->load();
-
-        // Calculate requested store credit difference then add to credit memo grand total to adjust the calculation
-        $refundStoreCreditAuto = $this->scopeConfig->getValue('customer/magento_customerbalance/refund_automatically');
-
-        if ($this->integrateHelperData->isIntegrateStoreCredit()
-            && $this->integrateHelperData->isExistStoreCreditMagento2EE()
-            && ((isset($data['refund_to_store_credit']) && $data['refund_to_store_credit'] == 1) || $refundStoreCreditAuto)
-        ) {
-            $refundedStoreCredit = 0;
-
-            if (isset($data['store_credit']) && is_numeric($data['store_credit']) && $data['store_credit'] > 0) {
-                $refundedStoreCredit = $data['store_credit'];
-            }
-
-            $storeCredit = $creditmemo->getData('customer_balance_amount') ?? 0;
-
-            if ($refundedStoreCredit > 0 && is_numeric($storeCredit) && $storeCredit > 0) {
-                $storeCreditDiff = abs($storeCredit) - abs($refundedStoreCredit);
-                $creditmemo->setGrandTotal($creditmemo->getGrandTotal() + $storeCreditDiff);
-                $creditmemo->setBaseGrandTotal($creditmemo->getBaseGrandTotal() + $storeCreditDiff);
-            }
-        }
 
         return $this->getOutputCreditmemo($creditmemo);
     }
@@ -301,8 +280,19 @@ class CreditmemoManagement extends ServiceAbstract
 
                 // check payment data
                 if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 1) {
-                    // when exchange can have two payment method.
-                    throw new Exception("Refund only accept one payment method");
+                    $hasStoreCreditRefund = false;
+                    foreach ($data['payment_data'] as $paymentDatum) {
+                        if (isset($paymentDatum['type']) && $paymentDatum['type'] == \SM\Payment\Model\RetailPayment::REFUND_TO_STORE_CREDIT_PAYMENT_TYPE) {
+                            $hasStoreCreditRefund = true;
+                            break;
+                        }
+                    }
+
+                    // Only allow more than 1 payment methods when there exists store credit refund
+                    if (!$hasStoreCreditRefund) {
+                        // when exchange can have two payment method.
+                        throw new Exception("Refund only accept one payment method");
+                    }
                 }
 
                 if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 0) {
@@ -313,50 +303,10 @@ class CreditmemoManagement extends ServiceAbstract
                     }
                 }
 
-                foreach ($order->getAllItems() as &$item) {
-                    foreach ($creditmemo->getAllItems() as &$refundedItem) {
-                        if ($refundedItem->getOrderItemId() != $item->getId()) {
-                            continue;
-                        }
-                        $item->setQtyRefunded($refundedItem->getQty());
-                    }
-                }
-
                 $creditmemoManagement = $this->objectManager->create(
                     'Magento\Sales\Api\CreditmemoManagementInterface'
                 );
                 $creditmemo->setAutomaticallyCreated(true);
-                $refundStoreCreditAuto = $this->scopeConfig->getValue('customer/magento_customerbalance/refund_automatically');
-
-                if ($this->integrateHelperData->isIntegrateStoreCredit()
-                    && $this->integrateHelperData->isExistStoreCreditMagento2EE()
-                    && ((isset($data['refund_to_store_credit']) && $data['refund_to_store_credit'] == 1) || $refundStoreCreditAuto)
-                ) {
-                    $refundedStoreCredit = $order->getData('customer_balance_invoiced') ?? 0;
-
-                    if (isset($data['store_credit']) && is_numeric($data['store_credit']) && $data['store_credit'] > 0) {
-                        $refundedStoreCredit = $data['store_credit'];
-                    }
-
-                    $extensionAttributes = $creditmemo->getExtensionAttributes() ?? $this->creditmemoExtensionInterfaceFactory->create();
-                    $extensionAttributes->setBaseCustomerBalanceAmount($refundedStoreCredit);
-                    $extensionAttributes->setCustomerBalanceAmount($refundedStoreCredit);
-                    $creditmemo->setExtensionAttributes($extensionAttributes);
-                    $creditmemo->setBaseCustomerBalanceAmount($refundedStoreCredit);
-                    $creditmemo->setCustomerBalanceAmount($refundedStoreCredit);
-
-                    if ($refundedStoreCredit > 0) {
-                        $storeCreditData = $this->integrateHelperData
-                            ->getStoreCreditIntegrateManagement()
-                            ->getCurrentIntegrateModel()
-                            ->getStoreCreditCollection(
-                                $this->getCustomerModel()->load($creditmemo->getOrder()->getCustomerId()),
-                                $this->storeManager->getStore($storeId)->getWebsiteId()
-                            );
-                        $order->setData('store_credit_balance', $storeCreditData)->save();
-                        $creditmemo->setOrder($order);
-                    }
-                }
 
                 $creditmemoManagement->refund($creditmemo, (bool)$data['do_offline']);
 
@@ -398,6 +348,32 @@ class CreditmemoManagement extends ServiceAbstract
                         "payment_data"          => [],
                     ];
                 }
+
+                if ($this->integrateHelperData->isIntegrateStoreCredit()
+                    && $this->integrateHelperData->isExistStoreCreditMagento2EE()
+                    && (isset($data['refund_to_store_credit']) && $data['refund_to_store_credit'] == 1)
+                ) {
+                    $storeCreditData = $this->integrateHelperData
+                        ->getStoreCreditIntegrateManagement()
+                        ->getCurrentIntegrateModel()
+                        ->getStoreCreditCollection(
+                            $this->getCustomerModel()->load($creditmemo->getOrder()->getCustomerId()),
+                            $this->storeManager->getStore($storeId)->getWebsiteId()
+                        );
+                    $order->setData('store_credit_balance', $storeCreditData);
+                    $this->orderResource->saveAttribute($order, 'store_credit_balance');
+                }
+
+                // In case of partial refund, check if the payment amount is greater than the credit memo total and adjust accordingly
+                $paymentData = $data['payment_data'][0] ?? [];
+                if (isset($paymentData['amount'])) {
+                    $amount = abs(floatval($paymentData['amount']));
+                    if ($amount > $creditmemo->getGrandTotal()) {
+                        $paymentData['amount'] = -$creditmemo->getGrandTotal();
+                    }
+                    $data['payment_data'][0] = $paymentData;
+                }
+
                 return $this->invoiceManagement->addPayment(
                     [
                         'payment_data' => $data['payment_data'],
@@ -413,11 +389,11 @@ class CreditmemoManagement extends ServiceAbstract
                 throw new Exception("Can't find creditmemo data");
             }
         } catch (\Throwable $e) {
-            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
             $logger = new \Zend\Log\Logger();
             $logger->addWriter($writer);
             $logger->info("===> Unable to save credit memo");
-            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
             throw $e;
         }
     }
@@ -477,8 +453,18 @@ class CreditmemoManagement extends ServiceAbstract
             }
             $data['items'][] = $_item;
         }
-
-        $totals = [];
+        $totals = [
+            'reward_point_discount_amount'   => null,
+            'store_credit_discount_amount'   => null,
+            'gift_card_discount_amount'      => null,
+            'store_credit_balance'           => floatval($creditmemo->getOrder()->getData('store_credit_balance')),
+            'store_credit_refunded'          => floatval($creditmemo->getOrder()->getData('customer_balance_refunded')),
+            'previous_reward_points_balance' => floatval($creditmemo->getOrder()->getData('previous_reward_points_balance')),
+            'reward_points_redeemed'         => floatval($creditmemo->getOrder()->getData('reward_points_redeemed')),
+            'reward_points_earned'           => floatval($creditmemo->getOrder()->getData('reward_points_earned')),
+            'reward_points_earned_amount'    => floatval($creditmemo->getOrder()->getData('reward_points_earned_amount')),
+            'reward_points_refunded'         => floatval($creditmemo->getOrder()->getData('reward_points_refunded')),
+        ];
         $totals['subtotal'] = $creditmemo->getSubtotal();
         $totals['subtotal_incl_tax'] = $creditmemo->getSubtotalInclTax();
         $totals['shipping'] = $creditmemo->getShippingAmount();
@@ -487,6 +473,75 @@ class CreditmemoManagement extends ServiceAbstract
         $totals['tax_amount'] = $creditmemo->getTaxAmount();
         $totals['grand_total'] = $creditmemo->getGrandTotal();
         $totals['has_shipment'] = $creditmemo->getOrder()->getShippingAmount() ? true : false;
+
+        if ($this->integrateHelperData->isIntegrateRP()
+            && $this->integrateHelperData->isAHWRewardPoints()
+        ) {
+            $totals['reward_point_discount_amount'] = $creditmemo->getOrder()->getData('aw_reward_points_amount');
+        }
+
+        if ($this->integrateHelperData->isIntegrateRP()
+            && $this->integrateHelperData->isAmastyRewardPoints()
+        ) {
+            $totals['reward_point_discount_amount'] = $creditmemo->getOrder()->getData('reward_currency_amount');
+        }
+
+        if ($this->integrateHelperData->isIntegrateRP()
+            && $this->integrateHelperData->isRewardPointMagento2EE()
+        ) {
+            $totals['reward_point_discount_amount'] = -$creditmemo->getOrder()->getData('reward_currency_amount');
+        }
+
+        if ($this->integrateHelperData->isIntegrateStoreCredit()
+            && $this->integrateHelperData->isExistStoreCreditMagento2EE()
+        ) {
+            $totals['store_credit_discount_amount'] = -$creditmemo->getOrder()->getData('customer_balance_amount');
+        }
+
+        if (($this->integrateHelperData->isIntegrateGC() || ($this->integrateHelperData->isIntegrateGCInPWA() && $creditmemo->getOrder()->getData('is_pwa') === '1'))
+            && $this->integrateHelperData->isAHWGiftCardExist()
+        ) {
+            $orderGiftCards = [];
+            if ($creditmemo->getOrder()->getExtensionAttributes()) {
+                $orderGiftCards = $creditmemo->getOrder()->getExtensionAttributes()
+                    ->getAwGiftcardCodes();
+            }
+            if (is_array($orderGiftCards) && count($orderGiftCards) > 0) {
+                $totals['gift_card'] = [];
+                foreach ($orderGiftCards as $giftcard) {
+                    array_push(
+                        $totals['gift_card'],
+                        [
+                            'gift_code'            => $giftcard->getGiftcardCode(),
+                            'giftcard_amount'      => -floatval(abs($giftcard->getGiftcardAmount())),
+                            'base_giftcard_amount' => -floatval(abs($giftcard->getBaseGiftcardAmount())),
+                        ]
+                    );
+                }
+            }
+        }
+        if ($this->integrateHelperData->isIntegrateGC()
+            && $this->integrateHelperData->isGiftCardMagento2EE()
+        ) {
+            $orderGiftCards = [];
+            if ($creditmemo->getOrder()->getData('gift_cards')) {
+                $orderGiftCards = $this->retailHelper->unserialize($creditmemo->getOrder()->getData('gift_cards'));
+            }
+            if (is_array($orderGiftCards) && count($orderGiftCards) > 0) {
+                $totals['gift_card'] = [];
+                foreach ($orderGiftCards as $giftCard) {
+                    array_push(
+                        $totals['gift_card'],
+                        [
+                            'gift_code'            => $giftCard['c'],
+                            'giftcard_amount'      => -floatval(abs($giftCard['a'])),
+                            'base_giftcard_amount' => -floatval(abs($giftCard['ba'])),
+                        ]
+                    );
+                }
+            }
+        }
+
         $data['base_customer_balance_amount'] = $creditmemo->getData('base_customer_balance_amount');
         $data['customer_balance_amount'] = $creditmemo->getData('customer_balance_amount');
         $data['totals'] = $totals;

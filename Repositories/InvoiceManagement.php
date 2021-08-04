@@ -484,7 +484,17 @@ class InvoiceManagement extends ServiceAbstract
 
             if ($isRefunding) {
                 if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 2) {
-                    throw new Exception("Refund only accept one payment method");
+                    $hasStoreCreditRefund = false;
+                    foreach ($data['payment_data'] as $paymentDatum) {
+                        if (isset($paymentDatum['type']) && $paymentDatum['type'] == \SM\Payment\Model\RetailPayment::REFUND_TO_STORE_CREDIT_PAYMENT_TYPE) {
+                            $hasStoreCreditRefund = true;
+                            break;
+                        }
+                    }
+
+                    if (!$hasStoreCreditRefund) {
+                        throw new Exception("Refund only accept one payment method");
+                    }
                 }
                 // within cash rounding payment
                 foreach ($data['payment_data'] as $payment_datum) {
