@@ -338,7 +338,6 @@ class OrderHistoryManagement extends ServiceAbstract
                         \SM\Payment\Model\RetailPayment::REWARD_POINT_PAYMENT_TYPE,
                         \SM\Payment\Model\RetailPayment::STORE_CREDIT_PAYMENT_TYPE,
                         \SM\Payment\Model\RetailPayment::REFUND_GC_PAYMENT_TYPE,
-                        \SM\Payment\Model\RetailPayment::REFUND_TO_STORE_CREDIT_PAYMENT_TYPE,
                     ];
                     $transCol = $this->transactionCollection->create();
                     $transCol->addFieldToFilter('order_id', $order->getId())
