@@ -295,14 +295,6 @@ class CreditmemoManagement extends ServiceAbstract
                     }
                 }
 
-                if (isset($data['payment_data']) && is_array($data['payment_data']) && count($data['payment_data']) > 0) {
-                    $amount = floatval($data['payment_data'][0]['amount']);
-
-                    if ($amount == 0) {
-                        $data['payment_data'] = [];
-                    }
-                }
-
                 $creditmemoManagement = $this->objectManager->create(
                     'Magento\Sales\Api\CreditmemoManagementInterface'
                 );
@@ -362,16 +354,6 @@ class CreditmemoManagement extends ServiceAbstract
                         );
                     $order->setData('store_credit_balance', $storeCreditData);
                     $this->orderResource->saveAttribute($order, 'store_credit_balance');
-                }
-
-                // In case of partial refund, check if the payment amount is greater than the credit memo total and adjust accordingly
-                $paymentData = $data['payment_data'][0] ?? [];
-                if (isset($paymentData['amount'])) {
-                    $amount = abs(floatval($paymentData['amount']));
-                    if ($amount > $creditmemo->getGrandTotal()) {
-                        $paymentData['amount'] = -$creditmemo->getGrandTotal();
-                    }
-                    $data['payment_data'][0] = $paymentData;
                 }
 
                 return $this->invoiceManagement->addPayment(
