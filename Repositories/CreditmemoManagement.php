@@ -435,6 +435,7 @@ class CreditmemoManagement extends ServiceAbstract
             }
             $data['items'][] = $_item;
         }
+        $rewardPointsRefunded = floatval($creditmemo->getOrder()->getData('reward_points_refunded'));
         $totals = [
             'reward_point_discount_amount'   => null,
             'store_credit_discount_amount'   => null,
@@ -445,7 +446,7 @@ class CreditmemoManagement extends ServiceAbstract
             'reward_points_redeemed'         => floatval($creditmemo->getOrder()->getData('reward_points_redeemed')),
             'reward_points_earned'           => floatval($creditmemo->getOrder()->getData('reward_points_earned')),
             'reward_points_earned_amount'    => floatval($creditmemo->getOrder()->getData('reward_points_earned_amount')),
-            'reward_points_refunded'         => floatval($creditmemo->getOrder()->getData('reward_points_refunded')),
+            'reward_points_refunded'         => $rewardPointsRefunded,
         ];
         $totals['subtotal'] = $creditmemo->getSubtotal();
         $totals['subtotal_incl_tax'] = $creditmemo->getSubtotalInclTax();
@@ -460,6 +461,12 @@ class CreditmemoManagement extends ServiceAbstract
             && $this->integrateHelperData->isAHWRewardPoints()
         ) {
             $totals['reward_point_discount_amount'] = $creditmemo->getOrder()->getData('aw_reward_points_amount');
+            $rewardPointsRefundedAmount = floatval($creditmemo->getOrder()->getData('aw_reward_points_refunded'));
+            $rewardPointsRefunded = intval($creditmemo->getOrder()->getData('aw_reward_points_blnce_refunded'));
+            $totals['reward_points_refunded'] = abs($rewardPointsRefunded);
+            $totals['reward_points_refunded_amount'] = abs($rewardPointsRefundedAmount);
+            $totals['estimated_reward_points_refund'] = $creditmemo->getAwRewardPoints();
+            $totals['estimated_reward_points_refund_amount'] = $creditmemo->getAwRewardPointsAmount();
         }
 
         if ($this->integrateHelperData->isIntegrateRP()
