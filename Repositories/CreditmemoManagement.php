@@ -479,6 +479,12 @@ class CreditmemoManagement extends ServiceAbstract
             && $this->integrateHelperData->isRewardPointMagento2EE()
         ) {
             $totals['reward_point_discount_amount'] = -$creditmemo->getOrder()->getData('reward_currency_amount');
+            $rewardPointsRefunded = floatval($creditmemo->getOrder()->getData('reward_points_refunded'));
+            $rewardPointsRefundedAmount = floatval($creditmemo->getOrder()->getData('reward_points_refunded_amount'));
+            $totals['reward_points_refunded'] = abs($rewardPointsRefunded);
+            $totals['reward_points_refunded_amount'] = abs($rewardPointsRefundedAmount);
+            $totals['estimated_reward_points_refund'] = $creditmemo->getRewardPointsBalance();
+            $totals['estimated_reward_points_refund_amount'] = $creditmemo->getRewardCurrencyAmount();
         }
 
         if ($this->integrateHelperData->isIntegrateStoreCredit()
