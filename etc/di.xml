@@ -98,4 +98,7 @@
     <type name="Magento\Sales\Model\Order">
         <plugin name="connectpos-fix-order-state-bug" type="SM\Sales\Plugin\FixOrderStateBug" sortOrder="99" />
     </type>
+    <type name="Magento\Reward\Observer\CreditmemoRefund">
+        <plugin name="connectpos-fix-magento-rp-refund-status" type="SM\Sales\Plugin\FixMagentoRewardPointRefundStatus" sortOrder="99" />
+    </type>
 </config>
