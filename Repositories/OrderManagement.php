@@ -777,7 +777,10 @@ class OrderManagement extends ServiceAbstract
             if (isset($order) && !!$order->getId()) {
                 $order->setData('retail_note', $order->getData('retail_note').' - '.$e->getMessage());
                 $this->orderRepository->save($order);
-            } elseif (isset($data['orderOffline']) && $data['orderOffline']) {
+            } else {
+                if (!isset($data['orderOffline'])) {
+                    $data['orderOffline'] = [];
+                }
                 $this->saveOrderError($data['orderOffline'], $e);
             }
             $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
