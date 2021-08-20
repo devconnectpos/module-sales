@@ -16,6 +16,11 @@ class FixMagentoRewardPointRefundStatus
         $creditmemo = $observer->getEvent()->getCreditmemo();
         /* @var $order Order */
         $order = $creditmemo->getOrder();
+        $refundedAmount = (double)($order->getBaseRwrdCrrncyAmntRefnded() + $creditmemo->getBaseRewardCurrencyAmount());
+        $rewardAmount = (double)$order->getBaseRwrdCrrncyAmtInvoiced();
+        if ($rewardAmount > 0 && $rewardAmount == $refundedAmount && $order->getGrandTotal() == 0 && $order->getTotalPaid() == 0) {
+            $order->setForcedCanCreditmemo(false);
+        }
 
         if ($creditmemo->getBaseRewardCurrencyAmount()) {
             $order->setRewardPointsBalanceRefunded(
