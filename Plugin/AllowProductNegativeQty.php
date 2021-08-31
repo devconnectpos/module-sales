@@ -26,7 +26,7 @@ class AllowProductNegativeQty
     /**
      * Constant for zero stock quantity value.
      */
-    private const ZERO_STOCK_QUANTITY = 0.0;
+    const ZERO_STOCK_QUANTITY = 0.0;
 
     /**
      * @var \Magento\InventoryApi\Api\SourceItemsSaveInterface

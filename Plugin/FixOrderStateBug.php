@@ -1,10 +1,8 @@
 <?php
 
-
 namespace SM\Sales\Plugin;
 
-
-use Magento\Framework\Math\FloatComparator;
+use SM\Sales\Model\FloatComparator;
 use Magento\Sales\Model\Order;
 
 class FixOrderStateBug

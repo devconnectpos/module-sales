@@ -3,6 +3,8 @@
 
 namespace SM\Sales\Model\Rewrite\Order\Pdf\Invoice;
 
+use Magento\Sales\Model\Order\Item as OrderItem;
+
 class DefaultInvoice extends \Magento\Sales\Model\Order\Pdf\Items\Invoice\DefaultInvoice
 {
 
@@ -129,7 +131,13 @@ class DefaultInvoice extends \Magento\Sales\Model\Order\Pdf\Items\Invoice\Defaul
             }
         }
 
-        $orderItem = $this->orderItemRepository->get($item->getOrderItemId());
+        $orderItemId = $item->getId();
+
+        if (!($item instanceof OrderItem)) {
+            $orderItemId = $item->getOrderItemId();
+        }
+
+        $orderItem = $this->orderItemRepository->get($orderItemId);
         if (isset($orderItem->getBuyRequest()['custom_sale'])
             && isset($orderItem->getBuyRequest()['custom_sale']['note'])
             && $orderItem->getBuyRequest()['custom_sale']['note'] != ""
