@@ -11,8 +11,10 @@ use Exception;
 use Magento\Config\Model\Config\Loader;
 use Magento\Customer\Model\CustomerFactory;
 use Magento\Directory\Model\Currency;
+use Magento\Framework\App\Area;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\RequestInterface;
+use Magento\Framework\App\State;
 use Magento\Framework\DataObject;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\ObjectManagerInterface;
@@ -102,6 +104,11 @@ class InvoiceManagement extends ServiceAbstract
     private $orderRepository;
 
     /**
+     * @var State
+     */
+    protected $state;
+
+    /**
      * InvoiceManagement constructor.
      *
      * @param RequestInterface         $requestInterface
@@ -142,7 +149,8 @@ class InvoiceManagement extends ServiceAbstract
         CustomerFactory $customerFactory,
         ScopeConfigInterface $scopeConfig,
         Currency $currencyModel,
-        \Magento\Sales\Api\OrderRepositoryInterface $orderRepository
+        \Magento\Sales\Api\OrderRepositoryInterface $orderRepository,
+        State $state
     ) {
         $this->orderHistoryManagement = $orderHistoryManagement;
         $this->orderFactory = $orderFactory;
@@ -160,6 +168,7 @@ class InvoiceManagement extends ServiceAbstract
         $this->scopeConfig = $scopeConfig;
         $this->currencyModel = $currencyModel;
         $this->orderRepository = $orderRepository;
+        $this->state = $state;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -172,92 +181,103 @@ class InvoiceManagement extends ServiceAbstract
     public function invoice($orderId)
     {
         try {
-            $invoiceData = $this->getRequest()->getParam('invoice', []);
-            $invoiceItems = isset($invoiceData['items']) ? $invoiceData['items'] : [];
-            /** @var \Magento\Sales\Model\Order $order */
-            $order = $this->objectManager->create('Magento\Sales\Model\Order')->load($orderId);
-            if (!$order->getId()) {
-                throw new LocalizedException(__('The order no longer exists.'));
-            }
+            return $this->state->emulateAreaCode(
+                Area::AREA_ADMINHTML, function () use ($orderId) {
+                return $this->createInvoice($orderId);
+            }, []);
+        } catch (\Throwable $e) {
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info('====> Failed to create invoice');
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
+            throw $e;
+        }
+    }
 
-            if (!$order->canInvoice()) {
-                throw new LocalizedException(
-                    __('The order does not allow an invoice to be created.')
-                );
-            }
+    public function createInvoice($orderId)
+    {
+        $invoiceData = $this->getRequest()->getParam('invoice', []);
+        $invoiceItems = isset($invoiceData['items']) ? $invoiceData['items'] : [];
+        /** @var \Magento\Sales\Model\Order $order */
+        $order = $this->objectManager->create('Magento\Sales\Model\Order')->load($orderId);
+        if (!$order->getId()) {
+            throw new LocalizedException(__('The order no longer exists.'));
+        }
 
-            $invoice = $this->invoiceService->prepareInvoice($order, $invoiceItems);
-
-            if (!$invoice) {
-                throw new LocalizedException(__('We can\'t save the invoice right now.'));
-            }
-
-            if (!$invoice->getTotalQty()) {
-                throw new LocalizedException(
-                    __('You can\'t create an invoice without products.')
-                );
-            }
-            $this->registry->unregister('current_invoice');
-            $this->registry->register('current_invoice', $invoice);
-            if (!empty($data['capture_case'])) {
-                $invoice->setRequestedCaptureCase($data['capture_case']);
-            }
-
-            if (!empty($data['comment_text'])) {
-                $invoice->addComment(
-                    $data['comment_text'],
-                    isset($data['comment_customer_notify']),
-                    isset($data['is_visible_on_front'])
-                );
-
-                $invoice->setCustomerNote($data['comment_text']);
-                $invoice->setCustomerNoteNotify(isset($data['comment_customer_notify']));
-            }
-
-            $invoice->register();
-
-            $invoice->getOrder()->setCustomerNoteNotify(!empty($data['send_email']));
-            $invoice->getOrder()->setIsInProcess(true);
-
-            $order = $invoice->getOrder();
-            $transactionSave = $this->objectManager->create(
-                'Magento\Framework\DB\Transaction'
-            )->addObject(
-                $invoice
-            )->addObject(
-                $order
+        if (!$order->canInvoice()) {
+            throw new LocalizedException(
+                __('The order does not allow an invoice to be created.')
             );
-            $shipment = false;
-            if (!empty($data['do_shipment']) || (int)$invoice->getOrder()->getForcedShipmentWithInvoice()) {
-                $shipment = $this->_prepareShipment($invoice);
-                if ($shipment) {
-                    $transactionSave->addObject($shipment);
-                }
-            }
-            $transactionSave->save();
+        }
 
+        $invoice = $this->invoiceService->prepareInvoice($order, $invoiceItems);
+
+        if (!$invoice) {
+            throw new LocalizedException(__('We can\'t save the invoice right now.'));
+        }
+
+        if (!$invoice->getTotalQty()) {
+            throw new LocalizedException(
+                __('You can\'t create an invoice without products.')
+            );
+        }
+        $this->registry->unregister('current_invoice');
+        $this->registry->register('current_invoice', $invoice);
+        if (!empty($data['capture_case'])) {
+            $invoice->setRequestedCaptureCase($data['capture_case']);
+        }
+
+        if (!empty($data['comment_text'])) {
+            $invoice->addComment(
+                $data['comment_text'],
+                isset($data['comment_customer_notify']),
+                isset($data['is_visible_on_front'])
+            );
+
+            $invoice->setCustomerNote($data['comment_text']);
+            $invoice->setCustomerNoteNotify(isset($data['comment_customer_notify']));
+        }
+
+        $invoice->register();
+
+        $invoice->getOrder()->setCustomerNoteNotify(!empty($data['send_email']));
+        $invoice->getOrder()->setIsInProcess(true);
+
+        $order = $invoice->getOrder();
+        $transactionSave = $this->objectManager->create(
+            'Magento\Framework\DB\Transaction'
+        )->addObject(
+            $invoice
+        )->addObject(
+            $order
+        );
+        $shipment = false;
+        if (!empty($data['do_shipment']) || (int)$invoice->getOrder()->getForcedShipmentWithInvoice()) {
+            $shipment = $this->_prepareShipment($invoice);
+            if ($shipment) {
+                $transactionSave->addObject($shipment);
+            }
+        }
+        $transactionSave->save();
+
+        try {
+            if (!empty($data['send_email'])) {
+                $this->invoiceSender->send($invoice);
+            }
+        } catch (Exception $e) {
+            $this->objectManager->get('Psr\Log\LoggerInterface')->critical($e);
+        }
+        if ($shipment) {
             try {
                 if (!empty($data['send_email'])) {
-                    $this->invoiceSender->send($invoice);
+                    $this->shipmentSender->send($shipment);
                 }
             } catch (Exception $e) {
                 $this->objectManager->get('Psr\Log\LoggerInterface')->critical($e);
             }
-            if ($shipment) {
-                try {
-                    if (!empty($data['send_email'])) {
-                        $this->shipmentSender->send($shipment);
-                    }
-                } catch (Exception $e) {
-                    $this->objectManager->get('Psr\Log\LoggerInterface')->critical($e);
-                }
-            }
-            $this->objectManager->get('Magento\Backend\Model\Session')->getCommentText(true);
-        } catch (LocalizedException $e) {
-            throw new Exception($e->getMessage());
-        } catch (Exception $e) {
-            throw new Exception($e->getMessage());
         }
+        $this->objectManager->get('Magento\Backend\Model\Session')->getCommentText(true);
 
         return $order;
     }

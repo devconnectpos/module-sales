@@ -13,9 +13,11 @@ use Magento\Catalog\Helper\Product;
 use Magento\Config\Model\Config\Loader;
 use Magento\Customer\Model\Session;
 use Magento\Directory\Model\Currency;
+use Magento\Framework\App\Area;
 use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\App\Response\Http\FileFactory;
+use Magento\Framework\App\State;
 use Magento\Framework\DataObject;
 use Magento\Framework\EntityManager\MetadataPool;
 use Magento\Framework\Exception\AlreadyExistsException;
@@ -58,6 +60,7 @@ use SM\XRetail\Model\OutletRepository;
 use SM\XRetail\Model\UserOrderCounterFactory;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
 use SM\DiscountWholeOrder\Observer\WholeOrderDiscount\AbstractWholeOrderDiscountRule;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Class OrderManagement
@@ -305,6 +308,11 @@ class OrderManagement extends ServiceAbstract
     protected $quote = null;
 
     /**
+     * @var State
+     */
+    protected $state;
+
+    /**
      * OrderManagement constructor.
      *
      * @param DataConfig                             $dataConfig
@@ -394,7 +402,8 @@ class OrderManagement extends ServiceAbstract
         FileFactory $fileFactory,
         OrderItemValidator $orderItemValidator,
         CartManagementInterface $cartManagement,
-        ShippingCarrierAdditionalDataFactory $carrierAdditionalDataFactory
+        ShippingCarrierAdditionalDataFactory $carrierAdditionalDataFactory,
+        State $state
     ) {
         $this->retailTransactionFactory = $retailTransactionFactory;
         $this->customerSession = $customerSession;
@@ -440,6 +449,7 @@ class OrderManagement extends ServiceAbstract
         $this->fileFactory = $fileFactory;
         $this->cartManagement = $cartManagement;
         $this->carrierAdditionalDataFactory = $carrierAdditionalDataFactory;
+        $this->state = $state;
 
         parent::__construct($context->getRequest(), $dataConfig, $storeManager);
     }
@@ -597,11 +607,11 @@ class OrderManagement extends ServiceAbstract
                 ->processActionData($isSaveOrder ? "check" : null, $carriers);
         } catch (Exception $e) {
             $this->clear();
-            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
             $logger = new \Zend\Log\Logger();
             $logger->addWriter($writer);
             $logger->info("===> Unable to process load order data");
-            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
             throw new Exception($e->getMessage());
         }
 
@@ -620,51 +630,62 @@ class OrderManagement extends ServiceAbstract
 
     /**
      * @return array
-     * @throws \Magento\Framework\Exception\LocalizedException
-     * @throws \ReflectionException
      * @throws Exception
      */
     public function saveOrder()
     {
-        $this->clear();
-        $data = $this->getRequest()->getParams();
-        $retailId = isset($data['retail_id']) ? $data['retail_id'] : '';
-        $outletId = isset($data['outlet_id']) ? $data['outlet_id'] : '';
-        $userId = isset($data['user_id']) ? $data['user_id'] : '';
-        $registerId = isset($data['register_id']) ? $data['register_id'] : '';
-        $customerId = isset($data['customer_id']) ? $data['customer_id'] : '';
-        if (isset($data['orderOffline']) && $data['orderOffline']) {
-            $grandTotal = $data['orderOffline']['totals']['grand_total'];
-            $subtotal = $data['orderOffline']['totals']['subtotal'];
-            if ($retailId && $this->checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal)) {
-                throw new Exception(__('Duplicated order, cannot save!'));
+        return $this->state->emulateAreaCode(
+            Area::AREA_ADMINHTML, function () {
+            try {
+                $this->clear();
+                $data = $this->getRequest()->getParams();
+                $retailId = isset($data['retail_id']) ? $data['retail_id'] : '';
+                $outletId = isset($data['outlet_id']) ? $data['outlet_id'] : '';
+                $userId = isset($data['user_id']) ? $data['user_id'] : '';
+                $registerId = isset($data['register_id']) ? $data['register_id'] : '';
+                $customerId = isset($data['customer_id']) ? $data['customer_id'] : '';
+                if (isset($data['orderOffline']) && $data['orderOffline'] && !empty($retailId)) {
+                    $existingOrder = $this->checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId);
+                    if ($existingOrder && $existingOrder->getId()) {
+                        $incrementId = $existingOrder->getIncrementId();
+                        throw new Exception(__("Duplicated order, cannot save. Found order with Magento ID {$incrementId} (Order ID: {$existingOrder->getId()}) which have the same POS ID {$retailId}! Please clear the cache and place the order again!"));
+                    }
+                }
+
+                //save origin payment data to local variable
+                $paymentData = $data['order']['payment_data'] ?? [];
+
+                foreach ($paymentData as $paymentDatum) {
+                    $amount = floatval($paymentDatum['amount']);
+                    if ($amount == 0) {
+                        continue;
+                    }
+                    $this->paymentData[] = $paymentDatum;
+                }
+
+                $splitOrders = [$data];
+                if ($this->canSplitOrder($data)) {
+                    $splitOrders = $this->splitOrder($data, $data['shipments']);
+                }
+                $criteriaList = [];
+                foreach ($splitOrders as $orderData) {
+                    $this->clear();
+                    $criteriaList[] = $this->processSaveOrder($orderData);
+                }
+
+                $criteria = $this->processCriterias($criteriaList);
+
+                return $this->orderHistoryManagement->loadOrders($criteria, true);
+            } catch (\Throwable $e) {
+                $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+                $logger = new \Zend\Log\Logger();
+                $logger->addWriter($writer);
+                $logger->info('====> Failed to place order');
+                $logger->info($e->getMessage()."\n".$e->getTraceAsString());
+                throw $e;
             }
-        }
-
-        //save origin payment data to local variable
-        $paymentData = $data['order']['payment_data'] ?? [];
-
-        foreach ($paymentData as $paymentDatum) {
-            $amount = floatval($paymentDatum['amount']);
-            if ($amount == 0) {
-                continue;
-            }
-            $this->paymentData[] = $paymentDatum;
-        }
-
-        $splitOrders = [$data];
-        if ($this->canSplitOrder($data)) {
-            $splitOrders = $this->splitOrder($data, $data['shipments']);
-        }
-        $criteriaList = [];
-        foreach ($splitOrders as $orderData) {
-            $this->clear();
-            $criteriaList[] = $this->processSaveOrder($orderData);
-        }
-
-        $criteria = $this->processCriterias($criteriaList);
-
-        return $this->orderHistoryManagement->loadOrders($criteria, true);
+        }, []
+        );
     }
 
     /**
@@ -781,13 +802,17 @@ class OrderManagement extends ServiceAbstract
                 if (!isset($data['orderOffline'])) {
                     $data['orderOffline'] = [];
                 }
+                if (isset($data['orderOffline']["retail_id"])) {
+                    // Add suffix R for resynced orders
+                    $data['orderOffline']["retail_id"] .= "R";
+                }
                 $this->saveOrderError($data['orderOffline'], $e);
             }
-            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
             $logger = new \Zend\Log\Logger();
             $logger->addWriter($writer);
             $logger->info("===> Unable to save order");
-            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
             throw new Exception($e->getMessage());
         } finally {
             $this->clear();
@@ -809,11 +834,11 @@ class OrderManagement extends ServiceAbstract
                             $this->shipmentDataManagement->ship($order->getId());
                         }
                     } catch (\Exception $e) {
-                        $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+                        $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
                         $logger = new \Zend\Log\Logger();
                         $logger->addWriter($writer);
                         $logger->info('===> Unable to create shipment');
-                        $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+                        $logger->info($e->getMessage()."\n".$e->getTraceAsString());
 
                         // ship error
                         if ((int)$e->getCode() === 0) {
@@ -831,11 +856,11 @@ class OrderManagement extends ServiceAbstract
                         $this->invoiceManagement->checkPayment($order, $isPendingOrder);
                     }
                 } catch (\Exception $e) {
-                    $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+                    $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
                     $logger = new \Zend\Log\Logger();
                     $logger->addWriter($writer);
                     $logger->info("===> Unable to check invoice payments");
-                    $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+                    $logger->info($e->getMessage()."\n".$e->getTraceAsString());
                 }
                 if (!isset($data['is_pwa']) || !$data['is_pwa'] === true) {
                     $this->saveOrderTaxInTableShift($order);
@@ -1123,23 +1148,33 @@ class OrderManagement extends ServiceAbstract
     {
         $data = $this->getRequest()->getParams()['noteData'];
 
+        if (is_null($data)) {
+            throw new \Exception('Please make sure your order is synced before adding order note!');
+        }
+
+        if (is_array($data) && !isset($data['order_id'])) {
+            throw new \Exception('Please make sure your order is synced before adding order note!');
+        }
+
         /** @var  \Magento\Sales\Model\ResourceModel\Order\Collection $collection */
         $collection = $this->orderCollectionFactory->create();
 
         $collection->addFieldToFilter('entity_id', $data['order_id']);
         $dataOrder = $collection->getFirstItem();
 
-        if ($dataOrder->getId()) {
-            $dataOrder->setData('retail_note', $data['retail_note']);
-            $this->saveNoteToOrderAlso($dataOrder, $data['retail_note']);
-            $dataOrder->save();
-
-            $criteria = new DataObject(
-                ['entity_id' => $dataOrder->getEntityId(), 'storeId' => $dataOrder->getStoreId()]
-            );
-
-            return $this->orderHistoryManagement->loadOrders($criteria);
+        if (!$dataOrder->getId()) {
+            throw new \Exception('Order not found');
         }
+
+        $dataOrder->setData('retail_note', $data['retail_note']);
+        $this->saveNoteToOrderAlso($dataOrder, $data['retail_note']);
+        $dataOrder->save();
+
+        $criteria = new DataObject(
+            ['entity_id' => $dataOrder->getEntityId(), 'storeId' => $dataOrder->getStoreId()]
+        );
+
+        return $this->orderHistoryManagement->loadOrders($criteria);
     }
 
     /**
@@ -2562,18 +2597,15 @@ class OrderManagement extends ServiceAbstract
         }
     }
 
-    protected function checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal)
+    protected function checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId)
     {
         $orderModel = $this->orderCollectionFactory->create();
-        $orderModel->addFieldToFilter('retail_id', ['eq' => $retailId])
+        return $orderModel->addFieldToFilter('retail_id', ['eq' => $retailId])
             ->addFieldToFilter('outlet_id', ['eq' => $outletId])
             ->addFieldToFilter('register_id', ['eq' => $registerId])
             ->addFieldToFilter('user_id', ['eq' => $userId])
             ->addFieldToFilter('customer_id', ['eq' => $customerId])
-            ->addFieldToFilter('grand_total', ['eq' => $grandTotal])
-            ->addFieldToFilter('subtotal', ['eq' => $subtotal]);
-
-        return $orderModel->count() > 0;
+            ->getFirstItem();
     }
 
     public static function checkClickAndCollectOrderByCode($code)

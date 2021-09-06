@@ -9,8 +9,10 @@ namespace SM\Sales\Repositories;
 
 use Exception;
 use Magento\Backend\Model\Session;
+use Magento\Framework\App\Area;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\RequestInterface;
+use Magento\Framework\App\State;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\ObjectManagerInterface;
@@ -117,6 +119,11 @@ class CreditmemoManagement extends ServiceAbstract
     protected $orderResource;
 
     /**
+     * @var State
+     */
+    protected $state;
+
+    /**
      * CreditmemoManagement constructor.
      *
      * @param \Magento\Framework\App\RequestInterface                  $requestInterface
@@ -158,7 +165,8 @@ class CreditmemoManagement extends ServiceAbstract
         \Magento\Sales\Api\OrderRepositoryInterface $orderRepository,
         \Magento\Sales\Api\Data\CreditmemoExtensionInterfaceFactory $creditmemoExtensionInterfaceFactory,
         ScopeConfigInterface $scopeConfig,
-        \Magento\Sales\Model\ResourceModel\Order $orderResource
+        \Magento\Sales\Model\ResourceModel\Order $orderResource,
+        State $state
     ) {
         $this->taxConfig = $taxConfig;
         $this->invoiceManagement = $invoiceManagement;
@@ -177,6 +185,8 @@ class CreditmemoManagement extends ServiceAbstract
         $this->creditmemoExtensionInterfaceFactory = $creditmemoExtensionInterfaceFactory;
         $this->scopeConfig = $scopeConfig;
         $this->orderResource = $orderResource;
+        $this->state = $state;
+
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -189,7 +199,10 @@ class CreditmemoManagement extends ServiceAbstract
         if ($this->getRequest()->getParam('is_save') == false) {
             return $this->load();
         } elseif ($this->getRequest()->getParam('is_save') == true) {
-            return $this->save();
+            return $this->state->emulateAreaCode(
+                Area::AREA_ADMINHTML, function () {
+                return $this->save();
+            }, []);
         }
         throw new Exception("Please define action");
     }
