@@ -634,58 +634,57 @@ class OrderManagement extends ServiceAbstract
      */
     public function saveOrder()
     {
-        return $this->state->emulateAreaCode(
-            Area::AREA_ADMINHTML, function () {
-            try {
-                $this->clear();
-                $data = $this->getRequest()->getParams();
-                $retailId = isset($data['retail_id']) ? $data['retail_id'] : '';
-                $outletId = isset($data['outlet_id']) ? $data['outlet_id'] : '';
-                $userId = isset($data['user_id']) ? $data['user_id'] : '';
-                $registerId = isset($data['register_id']) ? $data['register_id'] : '';
-                $customerId = isset($data['customer_id']) ? $data['customer_id'] : '';
-                if (isset($data['orderOffline']) && $data['orderOffline'] && !empty($retailId)) {
-                    $existingOrder = $this->checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId);
-                    if ($existingOrder && $existingOrder->getId()) {
-                        $incrementId = $existingOrder->getIncrementId();
-                        throw new Exception(__("Duplicated order, cannot save. Found order with Magento ID {$incrementId} (Order ID: {$existingOrder->getId()}) which have the same POS ID {$retailId}! Please clear the cache and place the order again!"));
-                    }
+        try {
+            $this->clear();
+            $data = $this->getRequest()->getParams();
+            $storeId = isset($data['store_id']) ? $data['store_id'] : '';
+            $retailId = isset($data['retail_id']) ? $data['retail_id'] : '';
+            $outletId = isset($data['outlet_id']) ? $data['outlet_id'] : '';
+            $userId = isset($data['user_id']) ? $data['user_id'] : '';
+            $registerId = isset($data['register_id']) ? $data['register_id'] : '';
+            $customerId = isset($data['customer_id']) ? $data['customer_id'] : '';
+            if (isset($data['orderOffline']) && $data['orderOffline'] && !empty($retailId)) {
+                $grandTotal = $data['orderOffline']['totals']['grand_total'];
+                $subtotal = $data['orderOffline']['totals']['subtotal'];
+                $existingOrder = $this->checkExistedOrder($storeId, $retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal);
+                if ($existingOrder && $existingOrder->getId()) {
+                    $incrementId = $existingOrder->getIncrementId();
+                    throw new Exception(__("Duplicated order, cannot save. Found order with Magento ID {$incrementId} (Order ID: {$existingOrder->getId()}) which have the same POS ID {$retailId}! Please clear the cache and place the order again!"));
                 }
-
-                //save origin payment data to local variable
-                $paymentData = $data['order']['payment_data'] ?? [];
-
-                foreach ($paymentData as $paymentDatum) {
-                    $amount = floatval($paymentDatum['amount']);
-                    if ($amount == 0) {
-                        continue;
-                    }
-                    $this->paymentData[] = $paymentDatum;
-                }
-
-                $splitOrders = [$data];
-                if ($this->canSplitOrder($data)) {
-                    $splitOrders = $this->splitOrder($data, $data['shipments']);
-                }
-                $criteriaList = [];
-                foreach ($splitOrders as $orderData) {
-                    $this->clear();
-                    $criteriaList[] = $this->processSaveOrder($orderData);
-                }
-
-                $criteria = $this->processCriterias($criteriaList);
-
-                return $this->orderHistoryManagement->loadOrders($criteria, true);
-            } catch (\Throwable $e) {
-                $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
-                $logger = new \Zend\Log\Logger();
-                $logger->addWriter($writer);
-                $logger->info('====> Failed to place order');
-                $logger->info($e->getMessage()."\n".$e->getTraceAsString());
-                throw $e;
             }
-        }, []
-        );
+
+            //save origin payment data to local variable
+            $paymentData = $data['order']['payment_data'] ?? [];
+
+            foreach ($paymentData as $paymentDatum) {
+                $amount = floatval($paymentDatum['amount']);
+                if ($amount == 0) {
+                    continue;
+                }
+                $this->paymentData[] = $paymentDatum;
+            }
+
+            $splitOrders = [$data];
+            if ($this->canSplitOrder($data)) {
+                $splitOrders = $this->splitOrder($data, $data['shipments']);
+            }
+            $criteriaList = [];
+            foreach ($splitOrders as $orderData) {
+                $this->clear();
+                $criteriaList[] = $this->processSaveOrder($orderData);
+            }
+
+            $criteria = $this->processCriterias($criteriaList);
+
+            return $this->orderHistoryManagement->loadOrders($criteria, true);
+        } catch (\Throwable $e) {
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info('====> Failed to place order');
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
+            throw $e;
+        }
     }
 
     /**
@@ -2597,14 +2596,18 @@ class OrderManagement extends ServiceAbstract
         }
     }
 
-    protected function checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId)
+    protected function checkExistedOrder($storeId, $retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal)
     {
         $orderModel = $this->orderCollectionFactory->create();
-        return $orderModel->addFieldToFilter('retail_id', ['eq' => $retailId])
+        return $orderModel
+            ->addFieldToFilter('store_id', ['eq' => $storeId])
+            ->addFieldToFilter('retail_id', ['eq' => $retailId])
             ->addFieldToFilter('outlet_id', ['eq' => $outletId])
             ->addFieldToFilter('register_id', ['eq' => $registerId])
             ->addFieldToFilter('user_id', ['eq' => $userId])
             ->addFieldToFilter('customer_id', ['eq' => $customerId])
+            ->addFieldToFilter('grand_total', ['eq' => $grandTotal])
+            ->addFieldToFilter('subtotal', ['eq' => $subtotal])
             ->getFirstItem();
     }
 

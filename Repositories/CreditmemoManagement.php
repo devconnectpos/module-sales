@@ -199,10 +199,7 @@ class CreditmemoManagement extends ServiceAbstract
         if ($this->getRequest()->getParam('is_save') == false) {
             return $this->load();
         } elseif ($this->getRequest()->getParam('is_save') == true) {
-            return $this->state->emulateAreaCode(
-                Area::AREA_ADMINHTML, function () {
-                return $this->save();
-            }, []);
+            return $this->save();
         }
         throw new Exception("Please define action");
     }
