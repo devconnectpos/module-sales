@@ -181,10 +181,7 @@ class InvoiceManagement extends ServiceAbstract
     public function invoice($orderId)
     {
         try {
-            return $this->state->emulateAreaCode(
-                Area::AREA_ADMINHTML, function () use ($orderId) {
-                return $this->createInvoice($orderId);
-            }, []);
+            return $this->createInvoice($orderId);
         } catch (\Throwable $e) {
             $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
             $logger = new \Zend\Log\Logger();
