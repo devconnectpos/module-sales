@@ -28,6 +28,8 @@ use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
 
+use function PHPUnit\Framework\isEmpty;
+
 /**
  * Class OrderHistoryManagement
  *
@@ -247,6 +249,20 @@ class OrderHistoryManagement extends ServiceAbstract
                         $customerPhone = "";
                     }
                 }
+                if ($billingAdd = $order->getBillingAddress()) {
+                    $customerBillingAdd = new CustomerAddress($billingAdd->getData());
+                    $xOrder->setData('billing_address', $customerBillingAdd);
+                    if (empty($customerPhone)) {
+                        $customerPhone = $customerBillingAdd->getTelephone();
+                    }
+                }
+                if ($shippingAdd = $order->getShippingAddress()) {
+                    $customerShippingAdd = new CustomerAddress($shippingAdd->getData());
+                    $xOrder->setData('shipping_address', $customerShippingAdd);
+                    if (empty($customerPhone)) {
+                        $customerPhone = $customerShippingAdd->getTelephone();
+                    }
+                }
                 $xOrder->setData(
                     'customer',
                     [
@@ -276,14 +292,6 @@ class OrderHistoryManagement extends ServiceAbstract
                 $xOrder->setData('item_applied_taxes', $itemTaxes);
                 $xOrder->setData('items', $this->getOrderItemData($order->getItemsCollection()->getItems()));
 
-                if ($billingAdd = $order->getBillingAddress()) {
-                    $customerBillingAdd = new CustomerAddress($billingAdd->getData());
-                    $xOrder->setData('billing_address', $customerBillingAdd);
-                }
-                if ($shippingAdd = $order->getShippingAddress()) {
-                    $customerShippingAdd = new CustomerAddress($shippingAdd->getData());
-                    $xOrder->setData('shipping_address', $customerShippingAdd);
-                }
                 if ($order->getShippingMethod() === 'smstorepickup_smstorepickup'
                     && $order->getData('retail_status') === null
                 ) {
@@ -320,15 +328,12 @@ class OrderHistoryManagement extends ServiceAbstract
                             && $order->getData('is_exchange') != 1
                             && empty($paymentData)
                         ) {
-                            array_push(
-                                $paymentData,
-                                [
-                                    'title'      => $order->getPayment()->getMethodInstance()->getTitle(),
-                                    'amount'     => $order->getTotalPaid(),
-                                    'created_at' => $order->getCreatedAt(),
-                                    'type'       => $order->getPayment()->getMethodInstance()->getCode(),
-                                ]
-                            );
+                            $paymentData[] = [
+                                'title'      => $order->getPayment()->getMethodInstance()->getTitle(),
+                                'amount'     => $order->getTotalPaid(),
+                                'created_at' => $order->getCreatedAt(),
+                                'type'       => $order->getPayment()->getMethodInstance()->getCode(),
+                            ];
                         }
                         $xOrder->setData('payment', $paymentData);
                     }
@@ -343,41 +348,42 @@ class OrderHistoryManagement extends ServiceAbstract
                     $transCol->addFieldToFilter('order_id', $order->getId())
                         ->addFieldToFilter('payment_type', ['nin' => $notCountedPaymentType]);
 
-                    $orderPayment = $order->getPayment();
-                    $additionalInfo = $orderPayment->getAdditionalInformation();
-                    $additionalInfo = array_merge($additionalInfo, [
-                        'method'                 => $orderPayment->getMethod(),
-                        'last_trans_id'          => $orderPayment->getLastTransId(),
-                        'additional_data'        => $orderPayment->getAdditionalData(),
-                    ]);
+                    if ($orderPayment = $order->getPayment()) {
+                        $additionalInfo = $orderPayment->getAdditionalInformation();
+                        $additionalInfo[] = [
+                            'method'          => $orderPayment->getMethod(),
+                            'last_trans_id'   => $orderPayment->getLastTransId(),
+                            'additional_data' => $orderPayment->getAdditionalData(),
+                        ];
 
-                    if (!is_null($orderPayment->getCcTransId())) {
-                        $additionalInfo = array_merge($additionalInfo, [
-                            'cc_exp_month'           => $orderPayment->getCcExpMonth(),
-                            'cc_secure_verify'       => $orderPayment->getCcSecureVerify(),
-                            'cc_approval'            => $orderPayment->getCcApproval(),
-                            'cc_last_4'              => $orderPayment->getCcLast4(),
-                            'cc_status_description'  => $orderPayment->getCcStatusDescription(),
-                            'cc_cid_status'          => $orderPayment->getCcCidStatus(),
-                            'cc_owner'               => $orderPayment->getCcOwner(),
-                            'cc_type'                => $orderPayment->getCcType(),
-                            'po_number'              => $orderPayment->getPoNumber(),
-                            'cc_exp_year'            => $orderPayment->getCcExpYear(),
-                            'cc_status'              => $orderPayment->getCcStatus(),
-                            'cc_avs_status'          => $orderPayment->getCcAvsStatus(),
-                            'cc_trans_id'            => $orderPayment->getCcTransId(),
-                        ]);
+                        if (!is_null($orderPayment->getCcTransId())) {
+                            $additionalInfo[] = [
+                                'cc_exp_month'          => $orderPayment->getCcExpMonth(),
+                                'cc_secure_verify'      => $orderPayment->getCcSecureVerify(),
+                                'cc_approval'           => $orderPayment->getCcApproval(),
+                                'cc_last_4'             => $orderPayment->getCcLast4(),
+                                'cc_status_description' => $orderPayment->getCcStatusDescription(),
+                                'cc_cid_status'         => $orderPayment->getCcCidStatus(),
+                                'cc_owner'              => $orderPayment->getCcOwner(),
+                                'cc_type'               => $orderPayment->getCcType(),
+                                'po_number'             => $orderPayment->getPoNumber(),
+                                'cc_exp_year'           => $orderPayment->getCcExpYear(),
+                                'cc_status'             => $orderPayment->getCcStatus(),
+                                'cc_avs_status'         => $orderPayment->getCcAvsStatus(),
+                                'cc_trans_id'           => $orderPayment->getCcTransId(),
+                            ];
+                        }
+
+                        $paymentData = [
+                            [
+                                'title'                  => $orderPayment->getMethodInstance()->getTitle(),
+                                'amount'                 => $order->getTotalPaid(),
+                                'created_at'             => $order->getCreatedAt(),
+                                'type'                   => $orderPayment->getMethodInstance()->getCode(),
+                                'additional_information' => $additionalInfo,
+                            ],
+                        ];
                     }
-
-                    $paymentData = [
-                        [
-                            'title'                  => $order->getPayment()->getMethodInstance()->getTitle(),
-                            'amount'                 => $order->getTotalPaid(),
-                            'created_at'             => $order->getCreatedAt(),
-                            'type'                   => $order->getPayment()->getMethodInstance()->getCode(),
-                            'additional_information' => $additionalInfo,
-                        ],
-                    ];
 
                     /** @var \SM\Shift\Model\RetailTransaction $transaction */
                     foreach ($transCol->getItems() as $transaction) {
@@ -474,14 +480,11 @@ class OrderHistoryManagement extends ServiceAbstract
                     if (is_array($orderGiftCards) && count($orderGiftCards) > 0) {
                         $totals['gift_card'] = [];
                         foreach ($orderGiftCards as $giftcard) {
-                            array_push(
-                                $totals['gift_card'],
-                                [
-                                    'gift_code'            => $giftcard->getGiftcardCode(),
-                                    'giftcard_amount'      => -floatval(abs($giftcard->getGiftcardAmount())),
-                                    'base_giftcard_amount' => -floatval(abs($giftcard->getBaseGiftcardAmount())),
-                                ]
-                            );
+                            $totals['gift_card'][] = [
+                                'gift_code'            => $giftcard->getGiftcardCode(),
+                                'giftcard_amount'      => -floatval(abs($giftcard->getGiftcardAmount())),
+                                'base_giftcard_amount' => -floatval(abs($giftcard->getBaseGiftcardAmount())),
+                            ];
                         }
                     }
                 }
@@ -495,14 +498,11 @@ class OrderHistoryManagement extends ServiceAbstract
                     if (is_array($orderGiftCards) && count($orderGiftCards) > 0) {
                         $totals['gift_card'] = [];
                         foreach ($orderGiftCards as $giftCard) {
-                            array_push(
-                                $totals['gift_card'],
-                                [
-                                    'gift_code'            => $giftCard['c'],
-                                    'giftcard_amount'      => -floatval(abs($giftCard['a'])),
-                                    'base_giftcard_amount' => -floatval(abs($giftCard['ba'])),
-                                ]
-                            );
+                            $totals['gift_card'][] = [
+                                'gift_code'            => $giftCard['c'],
+                                'giftcard_amount'      => -floatval(abs($giftCard['a'])),
+                                'base_giftcard_amount' => -floatval(abs($giftCard['ba'])),
+                            ];
                         }
                     }
                 }
