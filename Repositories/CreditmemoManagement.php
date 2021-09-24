@@ -335,7 +335,8 @@ class CreditmemoManagement extends ServiceAbstract
                 ) {
                     $createdAt = $this->retailHelper->getCurrentTime();
                     $giftCardPaymentId = $this->paymentHelper->getPaymentIdByType(
-                        RetailPayment::GIFT_CARD_PAYMENT_TYPE
+                        RetailPayment::GIFT_CARD_PAYMENT_TYPE,
+                        $order->getData('register_id')
                     );
                     $data['payment_data'][0] = [
                         "id"                    => $giftCardPaymentId,

@@ -350,14 +350,14 @@ class OrderHistoryManagement extends ServiceAbstract
 
                     if ($orderPayment = $order->getPayment()) {
                         $additionalInfo = $orderPayment->getAdditionalInformation();
-                        $additionalInfo[] = [
+                        $additionalInfo[] += [
                             'method'          => $orderPayment->getMethod(),
                             'last_trans_id'   => $orderPayment->getLastTransId(),
                             'additional_data' => $orderPayment->getAdditionalData(),
                         ];
 
                         if (!is_null($orderPayment->getCcTransId())) {
-                            $additionalInfo[] = [
+                            $additionalInfo[] += [
                                 'cc_exp_month'          => $orderPayment->getCcExpMonth(),
                                 'cc_secure_verify'      => $orderPayment->getCcSecureVerify(),
                                 'cc_approval'           => $orderPayment->getCcApproval(),
