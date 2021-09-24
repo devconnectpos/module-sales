@@ -1013,7 +1013,7 @@ class OrderManagement extends ServiceAbstract
         $originalItems = $data['items'];
         $hasShipItems = [];
         foreach ($shipments as $shipment) {
-            $hasShipItems = array_merge($hasShipItems, $shipment['items']);
+            $hasShipItems[] += $shipment['items'];
         }
 
         if (count($originalItems) === count($hasShipItems)) {
@@ -1263,7 +1263,8 @@ class OrderManagement extends ServiceAbstract
             if ($order['payment_data'] == null && $this->isIntegrateGC()) {
                 $created_at = $this->retailHelper->getCurrentTime();
                 $giftCardPaymentId = $this->paymentHelper->getPaymentIdByType(
-                    RetailPayment::GIFT_CARD_PAYMENT_TYPE
+                    RetailPayment::GIFT_CARD_PAYMENT_TYPE,
+                    $order->getData('register_id')
                 );
                 $order['payment_data'][0] = [
                     "id"                    => $giftCardPaymentId,
@@ -1472,7 +1473,7 @@ class OrderManagement extends ServiceAbstract
         /**
          * Adding products to quote from special grid
          */
-        if ($this->getRequest()->has('items') && !$this->getRequest()->getPost('update_items') && !($action == 'save')) {
+        if ($this->getRequest()->has('items') && !$this->getRequest()->getPost('update_items') && $action !== 'save') {
             $items = $this->requestOrderData['items'];
             $items = $this->processFiles($items);
             $this->getOrderCreateModel()->getQuote()->removeAllItems();
@@ -1509,7 +1510,7 @@ class OrderManagement extends ServiceAbstract
         $this->getQuote()->getBillingAddress()->unsetData("cached_items_all");
         $this->getQuote()->getShippingAddress()->unsetData("cached_items_all");
 
-        $this->checkExchange($action == 'check');
+        $this->checkExchange($action === 'check');
 
         $this->getOrderCreateModel()->saveQuote();
 
