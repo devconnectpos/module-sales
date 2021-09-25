@@ -1013,7 +1013,7 @@ class OrderManagement extends ServiceAbstract
         $originalItems = $data['items'];
         $hasShipItems = [];
         foreach ($shipments as $shipment) {
-            $hasShipItems[] += $shipment['items'];
+            $hasShipItems += $shipment['items'];
         }
 
         if (count($originalItems) === count($hasShipItems)) {
