@@ -29,6 +29,7 @@ use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\InvoiceRepository;
 use Magento\Sales\Model\OrderFactory;
+use Magento\Sales\Model\ResourceModel\Order as OrderResource;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Tax\Helper\Data as TaxHelper;
@@ -82,19 +83,19 @@ class OrderManagement extends ServiceAbstract
 
     const DISCOUNT_WHOLE_ORDER_KEY = 'discount_whole_order';
 
-    const RETAIL_ORDER_PARTIALLY_PAID_AWAIT_COLLECTION = 16;
-    const RETAIL_ORDER_PARTIALLY_PAID_PICKING_IN_PROGRESS = 15;
-    const RETAIL_ORDER_PARTIALLY_PAID_AWAIT_PICKING = 14;
-    const RETAIL_ORDER_PARTIALLY_PAID_SHIPPED = 13;
-    const RETAIL_ORDER_PARTIALLY_PAID_NOT_SHIPPED = 12;
     const RETAIL_ORDER_PARTIALLY_PAID = 11;
+    const RETAIL_ORDER_PARTIALLY_PAID_NOT_SHIPPED = 12;
+    const RETAIL_ORDER_PARTIALLY_PAID_SHIPPED = 13;
+    const RETAIL_ORDER_PARTIALLY_PAID_AWAIT_PICKING = 14;
+    const RETAIL_ORDER_PARTIALLY_PAID_PICKING_IN_PROGRESS = 15;
+    const RETAIL_ORDER_PARTIALLY_PAID_AWAIT_COLLECTION = 16;
 
-    const RETAIL_ORDER_COMPLETE_AWAIT_COLLECTION = 26;
-    const RETAIL_ORDER_COMPLETE_PICKING_IN_PROGRESS = 25;
-    const RETAIL_ORDER_COMPLETE_AWAIT_PICKING = 24;
-    const RETAIL_ORDER_COMPLETE_SHIPPED = 23;
-    const RETAIL_ORDER_COMPLETE_NOT_SHIPPED = 22;
     const RETAIL_ORDER_COMPLETE = 21;
+    const RETAIL_ORDER_COMPLETE_NOT_SHIPPED = 22;
+    const RETAIL_ORDER_COMPLETE_SHIPPED = 23;
+    const RETAIL_ORDER_COMPLETE_AWAIT_PICKING = 24;
+    const RETAIL_ORDER_COMPLETE_PICKING_IN_PROGRESS = 25;
+    const RETAIL_ORDER_COMPLETE_AWAIT_COLLECTION = 26;
 
     const RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION = 36;
     const RETAIL_ORDER_PARTIALLY_REFUND_PICKING_IN_PROGRESS = 35;
@@ -105,12 +106,12 @@ class OrderManagement extends ServiceAbstract
 
     const RETAIL_ORDER_FULLY_REFUND = 40;
 
-    const RETAIL_ORDER_EXCHANGE_AWAIT_COLLECTION = 56;
-    const RETAIL_ORDER_EXCHANGE_PICKING_IN_PROGRESS = 55;
-    const RETAIL_ORDER_EXCHANGE_AWAIT_PICKING = 54;
-    const RETAIL_ORDER_EXCHANGE_SHIPPED = 53;
-    const RETAIL_ORDER_EXCHANGE_NOT_SHIPPED = 52;
     const RETAIL_ORDER_EXCHANGE = 51;
+    const RETAIL_ORDER_EXCHANGE_NOT_SHIPPED = 52;
+    const RETAIL_ORDER_EXCHANGE_SHIPPED = 53;
+    const RETAIL_ORDER_EXCHANGE_AWAIT_PICKING = 54;
+    const RETAIL_ORDER_EXCHANGE_PICKING_IN_PROGRESS = 55;
+    const RETAIL_ORDER_EXCHANGE_AWAIT_COLLECTION = 56;
 
     const RETAIL_ORDER_CANCELED = 61;
 
@@ -313,6 +314,11 @@ class OrderManagement extends ServiceAbstract
     protected $state;
 
     /**
+     * @var OrderResource
+     */
+    private $orderResource;
+
+    /**
      * OrderManagement constructor.
      *
      * @param DataConfig                             $dataConfig
@@ -403,7 +409,8 @@ class OrderManagement extends ServiceAbstract
         OrderItemValidator $orderItemValidator,
         CartManagementInterface $cartManagement,
         ShippingCarrierAdditionalDataFactory $carrierAdditionalDataFactory,
-        State $state
+        State $state,
+        OrderResource $orderResource
     ) {
         $this->retailTransactionFactory = $retailTransactionFactory;
         $this->customerSession = $customerSession;
@@ -450,6 +457,7 @@ class OrderManagement extends ServiceAbstract
         $this->cartManagement = $cartManagement;
         $this->carrierAdditionalDataFactory = $carrierAdditionalDataFactory;
         $this->state = $state;
+        $this->orderResource = $orderResource;
 
         parent::__construct($context->getRequest(), $dataConfig, $storeManager);
     }
@@ -796,7 +804,7 @@ class OrderManagement extends ServiceAbstract
         } catch (\Throwable $e) {
             if (isset($order) && !!$order->getId()) {
                 $order->setData('retail_note', $order->getData('retail_note').' - '.$e->getMessage());
-                $this->orderRepository->save($order);
+                $order = $this->orderRepository->save($order);
             } else {
                 if (!isset($data['orderOffline'])) {
                     $data['orderOffline'] = [];
@@ -922,12 +930,20 @@ class OrderManagement extends ServiceAbstract
             );
         }
 
-        if (isset($data['is_pwa']) && $data['is_pwa'] === true) {
-            // XRT-6030 for syncing order to client ERP
-            $this->getContext()
-                ->getEventManager()
-                ->dispatch('sales_order_place_after', ['order' => $order]);
+        // Reload before triggering events to prevent old data
+        $order = $order->load($order->getId());
 
+        // XRT-6030 for syncing order to client ERP
+        $this->getContext()
+            ->getEventManager()
+            ->dispatch('sales_order_place_after', ['order' => $order]);
+
+        // XRT-6654 for Mr S Leather team to sync orders to Acumatica
+        $this->getContext()
+            ->getEventManager()
+            ->dispatch('cpos_sales_order_place_after', ['order' => $order]);
+
+        if (isset($data['is_pwa']) && $data['is_pwa'] === true) {
             return new DataObject(
                 [
                     'entity_id' => $order->getEntityId(),
@@ -935,15 +951,6 @@ class OrderManagement extends ServiceAbstract
                 ]
             );
         }
-
-        // XRT-6030 for syncing order to client ERP
-        $this->getContext()
-            ->getEventManager()
-            ->dispatch('sales_order_place_after', ['order' => $order]);
-        // XRT-6654 for Mr S Leather team to sync orders to Acumatica
-        $this->getContext()
-            ->getEventManager()
-            ->dispatch('cpos_sales_order_place_after', ['order' => $order]);
 
         return new DataObject(
             [
@@ -2565,36 +2572,41 @@ class OrderManagement extends ServiceAbstract
     /**
      * @param Order $order
      *
-     * @return $this
      * @throws \Exception
      */
     protected function addStoreCreditData($order)
     {
-        if ($this->getRequest()->getParam('store_credit')) {
-            $storeCredit = $this->getRequest()->getParam('store_credit');
-            $storeCreditData = $storeCredit['customer_balance_base_currency'] - ($storeCredit['store_credit_discount_amount']
-                    / $this->getCurrentRate());
-            $order->setData('store_credit_balance', $storeCreditData);
-            $order->save();
+        if (!$this->getRequest()->getParam('store_credit')) {
+            return;
         }
+
+        $storeCredit = $this->getRequest()->getParam('store_credit');
+        $storeCreditData = $storeCredit['customer_balance_base_currency'] - ($storeCredit['store_credit_discount_amount']
+                / $this->getCurrentRate());
+        $order->setData('store_credit_balance', $storeCreditData);
+        $this->orderResource->saveAttribute($order, 'store_credit_balance');
     }
 
     /**
      * @param Order $order
      *
-     * @return $this
      * @throws \Exception
      */
     protected function addRewardPointData($order)
     {
-        if ($this->getRequest()->getParam('reward_point')) {
-            $reward_point_data = $this->getRequest()->getParam('reward_point');
-            $order->setData('reward_points_earned', $reward_point_data['reward_point_earn']);
-            $order->setData('reward_points_earned_amount', $reward_point_data['reward_point_earn_amount']);
-            $order->setData('reward_points_redeemed', $reward_point_data['reward_point_spent']);
-            $order->setData('previous_reward_points_balance', $reward_point_data['customer_balance']);
-            $order->save();
+        if (!$this->getRequest()->getParam('reward_point')) {
+            return;
         }
+
+        $reward_point_data = $this->getRequest()->getParam('reward_point');
+        $order->setData('reward_points_earned', $reward_point_data['reward_point_earn']);
+        $order->setData('reward_points_earned_amount', $reward_point_data['reward_point_earn_amount']);
+        $order->setData('reward_points_redeemed', $reward_point_data['reward_point_spent']);
+        $order->setData('previous_reward_points_balance', $reward_point_data['customer_balance']);
+        $this->orderResource->saveAttribute($order, 'reward_points_earned');
+        $this->orderResource->saveAttribute($order, 'reward_points_earned_amount');
+        $this->orderResource->saveAttribute($order, 'reward_points_redeemed');
+        $this->orderResource->saveAttribute($order, 'previous_reward_points_balance');
     }
 
     protected function checkExistedOrder($storeId, $retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal)

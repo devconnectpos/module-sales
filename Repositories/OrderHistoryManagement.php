@@ -183,14 +183,18 @@ class OrderHistoryManagement extends ServiceAbstract
 
     public function getOrders()
     {
-        $searchCriteria = $this->getSearchCriteria();
+        try {
+            $searchCriteria = $this->getSearchCriteria();
 
-        if ($searchCriteria->getData('getErrorOrder')
-            && (int)$searchCriteria->getData('getErrorOrder') === 1
-        ) {
-            return $this->loadOrderError($searchCriteria);
-        } else {
-            return $this->loadOrders($searchCriteria);
+            if ($searchCriteria->getData('getErrorOrder')
+                && (int)$searchCriteria->getData('getErrorOrder') === 1
+            ) {
+                return $this->loadOrderError($searchCriteria);
+            } else {
+                return $this->loadOrders($searchCriteria);
+            }
+        } catch (\Throwable $e) {
+            throw new \Exception('Error getting order list: ' . $e->getMessage());
         }
     }
 
@@ -311,44 +315,43 @@ class OrderHistoryManagement extends ServiceAbstract
                         }
                     }
                 }
-                if ($order->getPayment()->getMethod() == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE
-                    || $order->getShippingMethod() === 'smstorepickup_smstorepickup'
-                ) {
-                    $paymentData = json_decode($order->getPayment()->getAdditionalInformation('split_data'), true);
-                    $paymentData = is_array($paymentData) ? $paymentData : [];
-                    if (is_array($paymentData)) {
-                        $paymentData = array_filter(
-                            $paymentData,
-                            function ($val) {
-                                return is_array($val);
-                            }
-                        );
-                        if ($order->getShippingMethod() === 'smstorepickup_smstorepickup'
-                            && !$order->canInvoice()
-                            && $order->getData('is_exchange') != 1
-                            && empty($paymentData)
-                        ) {
-                            $paymentData[] = [
-                                'title'      => $order->getPayment()->getMethodInstance()->getTitle(),
-                                'amount'     => $order->getTotalPaid(),
-                                'created_at' => $order->getCreatedAt(),
-                                'type'       => $order->getPayment()->getMethodInstance()->getCode(),
-                            ];
-                        }
-                        $xOrder->setData('payment', $paymentData);
-                    }
-                } else {
-                    $notCountedPaymentType = [
-                        \SM\Payment\Model\RetailPayment::GIFT_CARD_PAYMENT_TYPE,
-                        \SM\Payment\Model\RetailPayment::REWARD_POINT_PAYMENT_TYPE,
-                        \SM\Payment\Model\RetailPayment::STORE_CREDIT_PAYMENT_TYPE,
-                        \SM\Payment\Model\RetailPayment::REFUND_GC_PAYMENT_TYPE,
-                    ];
-                    $transCol = $this->transactionCollection->create();
-                    $transCol->addFieldToFilter('order_id', $order->getId())
-                        ->addFieldToFilter('payment_type', ['nin' => $notCountedPaymentType]);
 
-                    if ($orderPayment = $order->getPayment()) {
+                if ($orderPayment = $order->getPayment()) {
+                    if ($orderPayment->getMethod() === RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE || $order->getShippingMethod() === 'smstorepickup_smstorepickup') {
+                        $paymentData = json_decode($orderPayment->getAdditionalInformation('split_data'), true);
+                        $paymentData = is_array($paymentData) ? $paymentData : [];
+                        if (is_array($paymentData)) {
+                            $paymentData = array_filter(
+                                $paymentData,
+                                function ($val) {
+                                    return is_array($val);
+                                }
+                            );
+                            if ($order->getShippingMethod() === 'smstorepickup_smstorepickup'
+                                && !$order->canInvoice()
+                                && $order->getData('is_exchange') != 1
+                                && empty($paymentData)
+                            ) {
+                                $paymentData[] = [
+                                    'title'      => $orderPayment->getMethodInstance()->getTitle(),
+                                    'amount'     => $order->getTotalPaid(),
+                                    'created_at' => $order->getCreatedAt(),
+                                    'type'       => $orderPayment->getMethodInstance()->getCode(),
+                                ];
+                            }
+                            $xOrder->setData('payment', $paymentData);
+                        }
+                    } else {
+                        $notCountedPaymentType = [
+                            \SM\Payment\Model\RetailPayment::GIFT_CARD_PAYMENT_TYPE,
+                            \SM\Payment\Model\RetailPayment::REWARD_POINT_PAYMENT_TYPE,
+                            \SM\Payment\Model\RetailPayment::STORE_CREDIT_PAYMENT_TYPE,
+                            \SM\Payment\Model\RetailPayment::REFUND_GC_PAYMENT_TYPE,
+                        ];
+                        $transCol = $this->transactionCollection->create();
+                        $transCol->addFieldToFilter('order_id', $order->getId())
+                            ->addFieldToFilter('payment_type', ['nin' => $notCountedPaymentType]);
+
                         $additionalInfo = $orderPayment->getAdditionalInformation();
                         $additionalInfo += [
                             'method'          => $orderPayment->getMethod(),
@@ -383,28 +386,29 @@ class OrderHistoryManagement extends ServiceAbstract
                                 'additional_information' => $additionalInfo,
                             ],
                         ];
-                    }
 
-                    /** @var \SM\Shift\Model\RetailTransaction $transaction */
-                    foreach ($transCol->getItems() as $transaction) {
-                        $trans = [
-                            'title'                  => $transaction->getData('payment_title'),
-                            'amount'                 => $transaction->getData('amount'),
-                            'created_at'             => $transaction->getData('created_at'),
-                            'type'                   => $transaction->getData('payment_type'),
-                            'additional_information' => ['last_trans_id' => $transaction->getData('rwr_transaction_id')],
-                            'is_purchase'            => $transaction->getData('is_purchase'),
-                        ];
+                        /** @var \SM\Shift\Model\RetailTransaction $transaction */
+                        foreach ($transCol->getItems() as $transaction) {
+                            $trans = [
+                                'title'                  => $transaction->getData('payment_title'),
+                                'amount'                 => $transaction->getData('amount'),
+                                'created_at'             => $transaction->getData('created_at'),
+                                'type'                   => $transaction->getData('payment_type'),
+                                'additional_information' => ['last_trans_id' => $transaction->getData('rwr_transaction_id')],
+                                'is_purchase'            => $transaction->getData('is_purchase'),
+                            ];
 
-                        if (!$transaction->getData('is_purchase')) {
-                            $trans['refund_amount'] = abs(floatval($transaction->getData('amount')));
+                            if (!$transaction->getData('is_purchase')) {
+                                $trans['refund_amount'] = abs(floatval($transaction->getData('amount')));
+                            }
+
+                            $paymentData[] = $trans;
                         }
 
-                        $paymentData[] = $trans;
+                        $xOrder->setData('payment', $paymentData);
                     }
-
-                    $xOrder->setData('payment', $paymentData);
                 }
+
                 $xOrder->setData('outlet_id', $order->getData('outlet_id'));
                 $xOrder->setData('can_creditmemo', $order->canCreditmemo());
                 $xOrder->setData('can_ship', $order->canShip());
