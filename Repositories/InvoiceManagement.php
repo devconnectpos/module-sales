@@ -11,7 +11,6 @@ use Exception;
 use Magento\Config\Model\Config\Loader;
 use Magento\Customer\Model\CustomerFactory;
 use Magento\Directory\Model\Currency;
-use Magento\Framework\App\Area;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\App\State;
@@ -19,6 +18,7 @@ use Magento\Framework\DataObject;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\ObjectManagerInterface;
 use Magento\Framework\Registry;
+use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\Order\Email\Sender\InvoiceSender;
 use Magento\Sales\Model\Order\Email\Sender\ShipmentSender;
@@ -33,6 +33,7 @@ use SM\Shift\Model\RetailTransactionFactory;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
+use Magento\Sales\Model\ResourceModel\Order as OrderResource;
 
 /**
  * Class InvoiceManagement
@@ -99,7 +100,7 @@ class InvoiceManagement extends ServiceAbstract
     private $currencyModel;
 
     /**
-     * @var \Magento\Sales\Api\OrderRepositoryInterface
+     * @var OrderRepositoryInterface
      */
     private $orderRepository;
 
@@ -111,24 +112,26 @@ class InvoiceManagement extends ServiceAbstract
     /**
      * InvoiceManagement constructor.
      *
-     * @param RequestInterface         $requestInterface
-     * @param DataConfig               $dataConfig
-     * @param Data                     $retailHelper
-     * @param StoreManagerInterface    $storeManager
-     * @param ObjectManagerInterface   $objectManager
-     * @param InvoiceService           $invoiceService
-     * @param Registry                 $registry
-     * @param InvoiceSender            $invoiceSender
-     * @param ShipmentSender           $shipmentSender
-     * @param OrderFactory             $orderFactory
-     * @param OrderHistoryManagement   $orderHistoryManagement
-     * @param RetailTransactionFactory $retailTransactionFactory
-     * @param ShiftHelper              $shiftHelper
-     * @param IntegrateHelper          $integrateHelper
-     * @param Loader                   $configLoader
-     * @param CustomerFactory          $customerFactory
-     * @param ScopeConfigInterface     $scopeConfig
-     * @param Currency                 $currencyModel
+     * @param RequestInterface                            $requestInterface
+     * @param DataConfig                                  $dataConfig
+     * @param Data                                        $retailHelper
+     * @param StoreManagerInterface                       $storeManager
+     * @param ObjectManagerInterface                      $objectManager
+     * @param InvoiceService                              $invoiceService
+     * @param Registry                                    $registry
+     * @param InvoiceSender                               $invoiceSender
+     * @param ShipmentSender                              $shipmentSender
+     * @param OrderFactory                                $orderFactory
+     * @param OrderHistoryManagement                      $orderHistoryManagement
+     * @param RetailTransactionFactory                    $retailTransactionFactory
+     * @param ShiftHelper                                 $shiftHelper
+     * @param IntegrateHelper                             $integrateHelper
+     * @param Loader                                      $configLoader
+     * @param CustomerFactory                             $customerFactory
+     * @param ScopeConfigInterface                        $scopeConfig
+     * @param Currency                                    $currencyModel
+     * @param OrderRepositoryInterface $orderRepository
+     * @param State                                       $state
      */
     public function __construct(
         RequestInterface $requestInterface,
@@ -149,8 +152,9 @@ class InvoiceManagement extends ServiceAbstract
         CustomerFactory $customerFactory,
         ScopeConfigInterface $scopeConfig,
         Currency $currencyModel,
-        \Magento\Sales\Api\OrderRepositoryInterface $orderRepository,
-        State $state
+        OrderRepositoryInterface $orderRepository,
+        State $state,
+        OrderResource $orderResource
     ) {
         $this->orderHistoryManagement = $orderHistoryManagement;
         $this->orderFactory = $orderFactory;
@@ -169,6 +173,7 @@ class InvoiceManagement extends ServiceAbstract
         $this->currencyModel = $currencyModel;
         $this->orderRepository = $orderRepository;
         $this->state = $state;
+        $this->orderResource = $orderResource;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -292,8 +297,15 @@ class InvoiceManagement extends ServiceAbstract
             $orderModel = $this->orderFactory->create();
             $order = $orderModel->load($order);
         }
-        if ($order->getPayment()->getMethod() == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE) {
-            $paymentData = json_decode($order->getPayment()->getAdditionalInformation('split_data'), true);
+
+        $orderPayment = $order->getPayment();
+
+        if (!$orderPayment) {
+            return;
+        }
+
+        if ($orderPayment->getMethod() == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE) {
+            $paymentData = json_decode($orderPayment->getAdditionalInformation('split_data'), true);
             if (is_array($paymentData)) {
                 $payments = array_filter(
                     $paymentData,
@@ -302,12 +314,9 @@ class InvoiceManagement extends ServiceAbstract
                     }
                 );
                 $totalPaid = 0;
+
                 foreach ($payments as $payment) {
                     $totalPaid += floatval($payment['amount']);
-                }
-                if ($totalPaid - floatval($order->getGrandTotal()) > 0.01) {
-                    // in production we will not check this.
-                    //throw new \Exception("Sorry, Not allow paid lager thang rand total");
                 }
 
                 if ((abs($totalPaid - floatval($order->getGrandTotal())) < 0.07) || !!$order->getData('is_exchange')) {
@@ -406,42 +415,42 @@ class InvoiceManagement extends ServiceAbstract
                         }
                     }
                 }
-                $order->save();
+                $this->orderRepository->save($order);
             }
         } elseif ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
             if ($order->hasCreditmemos()) {
                 if ($order->canCreditmemo()) {
-                    $retail_status = $order->getData('retail_status');
-                    $state = OrderManagement::checkClickAndCollectOrderByCode($retail_status);
+                    $retailStatus = $order->getData('retail_status');
+                    $state = OrderManagement::checkClickAndCollectOrderByCode($retailStatus);
                     switch ($state) {
                         case 'await_picking':
-                            $new_status = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING;
+                            $newStatus = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING;
                             break;
                         case 'picking_in_progress':
-                            $new_status = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_PICKING_IN_PROGRESS;
+                            $newStatus = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_PICKING_IN_PROGRESS;
                             break;
                         case 'await_collection':
-                            $new_status = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION;
+                            $newStatus = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION;
                             break;
                         case 'done_collection':
                             if ($order->canShip()) {
-                                $new_status = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED;
+                                $newStatus = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED;
                             } else {
-                                $new_status = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED;
+                                $newStatus = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED;
                             }
                             break;
                         default:
-                            $new_status = $order->getData('retail_status');
+                            $newStatus = $order->getData('retail_status');
                             break;
                     }
-                    if (!!$this->getRequest()->getParam('retail_status')) {
-                        $new_status = $this->getRequest()->getParam('retail_status');
+                    if ($this->getRequest()->getParam('retail_status')) {
+                        $newStatus = $this->getRequest()->getParam('retail_status');
                     }
-                    $order->setData('retail_status', $new_status);
+                    $order->setData('retail_status', $newStatus);
                 } else {
                     $order->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
                 }
-                $order->save();
+                $this->orderRepository->save($order);
             }
         }
     }
@@ -658,7 +667,7 @@ class InvoiceManagement extends ServiceAbstract
                 ) {
                     $order->setData('reward_points_refunded', floatval($reward_point_deduct));
                     $order->setData('previous_reward_points_balance', floatval($currentRewardPointBalance));
-                    $order->save();
+                    $this->orderRepository->save($order);
                 }
             }
         }
