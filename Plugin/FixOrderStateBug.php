@@ -51,11 +51,11 @@ class FixOrderStateBug
             + ($subject->getBaseCustomerBalanceInvoiced() ? $subject->getBaseCustomerBalanceRefunded() : 0)
             + $subject->getBaseGiftCardsRefunded();
 
-        if ($this->comparator->greaterThan($totalInvoiced, $totalRefunded)) {
+        if ((float)$totalInvoiced > 0 && $this->comparator->greaterThan($totalInvoiced, $totalRefunded)) {
             return true;
         }
 
-        if ($this->comparator->greaterThanOrEqual($totalRefunded, (float)$subject->getBaseTotalPaid())) {
+        if ((float)$totalRefunded > 0 && $this->comparator->greaterThanOrEqual($totalRefunded, (float)$subject->getBaseTotalPaid())) {
             return false;
         }
 
