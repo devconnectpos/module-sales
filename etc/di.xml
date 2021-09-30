@@ -101,4 +101,13 @@
     <type name="Magento\Reward\Observer\CreditmemoRefund">
         <plugin name="connectpos-fix-magento-rp-refund-status" type="SM\Sales\Plugin\FixMagentoRewardPointRefundStatus" sortOrder="99" />
     </type>
+
+    <!-- Commands -->
+    <type name="Magento\Framework\Console\CommandList">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="cpos_fix_closed_order_status" xsi:type="object">SM\Sales\Command\FixClosedOrderStatus</item>
+            </argument>
+        </arguments>
+    </type>
 </config>

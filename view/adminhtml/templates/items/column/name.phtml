@@ -33,19 +33,21 @@
 					<?php if (isset($_option['custom_view']) && $_option['custom_view']) : ?>
 						<?= /* @noEscape */ $block->getCustomizedOptionValue($_option) ?>
 					<?php else : ?>
-						<?php $_option = $block->getFormattedOption($_option['value']); ?>
-						<?php $dots = 'dots' . uniqid(); ?>
-						<?php $id = 'id' . uniqid(); ?>
-						<?= $block->escapeHtml($_option['value'], ['a', 'br']) ?><?php if (isset($_option['remainder']) && $_option['remainder']) : ?><span id="<?= /* @noEscape */ $dots; ?>"> ...</span><span id="<?= /* @noEscape */ $id; ?>"><?= $block->escapeHtml($_option['remainder'], ['a']) ?></span>
-							<script>
-                                require(['prototype'], function() {
-                                    $('<?= /* @noEscape */ $id; ?>').hide();
-                                    $('<?= /* @noEscape */ $id; ?>').up().observe('mouseover', function(){$('<?= /* @noEscape */ $id; ?>').show();});
-                                    $('<?= /* @noEscape */ $id; ?>').up().observe('mouseover', function(){$('<?= /* @noEscape */ $dots; ?>').hide();});
-                                    $('<?= /* @noEscape */ $id; ?>').up().observe('mouseout',  function(){$('<?= /* @noEscape */ $id; ?>').hide();});
-                                    $('<?= /* @noEscape */ $id; ?>').up().observe('mouseout',  function(){$('<?= /* @noEscape */ $dots; ?>').show();});
-                                });
-							</script>
+                        <?php if(isset($_option['value'])): ?>
+                            <?php $_option = $block->getFormattedOption($_option['value']); ?>
+                            <?php $dots = 'dots' . uniqid('', true); ?>
+                            <?php $id = 'id' . uniqid('', true); ?>
+                            <?= $block->escapeHtml($_option['value'], ['a', 'br']) ?><?php if (isset($_option['remainder']) && $_option['remainder']) : ?><span id="<?= /* @noEscape */ $dots; ?>"> ...</span><span id="<?= /* @noEscape */ $id; ?>"><?= $block->escapeHtml($_option['remainder'], ['a']) ?></span>
+                                <script>
+                                    require(['prototype'], function() {
+                                        $('<?= /* @noEscape */ $id; ?>').hide();
+                                        $('<?= /* @noEscape */ $id; ?>').up().observe('mouseover', function(){$('<?= /* @noEscape */ $id; ?>').show();});
+                                        $('<?= /* @noEscape */ $id; ?>').up().observe('mouseover', function(){$('<?= /* @noEscape */ $dots; ?>').hide();});
+                                        $('<?= /* @noEscape */ $id; ?>').up().observe('mouseout',  function(){$('<?= /* @noEscape */ $id; ?>').hide();});
+                                        $('<?= /* @noEscape */ $id; ?>').up().observe('mouseout',  function(){$('<?= /* @noEscape */ $dots; ?>').show();});
+                                    });
+                                </script>
+                            <?php endif; ?>
 						<?php endif; ?>
 					<?php endif; ?>
 				</dd>
