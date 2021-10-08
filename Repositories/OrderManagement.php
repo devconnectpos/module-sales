@@ -645,21 +645,22 @@ class OrderManagement extends ServiceAbstract
         try {
             $this->clear();
             $data = $this->getRequest()->getParams();
-            $storeId = isset($data['store_id']) ? $data['store_id'] : '';
-            $retailId = isset($data['retail_id']) ? $data['retail_id'] : '';
-            $outletId = isset($data['outlet_id']) ? $data['outlet_id'] : '';
-            $userId = isset($data['user_id']) ? $data['user_id'] : '';
-            $registerId = isset($data['register_id']) ? $data['register_id'] : '';
-            $customerId = isset($data['customer_id']) ? $data['customer_id'] : '';
-            if (isset($data['orderOffline']) && $data['orderOffline'] && !empty($retailId)) {
-                $grandTotal = $data['orderOffline']['totals']['grand_total'];
-                $subtotal = $data['orderOffline']['totals']['subtotal'];
-                $existingOrder = $this->checkExistedOrder($storeId, $retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal);
-                if ($existingOrder && $existingOrder->getId()) {
-                    $incrementId = $existingOrder->getIncrementId();
-                    throw new Exception(__("Duplicated order, cannot save. Found order with Magento ID {$incrementId} (Order ID: {$existingOrder->getId()}) which have the same POS ID {$retailId}! Please clear the cache and place the order again!"));
-                }
-            }
+            // TODO: Just let the client handle duplicate order case
+//            $storeId = isset($data['store_id']) ? $data['store_id'] : '';
+//            $retailId = isset($data['retail_id']) ? $data['retail_id'] : '';
+//            $outletId = isset($data['outlet_id']) ? $data['outlet_id'] : '';
+//            $userId = isset($data['user_id']) ? $data['user_id'] : '';
+//            $registerId = isset($data['register_id']) ? $data['register_id'] : '';
+//            $customerId = isset($data['customer_id']) ? $data['customer_id'] : '';
+//            if (isset($data['orderOffline']) && $data['orderOffline'] && !empty($retailId)) {
+//                $grandTotal = $data['orderOffline']['totals']['grand_total'];
+//                $subtotal = $data['orderOffline']['totals']['subtotal'];
+//                $existingOrder = $this->checkExistedOrder($storeId, $retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal);
+//                if ($existingOrder && $existingOrder->getId()) {
+//                    $incrementId = $existingOrder->getIncrementId();
+//                    throw new Exception(__("Duplicated order, cannot save. Found order with Magento ID {$incrementId} (Order ID: {$existingOrder->getId()}) which have the same POS ID {$retailId}! Please clear the cache and place the order again!"));
+//                }
+//            }
 
             //save origin payment data to local variable
             $paymentData = $data['order']['payment_data'] ?? [];
@@ -831,11 +832,13 @@ class OrderManagement extends ServiceAbstract
                 } catch (Exception $e) {
                 }
 
-                if ((isset($data['retail_has_shipment']) && !$data['retail_has_shipment'] && !$this->getQuote()->isVirtual() && !$isPendingOrder)
-                    || ($this->integrateHelperData->isIntegrateAcumaticaCloudERP()
-                        && $order->getShippingMethod() == 'retailshipping_retailshipping'
-                        && $order->getShippingAmount() == 0)
-                ) {
+                $isVirtual = $this->getQuote()->isVirtual();
+                $noShipping = isset($data['retail_has_shipment']) && !$data['retail_has_shipment'];
+                $isAcumaticaIntegrated = $this->integrateHelperData->isIntegrateAcumaticaCloudERP();
+                $isRetailShippingMethod = $order->getShippingMethod() === 'retailshipping_retailshipping';
+                $noShippingCost = $order->getShippingAmount() == 0;
+
+                if (($noShipping && !$isVirtual && !$isPendingOrder) || ($isAcumaticaIntegrated && $isRetailShippingMethod && $noShippingCost)) {
                     try {
                         if (!isset($data['is_pwa']) || $data['is_pwa'] !== true) {
                             $this->shipmentDataManagement->ship($order->getId());
@@ -856,10 +859,8 @@ class OrderManagement extends ServiceAbstract
                 }
 
                 try {
-                    if (isset($data['is_pwa']) && ($data['is_pwa'] === true || $data['is_pwa'] === 1)
-                        && !$data['is_use_paypal']
-                    ) {
-                    } else {
+                    $pwa = isset($data['is_pwa']) && (bool)$data['is_pwa'] && !$data['is_use_paypal'];
+                    if (!$pwa) {
                         $this->invoiceManagement->checkPayment($order, $isPendingOrder);
                     }
                 } catch (\Exception $e) {
@@ -886,7 +887,7 @@ class OrderManagement extends ServiceAbstract
                 if ($splitData) {
                     foreach ($splitData as &$paymentData) {
                         if (is_array($paymentData)
-                            && $paymentData['type'] == 'refund_gift_card'
+                            && $paymentData['type'] === 'refund_gift_card'
                             && $paymentData['is_purchase'] == 0
                         ) {
                             $gcProduct = $order->getItemsCollection()->getFirstItem();
