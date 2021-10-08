@@ -34,10 +34,6 @@ class UpgradeSchema implements UpgradeSchemaInterface
     ) {
         $this->orderFactory = $orderFactory;
         $this->state = $state;
-        try {
-            $state->setAreaCode(Area::AREA_FRONTEND);
-        } catch (LocalizedException $e) {
-        }
     }
 
     /**
@@ -47,8 +43,6 @@ class UpgradeSchema implements UpgradeSchemaInterface
     {
         try {
             $this->state->emulateAreaCode(Area::AREA_FRONTEND, function (SchemaSetupInterface $setup, ModuleContextInterface $context) {
-                $installer = $setup;
-                $installer->startSetup();
                 if (version_compare($context->getVersion(), '0.1.1', '<')) {
                     $this->addRetailDataToOrder($setup);
                 }
@@ -85,9 +79,6 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 if (version_compare($context->getVersion(), '0.3.0', '<')) {
                     $this->addPrintTimeCounter($setup);
                 }
-                if (version_compare($context->getVersion(), '0.3.1', '<')) {
-                    $this->modifyOutletRewardPointAndStoreCreditInfoToOrder($setup);
-                }
                 if (version_compare($context->getVersion(), '0.3.2', '<')) {
                     $this->upgradeUserNameToOrderAndQuote($setup);
                 }
@@ -114,83 +105,61 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 }
             }, [$setup, $context]);
         } catch (\Throwable $e) {
-            $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
             $logger = new \Zend\Log\Logger();
             $logger->addWriter($writer);
             $logger->info('====> Failed to upgrade Sales schema');
-            $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
         }
     }
 
-    protected function addOutletPaymentMethodToOrder(SchemaSetupInterface $installer) {
-        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'outlet_payment_method')) {
-            $installer->getConnection()->addColumn(
-                $installer->getTable('sales_order'),
-                'outlet_payment_method',
-                [
-                    'type'    => Table::TYPE_TEXT,
-                    'length'  => 255,
-                    'comment' => 'Outlet Payment Method',
-                ]
-            );
-        }
-
-        if (!$installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'outlet_payment_method')) {
-            $installer->getConnection()->addColumn(
-                $installer->getTable('quote'),
-                'outlet_payment_method',
-                [
-                    'type'    => Table::TYPE_TEXT,
-                    'length'  => 255,
-                    'comment' => 'Outlet Payment Method',
-                ]
-            );
-        }
-
-        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'outlet_payment_method')) {
-            $installer->getConnection()->addColumn(
-                $installer->getTable('sales_order_grid'),
-                'outlet_payment_method',
-                [
-                    'type'    => Table::TYPE_TEXT,
-                    'length'  => 255,
-                    'comment' => 'Outlet Payment Method',
-                ]
-            );
-        }
-    }
-
-    protected function addSerialNumberToSalesItem(SchemaSetupInterface $installer)
+    protected function addOutletPaymentMethodToOrder(SchemaSetupInterface $setup)
     {
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote_item'), 'serial_number')) {
-            $installer->getConnection()->dropColumn($installer->getTable('quote_item'), 'serial_number');
+        $setup->startSetup();
+
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
+
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'outlet_payment_method')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'outlet_payment_method',
+                    [
+                        'type'    => Table::TYPE_TEXT,
+                        'length'  => 255,
+                        'comment' => 'Outlet Payment Method',
+                    ]
+                );
+            }
         }
 
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order_item'), 'serial_number')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order_item'), 'serial_number');
+        $setup->endSetup();
+    }
+
+    /**
+     * @param SchemaSetupInterface $setup
+     */
+    protected function addSerialNumberToSalesItem(SchemaSetupInterface $setup)
+    {
+        $setup->startSetup();
+
+        $tableNames = ['quote_item', 'sales_order_item'];
+
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'serial_number')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'serial_number',
+                    [
+                        'type'    => Table::TYPE_TEXT,
+                        'length'  => 250,
+                        'comment' => 'Serial number',
+                    ]
+                );
+            }
         }
 
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote_item'),
-            'serial_number',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'length'  => 250,
-                'comment' => 'Serial number',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_item'),
-            'serial_number',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'length'  => 250,
-                'comment' => 'Serial number',
-            ]
-        );
-
-        $installer->endSetup();
+        $setup->endSetup();
     }
 
     /**
@@ -198,219 +167,84 @@ class UpgradeSchema implements UpgradeSchemaInterface
      */
     protected function addRetailDataToOrder(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
+        $setup->startSetup();
 
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'user_id')
-            && $installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'retail_has_shipment')
-        ) {
-            return;
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
+
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'outlet_id')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'outlet_id',
+                    [
+                        'type' => Table::TYPE_INTEGER,
+                        'comment' => 'Outlet id',
+                    ]
+                );
+            }
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'retail_id')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'retail_id',
+                    [
+                        'type'    => Table::TYPE_TEXT,
+                        'length'  => '32',
+                        'comment' => 'Retail Id',
+                    ]
+                );
+            }
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'retail_status')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'retail_status',
+                    [
+                        'type'    => Table::TYPE_SMALLINT,
+                        'comment' => 'Retail Status',
+                    ]
+                );
+            }
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'retail_note')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'retail_note',
+                    [
+                        'type'    => Table::TYPE_TEXT,
+                        'comment' => 'Retail Note',
+                    ]
+                );
+            }
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'retail_has_shipment')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'retail_has_shipment',
+                    [
+                        'type'    => Table::TYPE_SMALLINT,
+                        'comment' => 'Retail Shipment',
+                    ]
+                );
+            }
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'is_exchange')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'is_exchange',
+                    [
+                        'type'    => Table::TYPE_SMALLINT,
+                        'comment' => 'Is Exchange',
+                    ]
+                );
+            }
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'user_id')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'user_id',
+                    [
+                        'type'    => Table::TYPE_TEXT,
+                        'comment' => 'Cashier Id',
+                    ]
+                );
+            }
         }
 
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'outlet_id');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'outlet_id');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'outlet_id');
-
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'retail_id');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'retail_id');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'retail_id');
-
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'retail_status');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'retail_status');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'retail_status');
-
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'retail_note');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'retail_note');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'retail_note');
-
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'retail_has_shipment');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'retail_has_shipment');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'retail_has_shipment');
-
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'is_exchange');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'is_exchange');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'is_exchange');
-
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'user_id');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'user_id');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'user_id');
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'outlet_id',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Outlet id',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'outlet_id',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Outlet id',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'outlet_id',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Outlet id',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'retail_id',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'length'  => '32',
-                'comment' => 'Client id',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'retail_id',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'length'  => '32',
-                'comment' => 'Client id',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'retail_id',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'length'  => '32',
-                'comment' => 'Client id',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'retail_status',
-            [
-                'type'    => Table::TYPE_SMALLINT,
-                'comment' => 'Client Status',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'retail_status',
-            [
-                'type'    => Table::TYPE_SMALLINT,
-                'comment' => 'Client Status',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'retail_status',
-            [
-                'type'    => Table::TYPE_SMALLINT,
-                'comment' => 'Client Status',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'retail_note',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Retail Note',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'retail_note',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Retail Note',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'retail_note',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Retail Note',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'retail_has_shipment',
-            [
-                'type'    => Table::TYPE_SMALLINT,
-                'comment' => 'Retail Shipment',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'retail_has_shipment',
-            [
-                'type'    => Table::TYPE_SMALLINT,
-                'comment' => 'Retail Shipment',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'retail_has_shipment',
-            [
-                'type'    => Table::TYPE_SMALLINT,
-                'comment' => 'Retail Shipment',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'is_exchange',
-            [
-                'type'    => Table::TYPE_SMALLINT,
-                'comment' => 'Retail Shipment',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'is_exchange',
-            [
-                'type'    => Table::TYPE_SMALLINT,
-                'comment' => 'Retail Shipment',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'is_exchange',
-            [
-                'type'    => Table::TYPE_SMALLINT,
-                'comment' => 'Retail Shipment',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'user_id',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Cashier Id',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'user_id',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Cashier Id',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'user_id',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Cashier Id',
-            ]
-        );
         $setup->endSetup();
     }
 
@@ -421,11 +255,16 @@ class UpgradeSchema implements UpgradeSchemaInterface
      */
     protected function addOrderSyncErrorTable(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
-        $installer->startSetup();
-        $setup->getConnection()->dropTable($setup->getTable('sm_order_sync_error'));
-        $table = $installer->getConnection()->newTable(
-            $installer->getTable('sm_order_sync_error')
+        $setup->startSetup();
+
+        if ($setup->getConnection()->isTableExists($setup->getTable('sm_order_sync_error'))) {
+            $setup->endSetup();
+
+            return;
+        }
+
+        $table = $setup->getConnection()->newTable(
+            $setup->getTable('sm_order_sync_error')
         )->addColumn(
             'id',
             Table::TYPE_INTEGER,
@@ -475,42 +314,31 @@ class UpgradeSchema implements UpgradeSchemaInterface
             ['nullable' => false, 'default' => Table::TIMESTAMP_INIT_UPDATE],
             'Modification Time'
         );
-        $installer->getConnection()->createTable($table);
+        $setup->getConnection()->createTable($table);
 
-        $installer->endSetup();
+        $setup->endSetup();
     }
 
     protected function updateRetailToOrder(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'register_id');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'register_id');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'register_id');
+        $setup->startSetup();
 
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'register_id',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Register id',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'register_id',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Register id',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'register_id',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Register id',
-            ]
-        );
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
+
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'register_id')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'register_id',
+                    [
+                        'type'    => Table::TYPE_INTEGER,
+                        'comment' => 'Register id',
+                    ]
+                );
+            }
+        }
+
+        $setup->endSetup();
     }
 
     /**
@@ -518,42 +346,24 @@ class UpgradeSchema implements UpgradeSchemaInterface
      */
     protected function addXRefNumOrderCardKnox(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
+        $setup->startSetup();
 
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'xRefNum')) {
-            $installer->getConnection()->dropColumn($installer->getTable('quote'), 'xRefNum');
-        }
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'xRefNum')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'xRefNum');
-        }
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'xRefNum')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'xRefNum');
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
+
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'xRefNum')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'xRefNum',
+                    [
+                        'type'    => Table::TYPE_TEXT,
+                        'comment' => 'xRefNum',
+                    ]
+                );
+            }
         }
 
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'xRefNum',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'xRefNum',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'xRefNum',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'xRefNum',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'xRefNum',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'xRefNum',
-            ]
-        );
+        $setup->endSetup();
     }
 
     /**
@@ -561,35 +371,24 @@ class UpgradeSchema implements UpgradeSchemaInterface
      */
     protected function addStorePickupOutletIdToQuote(SchemaSetupInterface $setup)
     {
-        $upgrader = $setup;
-        $upgrader->getConnection()->dropColumn($upgrader->getTable('quote'), 'pickup_outlet_id');
-        $upgrader->getConnection()->dropColumn($upgrader->getTable('sales_order'), 'pickup_outlet_id');
-        $upgrader->getConnection()->dropColumn($upgrader->getTable('sales_order_grid'), 'pickup_outlet_id');
+        $setup->startSetup();
 
-        $upgrader->getConnection()->addColumn(
-            $upgrader->getTable('quote'),
-            'pickup_outlet_id',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Store Pickup Outlet id',
-            ]
-        );
-        $upgrader->getConnection()->addColumn(
-            $upgrader->getTable('sales_order'),
-            'pickup_outlet_id',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Store Pickup Outlet id',
-            ]
-        );
-        $upgrader->getConnection()->addColumn(
-            $upgrader->getTable('sales_order_grid'),
-            'pickup_outlet_id',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Store Pickup Outlet id',
-            ]
-        );
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
+
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'pickup_outlet_id')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'pickup_outlet_id',
+                    [
+                        'type'    => Table::TYPE_INTEGER,
+                        'comment' => 'Store Pickup Outlet id',
+                    ]
+                );
+            }
+        }
+
+        $setup->endSetup();
     }
 
     /**
@@ -597,80 +396,75 @@ class UpgradeSchema implements UpgradeSchemaInterface
      */
     protected function addCashierUserInOrder(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'sm_seller_ids')) {
-            $installer->getConnection()->dropColumn($installer->getTable('quote'), 'sm_seller_ids');
-        }
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'sm_seller_ids',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Seller Ids',
-            ]
-        );
+        $setup->startSetup();
 
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'sm_seller_ids')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'sm_seller_ids');
-        }
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'sm_seller_ids',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Seller Ids',
-            ]
-        );
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
 
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'sm_seller_ids')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'sm_seller_ids');
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'sm_seller_ids')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'sm_seller_ids',
+                    [
+                        'type'    => Table::TYPE_TEXT,
+                        'comment' => 'Seller Ids',
+                    ]
+                );
+            }
         }
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'sm_seller_ids',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Seller Ids',
-            ]
-        );
+
+        $setup->endSetup();
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     */
     protected function addRateOrder(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
+        $setup->startSetup();
 
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'order_rate')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'order_rate');
+        if (!$setup->getConnection()->tableColumnExists($setup->getTable('sales_order'), 'order_rate')) {
+            $setup->getConnection()->addColumn(
+                $setup->getTable('sales_order'),
+                'order_rate',
+                [
+                    'type' => Table::TYPE_SMALLINT,
+                    'comment' => 'Order Rate',
+                ]
+            );
         }
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'order_rate',
-            [
-                'type'    => Table::TYPE_SMALLINT,
-                'comment' => 'Order Rate',
-            ]
-        );
 
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'order_feedback')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'order_feedback');
+        if (!$setup->getConnection()->tableColumnExists($setup->getTable('sales_order'), 'order_feedback')) {
+            $setup->getConnection()->addColumn(
+                $setup->getTable('sales_order'),
+                'order_feedback',
+                [
+                    'type' => Table::TYPE_TEXT,
+                    'comment' => 'Order Feedback',
+                ]
+            );
         }
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'order_feedback',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Order Feedback',
-            ]
-        );
+
+        $setup->endSetup();
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     *
+     * @throws \Zend_Db_Exception
+     */
     protected function addFeedback(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
-        $installer->startSetup();
-        $setup->getConnection()->dropTable($setup->getTable('sm_feedback'));
-        $table = $installer->getConnection()->newTable(
-            $installer->getTable('sm_feedback')
+        $setup->startSetup();
+
+        if ($setup->getConnection()->isTableExists($setup->getTable('sm_feedback'))) {
+            $setup->endSetup();
+
+            return;
+        }
+
+        $table = $setup->getConnection()->newTable(
+            $setup->getTable('sm_feedback')
         )->addColumn(
             'id',
             Table::TYPE_INTEGER,
@@ -696,162 +490,75 @@ class UpgradeSchema implements UpgradeSchemaInterface
             ['nullable' => true],
             'Retail Rate'
         );
-        $installer->getConnection()->createTable($table);
+        $setup->getConnection()->createTable($table);
 
-        $installer->endSetup();
+        $setup->endSetup();
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     */
     protected function addRewardPointsAndStoreCreditInfoToOrder(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'store_credit_balance')) {
-            return;
+        $setup->startSetup();
+
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
+
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'store_credit_balance')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'store_credit_balance',
+                    [
+                        'type'    => Table::TYPE_DECIMAL,
+                        'length'  => '12,2',
+                        'comment' => 'Store Credit Balance',
+                    ]
+                );
+            }
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'previous_reward_points_balance')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'previous_reward_points_balance',
+                    [
+                        'type'    => Table::TYPE_INTEGER,
+                        'comment' => 'Previous Reward Points Balance',
+                    ]
+                );
+            }
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'reward_points_redeemed')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'reward_points_redeemed',
+                    [
+                        'type'    => Table::TYPE_INTEGER,
+                        'comment' => 'Reward Points Redeemed',
+                    ]
+                );
+            }
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'reward_points_earned')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'reward_points_earned',
+                    [
+                        'type'    => Table::TYPE_INTEGER,
+                        'comment' => 'Reward Points Earned',
+                    ]
+                );
+            }
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'reward_points_refunded')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'reward_points_refunded',
+                    [
+                        'type'    => Table::TYPE_INTEGER,
+                        'comment' => 'Reward Points Refunded',
+                    ]
+                );
+            }
         }
 
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'store_credit_balance');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'store_credit_balance');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'store_credit_balance');
-
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'previous_reward_points_balance');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'previous_reward_points_balance');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'previous_reward_points_balance');
-
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'reward_points_redeemed');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'reward_points_redeemed');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'reward_points_redeemed');
-
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'reward_points_earned');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'reward_points_earned');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'reward_points_earned');
-
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'reward_points_refunded');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'reward_points_refunded');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'reward_points_refunded');
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'store_credit_balance',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Store Credit Balance',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'store_credit_balance',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Store Credit Balance',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'store_credit_balance',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Store Credit Balance',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'previous_reward_points_balance',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Previous Reward Points Balance',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'previous_reward_points_balance',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Previous Reward Points Balance',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'previous_reward_points_balance',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Previous Reward Points Balance',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'reward_points_redeemed',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Reward Points Redeemed',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'reward_points_redeemed',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Reward Points Redeemed',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'reward_points_redeemed',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Reward Points Redeemed',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'reward_points_earned',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Reward Points Earned',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'reward_points_earned',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Reward Points Earned',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'reward_points_earned',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Reward Points Earned',
-            ]
-        );
-
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'reward_points_refunded',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Reward Points Refunded',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'reward_points_refunded',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Reward Points Refunded',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'reward_points_refunded',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Reward Points Refunded',
-            ]
-        );
+        $setup->endSetup();
     }
 
     /**
@@ -859,82 +566,48 @@ class UpgradeSchema implements UpgradeSchemaInterface
      */
     protected function addTransactionIdNumOrderAuthorize(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
+        $setup->startSetup();
 
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'transId')) {
-            $installer->getConnection()->dropColumn($installer->getTable('quote'), 'transId');
-        }
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'transId')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'transId');
-        }
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'transId')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'transId');
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
+
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'transId')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'transId',
+                    [
+                        'type'    => Table::TYPE_TEXT,
+                        'comment' => 'transId',
+                    ]
+                );
+            }
         }
 
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'transId',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'transId',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'transId',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'transId',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'transId',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'transId',
-            ]
-        );
+        $setup->endSetup();
     }
 
     protected function addRewardPointsEarnAmountToOrder(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
+        $setup->startSetup();
 
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'reward_points_earned_amount');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'reward_points_earned_amount');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'reward_points_earned_amount');
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
 
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'reward_points_earned_amount',
-            [
-                'type'     => Table::TYPE_DECIMAL,
-                'length'   => '12,4',
-                'nullable' => true,
-                'comment'  => 'Reward Points Earned Amount',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'reward_points_earned_amount',
-            [
-                'type'     => Table::TYPE_DECIMAL,
-                'length'   => '12,4',
-                'nullable' => true,
-                'comment'  => 'Reward Points Earned Amount',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'reward_points_earned_amount',
-            [
-                'type'     => Table::TYPE_DECIMAL,
-                'length'   => '12,4',
-                'nullable' => true,
-                'comment'  => 'Reward Points Earned Amount',
-            ]
-        );
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'reward_points_earned_amount')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'reward_points_earned_amount',
+                    [
+                        'type'     => Table::TYPE_DECIMAL,
+                        'length'   => '12,4',
+                        'nullable' => true,
+                        'comment'  => 'Reward Points Earned Amount',
+                    ]
+                );
+            }
+        }
+
+        $setup->endSetup();
     }
 
     /**
@@ -943,6 +616,7 @@ class UpgradeSchema implements UpgradeSchemaInterface
     protected function addPrintTimeCounter(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
+
         if (!$setup->getConnection()->tableColumnExists($setup->getTable('sales_order'), 'print_time_counter')) {
             $setup->getConnection()->addColumn(
                 $setup->getTable('sales_order'),
@@ -954,53 +628,14 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 ]
             );
         }
+
         $setup->endSetup();
-    }
-
-    protected function modifyOutletRewardPointAndStoreCreditInfoToOrder(SchemaSetupInterface $setup)
-    {
-        $installer = $setup;
-        $installer->startSetup();
-
-        $installer
-            ->getConnection()
-            ->modifyColumn(
-                $installer->getTable('quote'),
-                'store_credit_balance',
-                [
-                    'type'    => Table::TYPE_DECIMAL,
-                    'length'  => '12,2',
-                    'comment' => 'Store Credit Balance',
-                ]
-            );
-        $installer
-            ->getConnection()
-            ->modifyColumn(
-                $installer->getTable('sales_order'),
-                'store_credit_balance',
-                [
-                    'type'    => Table::TYPE_DECIMAL,
-                    'length'  => '12,2',
-                    'comment' => 'Store Credit Balance',
-                ]
-            );
-        $installer
-            ->getConnection()
-            ->modifyColumn(
-                $installer->getTable('sales_order_grid'),
-                'store_credit_balance',
-                [
-                    'type'    => Table::TYPE_DECIMAL,
-                    'length'  => '12,2',
-                    'comment' => 'Store Credit Balance',
-                ]
-            );
-        $installer->endSetup();
     }
 
     protected function upgradeUserNameToOrderAndQuote(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
+
         if (!$setup->getConnection()->tableColumnExists($setup->getTable('quote'), 'user_name')) {
             $setup->getConnection()->addColumn(
                 $setup->getTable('quote'),
@@ -1012,6 +647,7 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 ]
             );
         }
+
         if (!$setup->getConnection()->tableColumnExists($setup->getTable('sales_order'), 'user_name')) {
             $setup->getConnection()->addColumn(
                 $setup->getTable('sales_order'),
@@ -1023,11 +659,14 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 ]
             );
         }
+
         $setup->endSetup();
     }
 
     protected function addIndexForRetailId(SchemaSetupInterface $setup)
     {
+        $setup->startSetup();
+
         $table = $setup->getTable('sales_order_grid');
 
         $setup->getConnection()
@@ -1059,49 +698,33 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 ],
                 \Magento\Framework\DB\Adapter\AdapterInterface::INDEX_TYPE_FULLTEXT
             );
+
+        $setup->endSetup();
     }
 
     protected function addEstimatedAvailabilityToOrder(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
+        $setup->startSetup();
 
-        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'estimated_availability');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'estimated_availability');
-        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'estimated_availability');
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
 
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'estimated_availability',
-            [
-                'type'     => Table::TYPE_DECIMAL,
-                'length'   => '12,4',
-                'nullable' => true,
-                'default'  => 0,
-                'comment'  => 'Estimated Availability',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'estimated_availability',
-            [
-                'type'     => Table::TYPE_DECIMAL,
-                'length'   => '12,4',
-                'nullable' => true,
-                'default'  => 0,
-                'comment'  => 'Estimated Availability',
-            ]
-        );
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'estimated_availability',
-            [
-                'type'     => Table::TYPE_DECIMAL,
-                'length'   => '12,4',
-                'nullable' => true,
-                'default'  => 0,
-                'comment'  => 'Estimated Availability',
-            ]
-        );
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'estimated_availability')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'estimated_availability',
+                    [
+                        'type'     => Table::TYPE_DECIMAL,
+                        'length'   => '12,4',
+                        'nullable' => true,
+                        'default'  => 0,
+                        'comment'  => 'Estimated Availability',
+                    ]
+                );
+            }
+        }
+
+        $setup->endSetup();
     }
 
     /**
@@ -1109,51 +732,33 @@ class UpgradeSchema implements UpgradeSchemaInterface
      */
     protected function addSellerUsernameInOrder(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'sm_seller_username')) {
-            $installer->getConnection()->dropColumn($installer->getTable('quote'), 'sm_seller_username');
-        }
-        $installer->getConnection()->addColumn(
-            $installer->getTable('quote'),
-            'sm_seller_username',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Seller Username',
-            ]
-        );
+        $setup->startSetup();
 
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'sm_seller_username')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'sm_seller_username');
-        }
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order'),
-            'sm_seller_username',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Seller Username',
-            ]
-        );
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
 
-        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'sm_seller_username')) {
-            $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'sm_seller_username');
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'sm_seller_username')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'sm_seller_username',
+                    [
+                        'type'    => Table::TYPE_TEXT,
+                        'comment' => 'Seller Username',
+                    ]
+                );
+            }
         }
-        $installer->getConnection()->addColumn(
-            $installer->getTable('sales_order_grid'),
-            'sm_seller_username',
-            [
-                'type'    => Table::TYPE_TEXT,
-                'comment' => 'Seller Username',
-            ]
-        );
+
+        $setup->endSetup();
     }
 
     protected function addCreditmemoFromStore(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
+        $setup->startSetup();
 
-        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_creditmemo'), 'cpos_creditmemo_from_store_id')) {
-            $installer->getConnection()->addColumn(
-                $installer->getTable('sales_creditmemo'),
+        if (!$setup->getConnection()->tableColumnExists($setup->getTable('sales_creditmemo'), 'cpos_creditmemo_from_store_id')) {
+            $setup->getConnection()->addColumn(
+                $setup->getTable('sales_creditmemo'),
                 'cpos_creditmemo_from_store_id',
                 [
                     'type'    => Table::TYPE_INTEGER,
@@ -1162,44 +767,30 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 ]
             );
         }
+
+        $setup->endSetup();
     }
 
     protected function addOutletNameToOrder(SchemaSetupInterface $setup)
     {
-        $installer = $setup;
+        $setup->startSetup();
 
-        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'outlet_name')) {
-            $installer->getConnection()->addColumn(
-                $installer->getTable('sales_order'),
-                'outlet_name',
-                [
-                    'type'    => Table::TYPE_TEXT,
-                    'length'  => 50,
-                    'comment' => 'Outlet Name',
-                ]
-            );
+        $tableNames = ['quote', 'sales_order', 'sales_order_grid'];
+
+        foreach ($tableNames as $tableName) {
+            if (!$setup->getConnection()->tableColumnExists($setup->getTable($tableName), 'outlet_name')) {
+                $setup->getConnection()->addColumn(
+                    $setup->getTable($tableName),
+                    'outlet_name',
+                    [
+                        'type'    => Table::TYPE_TEXT,
+                        'length'  => 50,
+                        'comment' => 'Outlet Name',
+                    ]
+                );
+            }
         }
-        if (!$installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'outlet_name')) {
-            $installer->getConnection()->addColumn(
-                $installer->getTable('quote'),
-                'outlet_name',
-                [
-                    'type'    => Table::TYPE_TEXT,
-                    'length'  => 50,
-                    'comment' => 'Outlet Name',
-                ]
-            );
-        }
-        if (!$installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'outlet_name')) {
-            $installer->getConnection()->addColumn(
-                $installer->getTable('sales_order_grid'),
-                'outlet_name',
-                [
-                    'type'    => Table::TYPE_TEXT,
-                    'length'  => 50,
-                    'comment' => 'Outlet Name',
-                ]
-            );
-        }
+
+        $setup->endSetup();
     }
 }

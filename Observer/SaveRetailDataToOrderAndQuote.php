@@ -139,7 +139,7 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
         }
 
         $pickup_outlet_id = $this->registry->registry('pickup_outlet_id');
-        if ($quote->getShippingAddress()->getShippingMethod() == 'smstorepickup_smstorepickup'
+        if ($quote->getShippingAddress()->getShippingMethod() === 'smstorepickup_smstorepickup'
             && !$pickup_outlet_id
             && $quote->getOutletId()) {
             $pickup_outlet_id = $quote->getOutletId();
