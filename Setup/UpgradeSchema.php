@@ -14,13 +14,13 @@ use Magento\Framework\Setup\ModuleContextInterface;
 use Magento\Framework\Setup\SchemaSetupInterface;
 use Magento\Framework\Setup\UpgradeSchemaInterface;
 use Magento\Sales\Model\OrderFactory;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @codeCoverageIgnore
  */
 class UpgradeSchema implements UpgradeSchemaInterface
 {
-
     /**
      * @var \Magento\Sales\Model\OrderFactory
      */
@@ -113,6 +113,61 @@ class UpgradeSchema implements UpgradeSchemaInterface
         }
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     * @param OutputInterface      $output
+     *
+     * @throws \Zend_Db_Exception
+     */
+    public function execute(SchemaSetupInterface $setup, OutputInterface $output)
+    {
+        $output->writeln('  |__ Create order sync error table');
+        $this->addOrderSyncErrorTable($setup);
+        $output->writeln('  |__ Create feedback table');
+        $this->addFeedback($setup);
+
+        $output->writeln('  |__ Add POS data columns to quote, sales_order and sales_order_grid tables');
+        $output->writeln('     >>> outlet_id, retail_id, retail_status, retail_note, retail_has_shipment, is_exchange, user_id');
+        $this->addRetailDataToOrder($setup);
+        $this->addIndexForRetailId($setup);
+        $output->writeln('     >>> register_id');
+        $this->updateRetailToOrder($setup);
+        $output->writeln('     >>> xRefNum');
+        $this->addXRefNumOrderCardKnox($setup);
+        $output->writeln('     >>> pickup_outlet_id');
+        $this->addStorePickupOutletIdToQuote($setup);
+        $output->writeln('     >>> sm_seller_ids');
+        $this->addCashierUserInOrder($setup);
+        $output->writeln('     >>> order_rate, order_feedback');
+        $this->addRateOrder($setup);
+        $output->writeln('     >>> store_credit_balance, previous_reward_points_balance, reward_points_redeemed, reward_points_earned, reward_points_refunded');
+        $this->addRewardPointsAndStoreCreditInfoToOrder($setup);
+        $output->writeln('     >>> transId');
+        $this->addTransactionIdNumOrderAuthorize($setup);
+        $output->writeln('     >>> reward_points_earned_amount');
+        $this->addRewardPointsEarnAmountToOrder($setup);
+        $output->writeln('     >>> print_time_counter');
+        $this->addPrintTimeCounter($setup);
+        $output->writeln('     >>> user_name');
+        $this->upgradeUserNameToOrderAndQuote($setup);
+        $output->writeln('     >>> estimated_availability');
+        $this->addEstimatedAvailabilityToOrder($setup);
+        $output->writeln('     >>> sm_seller_username');
+        $this->addSellerUsernameInOrder($setup);
+        $output->writeln('     >>> cpos_creditmemo_from_store_id');
+        $this->addCreditmemoFromStore($setup);
+        $output->writeln('     >>> outlet_name');
+        $this->addOutletNameToOrder($setup);
+
+        $output->writeln('  |__ Add outlet payment method column to quote, sales_order and sales_order_grid tables');
+        $this->addOutletPaymentMethodToOrder($setup);
+        $output->writeln('  |__ Add serial number column to quote_item and sales_order_item ');
+        $this->addSerialNumberToSalesItem($setup);
+    }
+
+    /**
+     * @param SchemaSetupInterface $setup
+     */
     protected function addOutletPaymentMethodToOrder(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
@@ -319,6 +374,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         $setup->endSetup();
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     */
     protected function updateRetailToOrder(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
@@ -586,6 +644,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         $setup->endSetup();
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     */
     protected function addRewardPointsEarnAmountToOrder(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
@@ -632,6 +693,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         $setup->endSetup();
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     */
     protected function upgradeUserNameToOrderAndQuote(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
@@ -663,6 +727,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         $setup->endSetup();
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     */
     protected function addIndexForRetailId(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
@@ -702,6 +769,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         $setup->endSetup();
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     */
     protected function addEstimatedAvailabilityToOrder(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
@@ -752,6 +822,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         $setup->endSetup();
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     */
     protected function addCreditmemoFromStore(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
@@ -771,6 +844,9 @@ class UpgradeSchema implements UpgradeSchemaInterface
         $setup->endSetup();
     }
 
+    /**
+     * @param SchemaSetupInterface $setup
+     */
     protected function addOutletNameToOrder(SchemaSetupInterface $setup)
     {
         $setup->startSetup();
