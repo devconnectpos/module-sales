@@ -30,6 +30,7 @@ use SM\Integrate\Helper\Data as IntegrateHelper;
 use SM\Payment\Model\RetailMultiple;
 use SM\Shift\Helper\Data as ShiftHelper;
 use SM\Shift\Model\RetailTransactionFactory;
+use SM\Shipping\Model\Carrier\RetailStorePickUp;
 use SM\XRetail\Helper\Data;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
@@ -341,7 +342,7 @@ class InvoiceManagement extends ServiceAbstract
                                     $order->setData('retail_has_shipment', 1);
                                     $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE_NOT_SHIPPED);
                                 } else {
-                                    if ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
+                                    if ($order->getShippingMethod() === RetailStorePickUp::METHOD) {
                                         $order->setData('retail_status', OrderManagement::RETAIL_ORDER_EXCHANGE_AWAIT_PICKING);
                                     } else {
                                         $order->setData('retail_status', OrderManagement::RETAIL_ORDER_EXCHANGE_NOT_SHIPPED);
@@ -366,7 +367,7 @@ class InvoiceManagement extends ServiceAbstract
                             }
                         }
                     } else {
-                        if ($order->getState() == Order::STATE_CLOSED || (!$order->canCreditmemo() && $order->hasCreditmemos())) {
+                        if (!$order->canCreditmemo()) {
                             $order->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
                         } else {
                             if ($order->getData('retail_has_shipment')) {
@@ -417,7 +418,7 @@ class InvoiceManagement extends ServiceAbstract
                 }
                 $this->orderRepository->save($order);
             }
-        } elseif ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
+        } elseif ($order->getShippingMethod() === RetailStorePickUp::METHOD) {
             if ($order->hasCreditmemos()) {
                 if ($order->canCreditmemo()) {
                     $retailStatus = $order->getData('retail_status');
@@ -487,7 +488,7 @@ class InvoiceManagement extends ServiceAbstract
             $currentCurrencyCode = $this->storeManager->getStore($order->getData('store_id'))->getCurrentCurrencyCode();
 
             // If order was created on online/backend so we will not add payment data into it
-            if ($order->getPayment()->getMethod() != RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE && $order->getShippingMethod() !== 'smstorepickup_smstorepickup') {
+            if ($order->getPayment()->getMethod() != RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE && $order->getShippingMethod() !== RetailStorePickUp::METHOD) {
             } else {
                 // save payment information to x-retail payment. It will display in order detail on CPOS
                 $splitData = json_decode($order->getPayment()->getAdditionalInformation('split_data'), true);

@@ -97,12 +97,12 @@ class OrderManagement extends ServiceAbstract
     const RETAIL_ORDER_COMPLETE_PICKING_IN_PROGRESS = 25;
     const RETAIL_ORDER_COMPLETE_AWAIT_COLLECTION = 26;
 
-    const RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION = 36;
-    const RETAIL_ORDER_PARTIALLY_REFUND_PICKING_IN_PROGRESS = 35;
-    const RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING = 34;
-    const RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED = 33;
-    const RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED = 32;
     const RETAIL_ORDER_PARTIALLY_REFUND = 31;
+    const RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED = 32;
+    const RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED = 33;
+    const RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING = 34;
+    const RETAIL_ORDER_PARTIALLY_REFUND_PICKING_IN_PROGRESS = 35;
+    const RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION = 36;
 
     const RETAIL_ORDER_FULLY_REFUND = 40;
 
@@ -708,33 +708,6 @@ class OrderManagement extends ServiceAbstract
             return false;
         }
 
-        //        //not split when order has no payment data (using full gift card or full store credit or full reward point, or partially paid with no deposit amount
-        //        if (!isset($orderData['order']['payment_data']) || empty($orderData['order']['payment_data'])) {
-        //            return false;
-        //        }
-        //
-        //        //not split when order using gift card
-        //        if (isset($orderData['gift_card']) && !empty($orderData['gift_card'])) {
-        //            return false;
-        //        }
-        //
-        //        //not split when order using reward point
-        //        if(isset($orderData['reward_point']) && $orderData['reward_point']['use_reward_point']) {
-        //            return false;
-        //        }
-        //
-        //        //not split when order using discount whole order
-        //        if(isset($orderData['order']['whole_order_discount'])
-        //            && isset($orderData['order']['whole_order_discount']['value'])
-        //            && $orderData['order']['whole_order_discount']['value'] != 0) {
-        //            return false;
-        //        }
-        //
-        //        //not split when order using store credit
-        //        if (isset($orderData['store_credit']) && !empty($orderData['store_credit'])) {
-        //            return false;
-        //        }
-        //
         $this->isSplitOrder = true;
 
         return true;
@@ -882,7 +855,7 @@ class OrderManagement extends ServiceAbstract
             /** @var \Magento\Sales\Model\Order $refundOrder */
             $refundOrder = $this->orderFactory->create();
             $refundOrder->load($data['order_refund_id']);
-            if ($refundOrder->getId()) {
+            if ($refundOrder->getId() && $refundOrder->getPayment()) {
                 $splitData = json_decode($refundOrder->getPayment()->getAdditionalInformation('split_data'), true);
                 if ($splitData) {
                     foreach ($splitData as &$paymentData) {
@@ -912,6 +885,9 @@ class OrderManagement extends ServiceAbstract
                     $refundOrder->getPayment()->setAdditionalInformation('split_data', json_encode($splitData))->save();
                 }
             }
+
+            // Reload before triggering events to prevent old data
+            $order = $order->load($order->getId());
 
             // XRT-6030 for syncing order to client ERP
             $this->getContext()
