@@ -209,7 +209,7 @@ class ShipmentManagement extends ServiceAbstract
      */
     public function createShipment()
     {
-        self:: $FROM_API = true;
+        self::$FROM_API = true;
         if (!($orderId = $this->getRequest()->getParam('order_id'))) {
             throw new Exception("Must have param Order Id");
         }
@@ -239,7 +239,7 @@ class ShipmentManagement extends ServiceAbstract
             ]
         );
 
-        return $this->orderHistoryManagement->loadOrders($criteria);
+        return $this->orderHistoryManagement->loadOrders($criteria, true);
     }
 
     /**
@@ -250,7 +250,7 @@ class ShipmentManagement extends ServiceAbstract
      */
     public function pick($orderId)
     {
-        $retail_status = $this->getRequest()->getParam('retail_status');
+        $retailStatus = $this->getRequest()->getParam('retail_status');
         $orderModel = $this->orderFactory->create();
         $order = $orderModel->load($orderId);
 
@@ -264,17 +264,25 @@ class ShipmentManagement extends ServiceAbstract
             OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION,
             OrderManagement::RETAIL_ORDER_EXCHANGE_AWAIT_COLLECTION,
         ];
-        if (in_array((int)$retail_status, $arrAwaitCollection)) {
+        if (in_array((int)$retailStatus, $arrAwaitCollection)) {
             $template = $this->getRequest()->getParam('template');
             $email = $order->getShippingAddress()->getEmail();
             $name = $order->getShippingAddress()->getName();
             $tempId = "xpos_send_picking";
             if (!is_null($template) && !is_null($email) && !is_null($name)) {
-                $this->emailSender->sendEmailOrder(['template' => $template], ['email' => $email, 'name' => $name], null, $tempId);
+                try {
+                    $this->emailSender->sendEmailOrder(['template' => $template], ['email' => $email, 'name' => $name], null, $tempId);
+                } catch (\Exception $e) {
+                    $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+                    $logger = new \Zend\Log\Logger();
+                    $logger->addWriter($writer);
+                    $logger->info("===> Unable to send order picking email");
+                    $logger->info($e->getMessage()."\n".$e->getTraceAsString());
+                }
             }
         }
 
-        $order->setData('retail_status', $retail_status);
+        $order->setData('retail_status', $retailStatus);
         return $this->orderRepository->save($order);
     }
 

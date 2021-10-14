@@ -6,6 +6,7 @@ use Magento\Framework\Event\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Registry;
 use SM\Integrate\Helper\Data;
+use SM\Shipping\Model\Carrier\RetailStorePickUp;
 use SM\XRetail\Model\OutletFactory;
 
 class SaveRetailDataToOrderAndQuote implements ObserverInterface
@@ -138,15 +139,15 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
             $order->setData('xRefNum', $xRefNum);
         }
 
-        $pickup_outlet_id = $this->registry->registry('pickup_outlet_id');
-        if ($quote->getShippingAddress()->getShippingMethod() === 'smstorepickup_smstorepickup'
-            && !$pickup_outlet_id
+        $pickupOutletId = $this->registry->registry('pickup_outlet_id');
+        if ($quote->getShippingAddress()->getShippingMethod() === RetailStorePickUp::METHOD
+            && !$pickupOutletId
             && $quote->getOutletId()) {
-            $pickup_outlet_id = $quote->getOutletId();
+            $pickupOutletId = $quote->getOutletId();
         }
-        if (!!$pickup_outlet_id) {
-            $quote->setData('pickup_outlet_id', $pickup_outlet_id);
-            $order->setData('pickup_outlet_id', $pickup_outlet_id);
+        if (!!$pickupOutletId) {
+            $quote->setData('pickup_outlet_id', $pickupOutletId);
+            $order->setData('pickup_outlet_id', $pickupOutletId);
         }
 
         $transId = $this->registry->registry('transId');

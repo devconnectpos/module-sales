@@ -35,13 +35,15 @@ class AddOutletPaymentMethod implements ObserverInterface
         $outletPaymentMethod = [];
 
         foreach ($splitData as $payment) {
-            $amount = floatval($payment['amount']);
+            $pAmount = $payment['amount'] ?? 0;
+            $pTitle = $payment['title'] ?? '';
+            $amount = floatval($pAmount);
 
             if ($amount == 0) {
                 continue;
             }
 
-            $outletPaymentMethod[$payment['title']] = strtoupper($payment['title']);
+            $outletPaymentMethod[$pTitle] = strtoupper($pTitle);
         }
 
         $order->setData('outlet_payment_method', implode('-', $outletPaymentMethod));
