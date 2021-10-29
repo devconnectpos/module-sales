@@ -273,10 +273,11 @@ class ShipmentManagement extends ServiceAbstract
                 try {
                     $this->emailSender->sendEmailOrder(['template' => $template], ['email' => $email, 'name' => $name], null, $tempId);
                 } catch (\Exception $e) {
-                    $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-                    $logger = $objectManager->get('Psr\Log\LoggerInterface');
-                    $logger->critical('===> Unable to send order picking email');
-                    $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+                    $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+                    $logger = new \Zend\Log\Logger();
+                    $logger->addWriter($writer);
+                    $logger->info("===> Unable to send order picking email");
+                    $logger->info($e->getMessage()."\n".$e->getTraceAsString());
                 }
             }
         }

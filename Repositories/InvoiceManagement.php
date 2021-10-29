@@ -189,10 +189,11 @@ class InvoiceManagement extends ServiceAbstract
         try {
             return $this->createInvoice($orderId);
         } catch (\Throwable $e) {
-            $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-            $logger = $objectManager->get('Psr\Log\LoggerInterface');
-            $logger->critical('====> Failed to create invoice');
-            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info('====> Failed to create invoice');
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
             throw $e;
         }
     }

@@ -105,10 +105,11 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 }
             }, [$setup, $context]);
         } catch (\Throwable $e) {
-            $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-            $logger = $objectManager->get('Psr\Log\LoggerInterface');
-            $logger->critical('====> Failed to upgrade Sales schema');
-            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info('====> Failed to upgrade Sales schema');
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
         }
     }
 
