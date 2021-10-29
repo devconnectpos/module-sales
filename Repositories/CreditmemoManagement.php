@@ -382,11 +382,10 @@ class CreditmemoManagement extends ServiceAbstract
                 throw new Exception("Can't find creditmemo data");
             }
         } catch (\Throwable $e) {
-            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
-            $logger = new \Zend\Log\Logger();
-            $logger->addWriter($writer);
-            $logger->info("===> Unable to save credit memo");
-            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
+            $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+            $logger = $objectManager->get('Psr\Log\LoggerInterface');
+            $logger->critical('===> Unable to save credit memo');
+            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
             throw $e;
         }
     }
