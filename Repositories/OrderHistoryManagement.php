@@ -729,7 +729,7 @@ class OrderHistoryManagement extends ServiceAbstract
 
         if (!$item->getProduct()
             || is_null($item->getProduct()->getImage())
-            || $item->getProduct()->getImage() == 'no_selection'
+            || $item->getProduct()->getImage() === 'no_selection'
             || !$item->getProduct()->getImage()
         ) {
             $xOrderItem->setData('origin_image', null);
@@ -746,7 +746,7 @@ class OrderHistoryManagement extends ServiceAbstract
 
         $children = [];
 
-        if ($item->getChildrenItems() && $item->getProductType() == 'bundle') {
+        if ($item->getChildrenItems() && $item->getProductType() === 'bundle') {
             /** @var \Magento\Sales\Model\Order\Item $childrenItem */
             foreach ($item->getChildrenItems() as $childrenItem) {
                 $child = $this->xOrderItemFactory->create();
@@ -754,7 +754,7 @@ class OrderHistoryManagement extends ServiceAbstract
 
                 if (!$childrenItem->getProduct()
                     || is_null($childrenItem->getProduct()->getImage())
-                    || $childrenItem->getProduct()->getImage() == 'no_selection'
+                    || $childrenItem->getProduct()->getImage() === 'no_selection'
                     || !$childrenItem->getProduct()->getImage()
                 ) {
                     $child->setData('origin_image', null);
