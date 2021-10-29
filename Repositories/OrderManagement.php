@@ -615,10 +615,11 @@ class OrderManagement extends ServiceAbstract
                 ->processActionData($isSaveOrder ? "check" : null, $carriers);
         } catch (Exception $e) {
             $this->clear();
-            $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-            $logger = $objectManager->get('Psr\Log\LoggerInterface');
-            $logger->critical('===> Unable to process load order data');
-            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info("===> Unable to process load order data");
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
             throw new Exception($e->getMessage());
         }
 
@@ -644,6 +645,22 @@ class OrderManagement extends ServiceAbstract
         try {
             $this->clear();
             $data = $this->getRequest()->getParams();
+            // TODO: Just let the client handle duplicate order case
+//            $storeId = isset($data['store_id']) ? $data['store_id'] : '';
+//            $retailId = isset($data['retail_id']) ? $data['retail_id'] : '';
+//            $outletId = isset($data['outlet_id']) ? $data['outlet_id'] : '';
+//            $userId = isset($data['user_id']) ? $data['user_id'] : '';
+//            $registerId = isset($data['register_id']) ? $data['register_id'] : '';
+//            $customerId = isset($data['customer_id']) ? $data['customer_id'] : '';
+//            if (isset($data['orderOffline']) && $data['orderOffline'] && !empty($retailId)) {
+//                $grandTotal = $data['orderOffline']['totals']['grand_total'];
+//                $subtotal = $data['orderOffline']['totals']['subtotal'];
+//                $existingOrder = $this->checkExistedOrder($storeId, $retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal);
+//                if ($existingOrder && $existingOrder->getId()) {
+//                    $incrementId = $existingOrder->getIncrementId();
+//                    throw new Exception(__("Duplicated order, cannot save. Found order with Magento ID {$incrementId} (Order ID: {$existingOrder->getId()}) which have the same POS ID {$retailId}! Please clear the cache and place the order again!"));
+//                }
+//            }
 
             //save origin payment data to local variable
             $paymentData = $data['order']['payment_data'] ?? [];
@@ -670,10 +687,11 @@ class OrderManagement extends ServiceAbstract
 
             return $this->orderHistoryManagement->loadOrders($criteria, true);
         } catch (\Throwable $e) {
-            $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-            $logger = $objectManager->get('Psr\Log\LoggerInterface');
-            $logger->critical('====> Failed to place order');
-            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info('====> Failed to place order');
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
             throw $e;
         }
     }
@@ -771,10 +789,11 @@ class OrderManagement extends ServiceAbstract
                 }
                 $this->saveOrderError($data['orderOffline'], $e);
             }
-            $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-            $logger = $objectManager->get('Psr\Log\LoggerInterface');
-            $logger->critical('===> Unable to save order');
-            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+            $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+            $logger = new \Zend\Log\Logger();
+            $logger->addWriter($writer);
+            $logger->info("===> Unable to save order");
+            $logger->info($e->getMessage()."\n".$e->getTraceAsString());
             throw new Exception($e->getMessage());
         } finally {
             $this->clear();
@@ -798,10 +817,11 @@ class OrderManagement extends ServiceAbstract
                             $this->shipmentDataManagement->ship($order->getId());
                         }
                     } catch (\Exception $e) {
-                        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-                        $logger = $objectManager->get('Psr\Log\LoggerInterface');
-                        $logger->critical('===> Unable to create shipment');
-                        $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+                        $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+                        $logger = new \Zend\Log\Logger();
+                        $logger->addWriter($writer);
+                        $logger->info('===> Unable to create shipment');
+                        $logger->info($e->getMessage()."\n".$e->getTraceAsString());
 
                         // ship error
                         if ((int)$e->getCode() === 0) {
@@ -817,10 +837,11 @@ class OrderManagement extends ServiceAbstract
                         $this->invoiceManagement->checkPayment($order, $isPendingOrder);
                     }
                 } catch (\Exception $e) {
-                    $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-                    $logger = $objectManager->get('Psr\Log\LoggerInterface');
-                    $logger->critical('===> Unable to check invoice payments');
-                    $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+                    $writer = new \Zend\Log\Writer\Stream(BP.'/var/log/connectpos.log');
+                    $logger = new \Zend\Log\Logger();
+                    $logger->addWriter($writer);
+                    $logger->info("===> Unable to check invoice payments");
+                    $logger->info($e->getMessage()."\n".$e->getTraceAsString());
                 }
                 if (!isset($data['is_pwa']) || !$data['is_pwa'] === true) {
                     $this->saveOrderTaxInTableShift($order);
@@ -828,33 +849,36 @@ class OrderManagement extends ServiceAbstract
             }
         }
 
+        $configData = $this->getConfigLoaderData();
+
         if ($this->isRefundToGC && !!$data['order_refund_id']) {
             /** @var \Magento\Sales\Model\Order $refundOrder */
             $refundOrder = $this->orderFactory->create();
             $refundOrder->load($data['order_refund_id']);
             if ($refundOrder->getId() && $refundOrder->getPayment()) {
                 $splitData = json_decode($refundOrder->getPayment()->getAdditionalInformation('split_data'), true);
-                if (is_array($splitData)) {
+                if ($splitData) {
                     foreach ($splitData as &$paymentData) {
                         if (is_array($paymentData)
                             && $paymentData['type'] === 'refund_gift_card'
                             && $paymentData['is_purchase'] == 0
                         ) {
-                            if (!$this->integrateHelperData->isIntegrateGC()) {
-                                continue;
-                            }
-
                             $gcProduct = $order->getItemsCollection()->getFirstItem();
-                            if ($this->integrateHelperData->isUsingAHWGiftCard()) {
-                                if (!isset($paymentData['gc_created_codes'])) {
-                                    $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['aw_gc_created_codes'][0];
-                                    $paymentData['gc_amount'] = $gcProduct->getData('product_options')['aw_gc_amount'];
-                                }
-                            } elseif ($this->integrateHelperData->isUsingMagentoGiftCard()) {
+                            if ($this->integrateHelperData->isAHWGiftCardExist()
+                                && isset($configData['xretail/pos/integrate_gc'])
+                                && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
+                                && $this->integrateHelperData->isIntegrateGC()
+                                && !isset($paymentData['gc_created_codes'])
+                            ) {
+                                $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['aw_gc_created_codes'][0];
+                                $paymentData['gc_amount'] = $gcProduct->getData('product_options')['aw_gc_amount'];
+                            } elseif ($this->integrateHelperData->isGiftCardMagento2EE()
+                                && isset($configData['xretail/pos/integrate_gc'])
+                                && $configData['xretail/pos/integrate_gc']['value'] === 'mage2_ee'
+                                && $this->integrateHelperData->isIntegrateGC()
+                            ) {
                                 $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['giftcard_created_codes'][0];
                                 $paymentData['gc_amount'] = $paymentData['amount'];
-                            } elseif ($this->integrateHelperData->isUsingAmastyGiftCard()) {
-                                // TODO: Logic???
                             }
                         }
                     }
@@ -1826,7 +1850,7 @@ class OrderManagement extends ServiceAbstract
 
         if ($this->checkIsRefundToGiftCard()) {
             foreach ($order['payment_data'] as $paymentDatum) {
-                if ($paymentDatum['type'] === 'refund_gift_card') {
+                if ($paymentDatum['type'] == 'refund_gift_card') {
                     $data['order']['payment_data'] = [$paymentDatum];
                     $order['payment_data'] = [$paymentDatum];
                 }
@@ -1843,35 +1867,37 @@ class OrderManagement extends ServiceAbstract
                 $gcAmount = abs($data['order']['payment_data'][0]['amount']);
             }
 
-            if ($this->integrateHelperData->isIntegrateGC()) {
-                if ($this->integrateHelperData->isUsingAHWGiftCard()) {
-                    $giftCardItems['gift_card'] = [
-                        'aw_gc_amount'        => "custom",
-                        'aw_gc_custom_amount' => $gcAmount,
-                        'aw_gc_template'      => 'aw_giftcard_email_template',
-                        'aw_gc_sender_email'  => $order['payment_data'][0]['sender_email'],
-                        'aw_gc_sender_name'   => $order['payment_data'][0]['sender_name'],
+            if ($this->integrateHelperData->isAHWGiftCardExist()
+                && isset($configData['xretail/pos/integrate_gc'])
+                && $configData['xretail/pos/integrate_gc']['value'] === 'aheadWorks'
+                && $this->integrateHelperData->isIntegrateGC()
+            ) {
+                $giftCardItems['gift_card'] = [
+                    'aw_gc_amount'        => "custom",
+                    'aw_gc_custom_amount' => $gcAmount,
+                    'aw_gc_template'      => 'aw_giftcard_email_template',
+                    'aw_gc_sender_email'  => $order['payment_data'][0]['sender_email'],
+                    'aw_gc_sender_name'   => $order['payment_data'][0]['sender_name'],
 
-                        'aw_gc_recipient_email' => $order['payment_data'][0]['recipient_email'],
-                        'aw_gc_recipient_name'  => $order['payment_data'][0]['recipient_name'],
-                    ];
-                } elseif ($this->integrateHelperData->isUsingMagentoGiftCard()) {
-                    $giftCardItems['gift_card'] = [
-                        'giftcard_amount'        => "custom",
-                        'custom_giftcard_amount' => $gcAmount,
-                        'giftcard_sender_email'  => $order['payment_data'][0]['sender_email'],
-                        'giftcard_sender_name'   => $order['payment_data'][0]['sender_name'],
+                    'aw_gc_recipient_email' => $order['payment_data'][0]['recipient_email'],
+                    'aw_gc_recipient_name'  => $order['payment_data'][0]['recipient_name'],
+                ];
+            } elseif ($this->integrateHelperData->isGiftCardMagento2EE()
+                && isset($configData['xretail/pos/integrate_gc'])
+                && $configData['xretail/pos/integrate_gc']['value'] === 'mage2_ee'
+                && $this->integrateHelperData->isIntegrateGC()
+            ) {
+                $giftCardItems['gift_card'] = [
+                    'giftcard_amount'        => "custom",
+                    'custom_giftcard_amount' => $gcAmount,
+                    'giftcard_sender_email'  => $order['payment_data'][0]['sender_email'],
+                    'giftcard_sender_name'   => $order['payment_data'][0]['sender_name'],
 
-                        'giftcard_recipient_email' => $order['payment_data'][0]['recipient_email'],
-                        'giftcard_recipient_name'  => $order['payment_data'][0]['recipient_name'],
-                    ];
-                } elseif ($this->integrateHelperData->isUsingAmastyGiftCard()) {
-                    // TODO: Logic???
-
-                }
+                    'giftcard_recipient_email' => $order['payment_data'][0]['recipient_email'],
+                    'giftcard_recipient_name'  => $order['payment_data'][0]['recipient_name'],
+                ];
             }
-
-            $data['items'][] = $giftCardItems;
+            array_push($data['items'], $giftCardItems);
 
             $order['payment_data'][0]['isChanging'] = true;
             if ($order['payment_data'][0]['amount'] == 0) {
@@ -1932,7 +1958,7 @@ class OrderManagement extends ServiceAbstract
         }
 
         // fix region id for magento 2.2.3 or above
-        if ($orderAddress['region_id'] === "*") {
+        if ($orderAddress['region_id'] == "*") {
             $addressData['region_id'] = null;
         }
 
@@ -1950,7 +1976,6 @@ class OrderManagement extends ServiceAbstract
         $cachedSerialNumber = "";
         foreach ($items as $key => $value) {
             if (isset($value['gift_card'])) {
-                // AheadWorks gift card
                 if (isset($items[$key]['gift_card']['aw_gc_amount'])) {
                     $items[$key]['gift_card']['giftcard_amount'] = $items[$key]['gift_card']['aw_gc_amount'];
                 }
@@ -1983,35 +2008,6 @@ class OrderManagement extends ServiceAbstract
                     $queue->enqueue($items[$key]['gift_card']['aw_gc_code']);
                     $this->registry->unregister('aw_gc_code');
                     $this->registry->register('aw_gc_code', $queue);
-                }
-
-                // Amasty gift card
-                if (isset($items[$key]['gift_card']['am_giftcard_type'])) {
-                    $items[$key]['gift_card']['giftcard_type'] = $items[$key]['gift_card']['am_giftcard_type'];
-                }
-                if (isset($items[$key]['gift_card']['am_giftcard_image'])) {
-                    $items[$key]['gift_card']['giftcard_template'] = $items[$key]['gift_card']['am_giftcard_image'];
-                }
-                if (isset($items[$key]['gift_card']['am_giftcard_amount'])) {
-                    $items[$key]['gift_card']['giftcard_amount'] = $items[$key]['gift_card']['am_giftcard_amount'];
-                }
-                if (isset($items[$key]['gift_card']['am_giftcard_amount_custom'])) {
-                    $items[$key]['gift_card']['custom_giftcard_amount'] = $items[$key]['gift_card']['am_giftcard_amount_custom'];
-                }
-                if (isset($items[$key]['gift_card']['am_giftcard_recipient_name'])) {
-                    $items[$key]['gift_card']['giftcard_recipient_name'] = $items[$key]['gift_card']['am_giftcard_recipient_name'];
-                }
-                if (isset($items[$key]['gift_card']['am_giftcard_recipient_email'])) {
-                    $items[$key]['gift_card']['giftcard_recipient_email'] = $items[$key]['gift_card']['am_giftcard_recipient_email'];
-                }
-                if (isset($items[$key]['gift_card']['am_giftcard_code'])) {
-                    $queue = $this->registry->registry('am_giftcard_code');
-                    if (!$queue || $queue->isEmpty()) {
-                        $queue = new \SplQueue();
-                    }
-                    $queue->enqueue($items[$key]['gift_card']['am_giftcard_code']);
-                    $this->registry->unregister('am_giftcard_code');
-                    $this->registry->register('am_giftcard_code', $queue);
                 }
             }
 
