@@ -854,7 +854,10 @@ class OrderManagement extends ServiceAbstract
                                 $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['giftcard_created_codes'][0];
                                 $paymentData['gc_amount'] = $paymentData['amount'];
                             } elseif ($this->integrateHelperData->isUsingAmastyGiftCard()) {
-                                // TODO: Logic???
+                                if (!isset($paymentData['gc_created_codes'])) {
+                                    $paymentData['gc_created_codes'] = $gcProduct->getData('product_options')['am_giftcard_created_codes'][0];
+                                    $paymentData['gc_amount'] = $gcProduct->getData('product_options')['am_giftcard_amount'];
+                                }
                             }
                         }
                     }
