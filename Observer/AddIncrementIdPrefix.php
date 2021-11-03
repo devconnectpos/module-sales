@@ -103,11 +103,10 @@ class AddIncrementIdPrefix implements ObserverInterface
             try {
                 $this->orderSyncErrorResource->delete($item);
             } catch (\Exception $e) {
-                $writer = new \Zend\Log\Writer\Stream(BP . '/var/log/connectpos.log');
-                $logger = new \Zend\Log\Logger();
-                $logger->addWriter($writer);
-                $logger->info("===> Unable to delete order sync error entry with retail ID #" . $item->getData('retail_id'));
-                $logger->info($e->getMessage() . "\n" . $e->getTraceAsString());
+                $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+                $logger = $objectManager->get('Psr\Log\LoggerInterface');
+                $logger->info("====> [CPOS] Unable to delete order sync error entry with retail ID #" . $item->getData('retail_id') . ": {$e->getMessage()}");
+                $logger->info($e->getTraceAsString());
             }
         }
 

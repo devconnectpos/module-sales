@@ -107,8 +107,8 @@ class UpgradeSchema implements UpgradeSchemaInterface
         } catch (\Throwable $e) {
             $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
             $logger = $objectManager->get('Psr\Log\LoggerInterface');
-            $logger->critical('====> Failed to upgrade Sales schema');
-            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+            $logger->critical("====> [CPOS] Failed to upgrade Sales schema: {$e->getMessage()}");
+            $logger->critical($e->getTraceAsString());
         }
     }
 
