@@ -191,8 +191,8 @@ class InvoiceManagement extends ServiceAbstract
         } catch (\Throwable $e) {
             $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
             $logger = $objectManager->get('Psr\Log\LoggerInterface');
-            $logger->critical('====> Failed to create invoice');
-            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+            $logger->critical("====> [CPOS] Failed to create invoice: {$e->getMessage()}");
+            $logger->critical($e->getTraceAsString());
             throw $e;
         }
     }

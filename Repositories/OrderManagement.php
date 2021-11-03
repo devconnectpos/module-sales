@@ -672,8 +672,8 @@ class OrderManagement extends ServiceAbstract
         } catch (\Throwable $e) {
             $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
             $logger = $objectManager->get('Psr\Log\LoggerInterface');
-            $logger->critical('====> Failed to place order');
-            $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
+            $logger->critical("====> [CPOS] Failed to place order: {$e->getMessage()}");
+            $logger->critical($e->getTraceAsString());
             throw $e;
         }
     }
@@ -765,10 +765,12 @@ class OrderManagement extends ServiceAbstract
                 if (!isset($data['orderOffline'])) {
                     $data['orderOffline'] = [];
                 }
-                if (isset($data['orderOffline']["retail_id"])) {
-                    // Add suffix R for resynced orders
+
+                // Add suffix R for re-synced orders
+                if (isset($data['orderOffline']["retail_id"]) && strpos($data['orderOffline']["retail_id"], 'R') === false) {
                     $data['orderOffline']["retail_id"] .= "R";
                 }
+
                 $this->saveOrderError($data['orderOffline'], $e);
             }
             $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
@@ -784,6 +786,10 @@ class OrderManagement extends ServiceAbstract
                     $this->addStoreCreditData($order);
                     $this->addRewardPointData($order);
                 } catch (Exception $e) {
+                    $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+                    $logger = $objectManager->get('Psr\Log\LoggerInterface');
+                    $logger->critical('===> Error when adding store credit or reard point data');
+                    $logger->critical($e->getMessage()."\n".$e->getTraceAsString());
                 }
 
                 $isVirtual = $this->getQuote()->isVirtual();
@@ -1233,7 +1239,7 @@ class OrderManagement extends ServiceAbstract
                     "id"                    => $giftCardPaymentId,
                     "type"                  => RetailPayment::GIFT_CARD_PAYMENT_TYPE,
                     "title"                 => "Gift Card",
-                    "refund_amount"         => $this->getQuote()->getGrandTotal(),
+                    "refund_amount"         => $this->getQuote() ? $this->getQuote()->getGrandTotal() : 0,
                     "data"                  => [],
                     "isChanging"            => true,
                     "allow_amount_tendered" => true,
