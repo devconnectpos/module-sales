@@ -1876,7 +1876,15 @@ class OrderManagement extends ServiceAbstract
                     ];
                 } elseif ($this->integrateHelperData->isUsingAmastyGiftCard()) {
                     // TODO: Logic???
+                    $giftCardItems['gift_card'] = [
+                        'giftcard_amount'        => "custom",
+                        'custom_giftcard_amount' => $gcAmount,
+                        'giftcard_sender_email'  => $order['payment_data'][0]['sender_email'],
+                        'giftcard_sender_name'   => $order['payment_data'][0]['sender_name'],
 
+                        'giftcard_recipient_email' => $order['payment_data'][0]['recipient_email'],
+                        'giftcard_recipient_name'  => $order['payment_data'][0]['recipient_name'],
+                    ];
                 }
             }
 
@@ -2602,6 +2610,7 @@ class OrderManagement extends ServiceAbstract
     protected function checkExistedOrder($storeId, $retailId, $outletId, $registerId, $userId, $customerId, $grandTotal, $subtotal)
     {
         $orderModel = $this->orderCollectionFactory->create();
+
         return $orderModel
             ->addFieldToFilter('store_id', ['eq' => $storeId])
             ->addFieldToFilter('retail_id', ['eq' => $retailId])
