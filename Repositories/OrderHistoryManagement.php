@@ -469,6 +469,7 @@ class OrderHistoryManagement extends ServiceAbstract
                         }
                     }
                 }
+
                 if ($this->integrateHelperData->isIntegrateGC()
                     && $this->integrateHelperData->isGiftCardMagento2EE()
                 ) {
@@ -483,6 +484,22 @@ class OrderHistoryManagement extends ServiceAbstract
                                 'gift_code'            => $giftCard['c'],
                                 'giftcard_amount'      => -floatval(abs($giftCard['a'])),
                                 'base_giftcard_amount' => -floatval(abs($giftCard['ba'])),
+                            ];
+                        }
+                    }
+                }
+
+                if ($this->integrateHelperData->isUsingAmastyGiftCard()) {
+                    $amOrderGiftCard = $order->getExtensionAttributes() ? $order->getExtensionAttributes()->getAmGiftcardOrder() : null;
+
+                    if (!is_null($amOrderGiftCard)) {
+                        $amGiftCards = $amOrderGiftCard['gift_cards'] ?? [];
+                        $totals['gift_card'] = [];
+                        foreach ($amGiftCards as $gc) {
+                            $totals['gift_card'][] = [
+                                'gift_code'            => $gc['code'],
+                                'giftcard_amount'      => -((float)(abs($gc['amount']))),
+                                'base_giftcard_amount' => -((float)(abs($gc['b_amount']))),
                             ];
                         }
                     }
