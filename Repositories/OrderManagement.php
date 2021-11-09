@@ -622,17 +622,41 @@ class OrderManagement extends ServiceAbstract
             throw new Exception($e->getMessage());
         }
 
-        $outputData = null;
         if (!$isSaveOrder) {
             $this->getQuote()->setIsActive(true);
             $outputData = $this->getOutputLoadData();
             $this->clear();
-        } else {
-            $this->getQuote()->setIsActive(false);
+            $this->cartRepository->save($this->getQuote());
+
+            if ($this->integrateHelperData->isUsingAmastyGiftCard()) {
+                $this->checkIntegrateRP()
+                    ->checkIntegrateGC();
+                $this->getQuote()->collectTotals();
+                $this->cartRepository->save($this->getQuote());
+                $quote = $this->cartRepository->get($this->getQuote()->getId());
+                $this->quote = $quote;
+                $outputData = $this->getOutputLoadData();
+            }
+
+            return $outputData;
         }
+
+        if ($this->integrateHelperData->isUsingAmastyGiftCard()) {
+            $this->getQuote()->setIsActive(true);
+            $this->cartRepository->save($this->getQuote());
+            $this->checkIntegrateRP()
+                ->checkIntegrateGC();
+            $this->getQuote()->collectTotals();
+            $this->cartRepository->save($this->getQuote());
+            $quote = $this->cartRepository->get($this->getQuote()->getId());
+            $this->quote = $quote;
+            return $this->getOutputLoadData();
+        }
+
+        $this->getQuote()->setIsActive(false);
         $this->cartRepository->save($this->getQuote());
 
-        return $outputData;
+        return $this->getOutputLoadData();
     }
 
     /**
@@ -730,9 +754,14 @@ class OrderManagement extends ServiceAbstract
         $data = $this->requestOrderData;
 
         try {
-            $order = $this->getOrderCreateModel()
-                ->setIsValidate(true)
-                ->createOrder();
+            $orderModel = $this->getOrderCreateModel();
+
+            if ($this->integrateHelperData->isUsingAmastyGiftCard()) {
+                $orderModel->setQuote($this->getQuote());
+            }
+
+            $order = $orderModel->setIsValidate(true)->createOrder();
+
             if (!isset($data['is_pwa']) || $data['is_pwa'] !== true) {
                 //move the savePaymentTransaction function to an event
                 $this->getContext()
@@ -1353,9 +1382,6 @@ class OrderManagement extends ServiceAbstract
             ->save();
     }
 
-    /**
-     *
-     */
     public function clear()
     {
         $this->getSession()->clearStorage()->destroy();
@@ -1729,7 +1755,34 @@ class OrderManagement extends ServiceAbstract
         ) {
             $giftCardRequest = $this->getRequest()->getParam('gift_card');
             if ($giftCardRequest) {
-                $data['gift_card'] = $this->gcIntegrateManagement->getQuoteGCData();
+                if ($this->integrateHelperData->isUsingAmastyGiftCard()) {
+                    $quote = $this->getQuote()->collectTotals();
+                    $quoteListGC = [];
+                    $quoteGiftCards = [];
+
+                    if ($extensionAttributes = $quote->getExtensionAttributes()) {
+                        $quoteGiftCards = $extensionAttributes->getAmAppliedGiftCards() ?? [];
+                    }
+
+                    if (is_array($quoteGiftCards) && count($quoteGiftCards) > 0) {
+                        foreach ($quoteGiftCards as $giftCard) {
+                            $gcCode = $giftCard['code'] ?? '';
+                            $gcBaseAmount = isset($giftCard['b_amount']) ? -$giftCard['b_amount'] : 0;
+                            $gcAmount = isset($giftCard['amount']) ? -$giftCard['amount'] : 0;
+                            $quoteGcData = [
+                                'is_valid'             => true,
+                                'gift_code'            => $gcCode,
+                                'base_giftcard_amount' => $gcBaseAmount,
+                                'giftcard_amount'      => $gcAmount,
+                            ];
+                            $quoteListGC[] = $quoteGcData;
+                        }
+                    }
+
+                    $data['gift_card'] = $quoteListGC;
+                } else {
+                    $data['gift_card'] = $this->gcIntegrateManagement->getQuoteGCData();
+                }
             } else {
                 $data['gift_card'] = [];
             }
@@ -1833,7 +1886,7 @@ class OrderManagement extends ServiceAbstract
         }
         $order['payment_data'] = $paymentData;
 
-        if ($this->checkIsRefundToGiftCard()) {
+        if ($this->checkIsRefundToGiftCard() && isset($order['payment_data']) && !empty($order['payment_data'])) {
             foreach ($order['payment_data'] as $paymentDatum) {
                 if ($paymentDatum['type'] === 'refund_gift_card') {
                     $data['order']['payment_data'] = [$paymentDatum];
@@ -1875,7 +1928,6 @@ class OrderManagement extends ServiceAbstract
                         'giftcard_recipient_name'  => $order['payment_data'][0]['recipient_name'],
                     ];
                 } elseif ($this->integrateHelperData->isUsingAmastyGiftCard()) {
-                    // TODO: Logic???
                     $giftCardItems['gift_card'] = [
                         'giftcard_amount'        => "custom",
                         'custom_giftcard_amount' => $gcAmount,
