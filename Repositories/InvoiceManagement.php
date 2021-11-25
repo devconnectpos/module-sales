@@ -663,6 +663,7 @@ class InvoiceManagement extends ServiceAbstract
                 if (($this->integrateHelper->isRewardPointMagento2EE() && $mage2EEConfig)
                     || ($this->integrateHelper->isAHWRewardPoints() && $aheadWorkConfig)
                     || ($this->integrateHelper->isAmastyRewardPoints())
+                    || ($this->integrateHelper->isMirasvitRewardPoints())
                 ) {
                     $order->setData('reward_points_refunded', floatval($reward_point_deduct));
                     $order->setData('previous_reward_points_balance', floatval($currentRewardPointBalance));
@@ -676,7 +677,10 @@ class InvoiceManagement extends ServiceAbstract
     {
         $currentRewardPointBalance = 0;
         if ($this->integrateHelper->isIntegrateRP()
-            && ($this->integrateHelper->isAHWRewardPoints() || $this->integrateHelper->isAmastyRewardPoints())
+            && ($this->integrateHelper->isAHWRewardPoints()
+                || $this->integrateHelper->isAmastyRewardPoints()
+                || $this->integrateHelper->isMirasvitRewardPoints()
+            )
         ) {
             $currentRewardPointBalance = $this->integrateHelper
                 ->getRpIntegrateManagement()

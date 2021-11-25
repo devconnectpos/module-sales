@@ -497,6 +497,12 @@ class CreditmemoManagement extends ServiceAbstract
             $totals['estimated_reward_points_refund_amount'] = $creditmemo->getRewardCurrencyAmount();
         }
 
+        if ($this->integrateHelperData->isIntegrateRP()
+            && $this->integrateHelperData->isMirasvitRewardPoints()
+        ) {
+            // TODO: add logic here
+        }
+
         if ($this->integrateHelperData->isIntegrateStoreCredit()
             && $this->integrateHelperData->isExistStoreCreditMagento2EE()
         ) {
