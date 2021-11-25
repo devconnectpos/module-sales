@@ -439,6 +439,13 @@ class OrderHistoryManagement extends ServiceAbstract
                 }
 
                 if ($this->integrateHelperData->isIntegrateRP()
+                    && $this->integrateHelperData->isMirasvitRewardPoints()
+                ) {
+                    // TODO: differentiate between platforms
+                    $totals['reward_point_discount_amount'] = $order->getData('reward_currency_amount');
+                }
+
+                if ($this->integrateHelperData->isIntegrateRP()
                     && $this->integrateHelperData->isRewardPointMagento2EE()
                 ) {
                     $totals['reward_point_discount_amount'] = -$order->getData('reward_currency_amount');
