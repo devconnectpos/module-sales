@@ -55,7 +55,7 @@ class FixOrderStateBug
             return true;
         }
 
-        if ((float)$totalRefunded > 0 && $this->comparator->greaterThanOrEqual($totalRefunded, (float)$subject->getBaseTotalPaid())) {
+        if ((float)$totalRefunded > 0 && (float)$subject->getBaseTotalPaid() > 0 && $this->comparator->greaterThanOrEqual($totalRefunded, (float)$subject->getBaseTotalPaid())) {
             return false;
         }
 
