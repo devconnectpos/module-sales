@@ -5,6 +5,7 @@ namespace SM\Sales\Command;
 use Magento\Framework\App\Area;
 use Magento\Framework\App\State;
 use Magento\Framework\Event\ManagerInterface;
+use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\ResourceModel\Order as OrderResource;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
@@ -34,17 +35,24 @@ class FixClosedOrderStatus extends Command
      */
     protected $eventManager;
 
+    /**
+     * @var OrderRepositoryInterface
+     */
+    protected $orderRepository;
+
     public function __construct(
         State $appState,
         CollectionFactory $collectionFactory,
         OrderResource $orderResource,
         ManagerInterface $eventManager,
+        OrderRepositoryInterface $orderRepository,
         $name = null
     ) {
         $this->orderCollectionFactory = $collectionFactory;
         $this->orderResource = $orderResource;
         $this->appState = $appState;
         $this->eventManager = $eventManager;
+        $this->orderRepository = $orderRepository;
         parent::__construct($name);
     }
 
@@ -81,6 +89,7 @@ class FixClosedOrderStatus extends Command
                             ->setStatus(Order::STATE_PROCESSING);
                         $this->orderResource->saveAttribute($order, 'state');
                         $this->orderResource->saveAttribute($order, 'status');
+                        $this->orderRepository->save($order);
                         $this->eventManager->dispatch('cpos_sales_order_place_after', ['order' => $order]);
                         continue;
                     }
@@ -90,6 +99,7 @@ class FixClosedOrderStatus extends Command
 
                     $this->orderResource->saveAttribute($order, 'state');
                     $this->orderResource->saveAttribute($order, 'status');
+                    $this->orderRepository->save($order);
                     $this->eventManager->dispatch('cpos_sales_order_place_after', ['order' => $order]);
                 }
             }, [$input, $output]);
