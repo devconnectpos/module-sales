@@ -8,6 +8,7 @@ use Magento\Framework\Event\ManagerInterface;
 use Magento\Sales\Model\Order;
 use Magento\Sales\Model\ResourceModel\Order as OrderResource;
 use Magento\Sales\Model\ResourceModel\Order\CollectionFactory;
+use Magento\Sales\Api\OrderRepositoryInterface;
 
 class FixOrderStatus
 {
@@ -31,16 +32,23 @@ class FixOrderStatus
      */
     protected $eventManager;
 
+    /**
+     * @var OrderRepositoryInterface
+     */
+    protected $orderRepository;
+
     public function __construct(
         State $appState,
         CollectionFactory $collectionFactory,
         OrderResource $orderResource,
-        ManagerInterface $eventManager
+        ManagerInterface $eventManager,
+        OrderRepositoryInterface $orderRepository
     ) {
         $this->orderCollectionFactory = $collectionFactory;
         $this->orderResource = $orderResource;
         $this->appState = $appState;
         $this->eventManager = $eventManager;
+        $this->orderRepository = $orderRepository;
     }
 
     public function execute()
@@ -67,6 +75,7 @@ class FixOrderStatus
                             ->setStatus(Order::STATE_PROCESSING);
                         $this->orderResource->saveAttribute($order, 'state');
                         $this->orderResource->saveAttribute($order, 'status');
+                        $this->orderRepository->save($order);
                         $this->eventManager->dispatch('cpos_sales_order_place_after', ['order' => $order]);
                         continue;
                     }
@@ -76,6 +85,7 @@ class FixOrderStatus
 
                     $this->orderResource->saveAttribute($order, 'state');
                     $this->orderResource->saveAttribute($order, 'status');
+                    $this->orderRepository->save($order);
                     $this->eventManager->dispatch('cpos_sales_order_place_after', ['order' => $order]);
                 }
             }, []);

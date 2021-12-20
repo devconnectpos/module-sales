@@ -2595,6 +2595,10 @@ class OrderManagement extends ServiceAbstract
                     continue;
                 }
 
+                if (empty($rateData['carrier_title'])) {
+                    $rateData['carrier_title'] = $rateData['method_title'] ?? ucfirst($rateData['carrier']);
+                }
+
                 if ($rateData['carrier'] === 'matrixrate') {
                     $additionalDataModel = $this->carrierAdditionalDataFactory->create()
                         ->loadByCarrierCode($rateData['carrier']);
