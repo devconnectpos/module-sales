@@ -2611,7 +2611,7 @@ class OrderManagement extends ServiceAbstract
                 if (in_array($rateData['carrier'], $allowShippingCarriers)
                     || (strpos($rateData['carrier'], 'shq') !== false)
                 ) {
-                    $arr[] = $rateData;
+                    $arr[$rateData['code']] = $rateData;
                 }
             }
         }
