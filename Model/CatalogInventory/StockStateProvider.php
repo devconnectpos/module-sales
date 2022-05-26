@@ -2,11 +2,8 @@
 
 namespace SM\Sales\Model\CatalogInventory;
 
-use Magento\Catalog\Model\ProductFactory;
 use Magento\CatalogInventory\Api\Data\StockItemInterface;
-use Magento\Framework\DataObject\Factory as ObjectFactory;
-use Magento\Framework\Locale\FormatInterface;
-use Magento\Framework\Math\Division as MathDivision;
+use SM\Sales\Repositories\OrderManagement;
 
 class StockStateProvider extends \Magento\CatalogInventory\Model\StockStateProvider
 {
@@ -30,6 +27,11 @@ class StockStateProvider extends \Magento\CatalogInventory\Model\StockStateProvi
         $product = $this->productFactory->create();
         $product->load($stockItem->getProductId());
         $result->setMessage($result->getMessage() . " {$product->getName()} ({$product->getSku()})");
+
+        if (OrderManagement::$FROM_API) {
+            $result->setHasError(false);
+        }
+
         return $result;
     }
 }
