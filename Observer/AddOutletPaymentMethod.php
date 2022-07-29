@@ -71,10 +71,10 @@ class AddOutletPaymentMethod implements ObserverInterface
         if ($this->dataConfig->isRoundingOrderStoreCreditData()) {
             // Attempt to round things up for fking Mr's Leather
             $order->setData('outlet_payment_method', implode('-', $outletPaymentMethod));
-            $order->setData('base_customer_balance_amount', round($order->getData('base_customer_balance_amount')));
-            $order->setData('customer_balance_amount', round($order->getData('customer_balance_amount')));
-            $order->setData('base_grand_total', round($order->getData('base_grand_total')));
-            $order->setData('grand_total', round($order->getData('grand_total')));
+            $order->setData('base_customer_balance_amount', $this->priceCurrency->round($order->getData('base_customer_balance_amount')));
+            $order->setData('customer_balance_amount', $this->priceCurrency->round($order->getData('customer_balance_amount')));
+            $order->setData('base_grand_total', $this->priceCurrency->round($order->getData('base_grand_total')));
+            $order->setData('grand_total', $this->priceCurrency->round($order->getData('grand_total')));
         }
         return $this;
     }
