@@ -1750,7 +1750,7 @@ class OrderManagement extends ServiceAbstract
         );
 
         if ($this->integrateHelperData->isIntegrateStoreCredit()
-            && $this->integrateHelperData->isExistStoreCreditMagento2EE()
+            && ($this->integrateHelperData->isExistStoreCreditMagento2EE() || $this->integrateHelperData->isExistStoreCreditAheadworks())
         ) {
             $data['store_credit'] = $this->storeCreditIntegrateManagement->getQuoteStoreCreditData();
         }
@@ -2424,7 +2424,7 @@ class OrderManagement extends ServiceAbstract
     protected function checkIntegrateStoreCredit()
     {
         if ($this->integrateHelperData->isIntegrateStoreCredit()
-            && $this->integrateHelperData->isExistStoreCreditMagento2EE()
+            && ($this->integrateHelperData->isExistStoreCreditMagento2EE() || $this->integrateHelperData->isExistStoreCreditAheadworks())
         ) {
             $this->storeCreditIntegrateManagement->saveStoreCreditDataBeforeQuoteCollect(
                 $this->getRequest()->getParam('store_credit')

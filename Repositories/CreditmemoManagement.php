@@ -353,7 +353,7 @@ class CreditmemoManagement extends ServiceAbstract
                 }
 
                 if ($this->integrateHelperData->isIntegrateStoreCredit()
-                    && $this->integrateHelperData->isExistStoreCreditMagento2EE()
+                    && ($this->integrateHelperData->isExistStoreCreditMagento2EE() || $this->integrateHelperData->isExistStoreCreditAheadworks())
                     && (isset($data['refund_to_store_credit']) && $data['refund_to_store_credit'] == 1)
                 ) {
                     $storeCreditData = $this->integrateHelperData
@@ -504,7 +504,7 @@ class CreditmemoManagement extends ServiceAbstract
         }
 
         if ($this->integrateHelperData->isIntegrateStoreCredit()
-            && $this->integrateHelperData->isExistStoreCreditMagento2EE()
+            && ($this->integrateHelperData->isExistStoreCreditMagento2EE() || $this->integrateHelperData->isExistStoreCreditAheadworks())
         ) {
             $totals['store_credit_discount_amount'] = -$creditmemo->getOrder()->getData('customer_balance_amount');
         }
