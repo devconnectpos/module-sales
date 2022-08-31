@@ -452,7 +452,7 @@ class OrderHistoryManagement extends ServiceAbstract
                 }
 
                 if ($this->integrateHelperData->isIntegrateStoreCredit()
-                    && $this->integrateHelperData->isExistStoreCreditMagento2EE()
+                    && ($this->integrateHelperData->isExistStoreCreditMagento2EE() || $this->integrateHelperData->isExistStoreCreditAheadworks())
                 ) {
                     $totals['store_credit_discount_amount'] = -$order->getData('customer_balance_amount');
                 }
