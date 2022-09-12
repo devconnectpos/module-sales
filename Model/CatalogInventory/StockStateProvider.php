@@ -23,11 +23,8 @@ class StockStateProvider extends \Magento\CatalogInventory\Model\StockStateProvi
     public function checkQuoteItemQty(StockItemInterface $stockItem, $qty, $summaryQty, $origQty = 0)
     {
         $result = parent::checkQuoteItemQty($stockItem, $qty, $summaryQty, $origQty);
-        // Get product for getting more specific out of stock message
-        $product = $this->productFactory->create();
-        $product->load($stockItem->getProductId());
-        $result->setMessage($result->getMessage() . " {$product->getName()} ({$product->getSku()})");
 
+        // Bypass product qty check on ConnectPOS
         if (OrderManagement::$FROM_API) {
             $result->setHasError(false);
         }
