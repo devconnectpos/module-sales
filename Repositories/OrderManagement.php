@@ -2106,6 +2106,12 @@ class OrderManagement extends ServiceAbstract
                 }
             }
 
+            if (isset($value['options']) && isset($value['product_options_config_option'])) {
+                foreach ($value['product_options_config_option'] as $opt) {
+                    $items[$key]['super_attribute'][$opt['option_id']] = $opt['value'];
+                }
+            }
+
             if (isset($value['serial_number']) && !empty($value['serial_number'])) {
                 // Check if there already exists the same item with this serial number
                 if (!empty($cachedSerialNumber) && $cachedSerialNumber === $value['serial_number']) {
