@@ -271,7 +271,7 @@ class ShipmentManagement extends ServiceAbstract
             $tempId = "xpos_send_picking";
             if (!is_null($template) && !is_null($email) && !is_null($name)) {
                 try {
-                    $this->emailSender->sendEmailOrder(['template' => $template], ['email' => $email, 'name' => $name], null, $tempId);
+                    $this->emailSender->sendEmailOrder(['template' => $template], ['email' => $email, 'name' => $name], $tempId, null);
                 } catch (\Exception $e) {
                     $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
                     $logger = $objectManager->get('Psr\Log\LoggerInterface');
