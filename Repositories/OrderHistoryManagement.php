@@ -346,7 +346,7 @@ class OrderHistoryManagement extends ServiceAbstract
                         'additional_information' => $additionalInfo,
                     ];
 
-                    $paymentData = json_decode($orderPayment->getAdditionalInformation('split_data'), true);
+                    $paymentData = json_decode((string)$orderPayment->getAdditionalInformation('split_data'), true);
                     if (is_array($paymentData)) {
                         $paymentData = array_filter(
                             $paymentData,
@@ -592,15 +592,15 @@ class OrderHistoryManagement extends ServiceAbstract
             }
         }
         if ($entityId = $searchCriteria->getData('entity_id')) {
-            $arrEntityId = explode(",", $entityId);
+            $arrEntityId = explode(",", (string)$entityId);
             $collection->addFieldToFilter('entity_id', ["in" => $arrEntityId]);
         }
 
         $collection
             ->setOrder('created_at')
-            ->setCurPage(is_nan($searchCriteria->getData('currentPage')) ? 1 : $searchCriteria->getData('currentPage'))
+            ->setCurPage(is_nan((float)$searchCriteria->getData('currentPage')) ? 1 : $searchCriteria->getData('currentPage'))
             ->setPageSize(
-                is_nan($searchCriteria->getData('pageSize'))
+                is_nan((float)$searchCriteria->getData('pageSize'))
                     ?
                     DataConfig::PAGE_SIZE_LOAD_DATA
                     :
@@ -621,7 +621,7 @@ class OrderHistoryManagement extends ServiceAbstract
                 ['like' => '%'.$searchString.'%'],
                 ['like' => '%'.$searchString.'%'],
             ];
-            $arrString = explode(' ', $searchString);
+            $arrString = explode(' ', (string)$searchString);
             foreach ($arrString as $customerNameSearchValue) {
                 $fieldSearch[] = 'customer_firstname';
                 $fieldSearchValue[] = ['like' => '%'.$customerNameSearchValue.'%'];
@@ -647,7 +647,7 @@ class OrderHistoryManagement extends ServiceAbstract
         if (1 < $searchCriteria->getData('currentPage')) {
         } else {
             foreach ($collection as $order) {
-                $orderData = json_decode($order['order_offline'], true);
+                $orderData = json_decode((string)$order['order_offline'], true);
                 if (is_array($orderData)) {
                     if (isset($orderData['id'])) {
                         unset($orderData['id']);
