@@ -147,7 +147,7 @@ class Invoice extends AbstractItems
                             : $this->filterManager->stripTags(
                                 $option['value']
                             );
-                        $values = explode(', ', $printValue);
+                        $values = explode(', ', (string)$printValue);
                         foreach ($values as $value) {
                             foreach ($this->getString()->split($value, 30, true, true) as $subValue) {
                                 $text[] = $subValue;

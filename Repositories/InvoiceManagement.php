@@ -305,7 +305,7 @@ class InvoiceManagement extends ServiceAbstract
         }
 
         if ($orderPayment->getMethod() == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE) {
-            $paymentData = json_decode($orderPayment->getAdditionalInformation('split_data'), true);
+            $paymentData = json_decode((string)$orderPayment->getAdditionalInformation('split_data'), true);
             if (is_array($paymentData)) {
                 $payments = array_filter(
                     $paymentData,
@@ -490,7 +490,7 @@ class InvoiceManagement extends ServiceAbstract
             if ($order->getPayment()->getMethod() != RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE && $order->getShippingMethod() !== RetailStorePickUp::METHOD) {
             } else {
                 // save payment information to x-retail payment. It will display in order detail on CPOS
-                $splitData = json_decode($order->getPayment()->getAdditionalInformation('split_data'), true);
+                $splitData = json_decode((string)$order->getPayment()->getAdditionalInformation('split_data'), true);
                 foreach ($data['payment_data'] as $payment) {
                     $splitData[] = $payment;
                 }

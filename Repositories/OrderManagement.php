@@ -878,7 +878,7 @@ class OrderManagement extends ServiceAbstract
             $refundOrder = $this->orderFactory->create();
             $refundOrder->load($data['order_refund_id']);
             if ($refundOrder->getId() && $refundOrder->getPayment()) {
-                $splitData = json_decode($refundOrder->getPayment()->getAdditionalInformation('split_data'), true);
+                $splitData = json_decode((string)$refundOrder->getPayment()->getAdditionalInformation('split_data'), true);
                 if (is_array($splitData)) {
                     foreach ($splitData as &$paymentData) {
                         if (is_array($paymentData)
@@ -1346,7 +1346,7 @@ class OrderManagement extends ServiceAbstract
 
         $currentTax = floatval($openingShift->getData('total_order_tax')) + floatval($tax_amount);
         $currentBaseTax = floatval($openingShift->getData('base_total_order_tax')) + floatval($base_tax_amount);
-        $currentTaxData = json_decode($openingShift->getData('detail_tax'), true);
+        $currentTaxData = json_decode((string)$openingShift->getData('detail_tax'), true);
 
         $currentPoint_spent = floatval($openingShift->getData('point_spent'));
         $currentPoint_earned = floatval($openingShift->getData('point_earned'));
@@ -1503,7 +1503,7 @@ class OrderManagement extends ServiceAbstract
             $carriers = ['retailshipping'];
             if ($this->requestOrderData['order']['shipping_method'] !== 'retailshipping_retailshipping') {
                 $carrier = $this->requestOrderData['order']['shipping_method'];
-                $carrier = explode('_', $carrier);
+                $carrier = explode('_', (string)$carrier);
                 $carriers[0] = $carrier[0];
             }
         }
@@ -1574,7 +1574,7 @@ class OrderManagement extends ServiceAbstract
             }
         }
         if (self::$SAVE_ORDER === true) {
-            $appliedRuleIds = explode(',', $this->getQuote()->getAppliedRuleIds());
+            $appliedRuleIds = explode(',', (string)$this->getQuote()->getAppliedRuleIds());
             if ($appliedRuleIds && is_array($appliedRuleIds)
                 && ($key = array_search(AbstractWholeOrderDiscountRule::RULE_ID, $appliedRuleIds)) !== false
             ) {
@@ -2101,7 +2101,7 @@ class OrderManagement extends ServiceAbstract
                         && isset($value['options'][$opt['option_id']])
                         && is_string($value['options'][$opt['option_id']])
                     ) {
-                        $items[$key]['options'][$opt['option_id']] = explode(",", $value['options'][$opt['option_id']]);
+                        $items[$key]['options'][$opt['option_id']] = explode(",", (string)$value['options'][$opt['option_id']]);
                     }
                 }
             }
@@ -2170,7 +2170,7 @@ class OrderManagement extends ServiceAbstract
             $shippingAmount = 0;
             $this->requestOrderData['order']['shipping_method'] = 'retailshipping_retailshipping';
             $this->requestOrderData['order']['shipping_amount'] = $shippingAmount;
-        } elseif (isset($order['shipping_amount']) && !is_nan($order['shipping_amount'])) {
+        } elseif (isset($order['shipping_amount']) && !is_nan((float)$order['shipping_amount'])) {
             $shippingAmount = $order['shipping_amount'];
         }
 
@@ -2651,7 +2651,7 @@ class OrderManagement extends ServiceAbstract
         }
 
         $storeCredit = $this->getRequest()->getParam('store_credit');
-        $storeCreditData = $storeCredit['customer_balance_base_currency'] - ($storeCredit['store_credit_discount_amount']
+        $storeCreditData = (float)$storeCredit['customer_balance_base_currency'] - ((float)$storeCredit['store_credit_discount_amount']
                 / $this->getCurrentRate());
         $order->setData('store_credit_balance', $this->priceCurrency->round($storeCreditData));
         $this->orderResource->saveAttribute($order, 'store_credit_balance');

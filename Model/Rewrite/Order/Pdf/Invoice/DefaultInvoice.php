@@ -123,7 +123,7 @@ class DefaultInvoice extends \Magento\Sales\Model\Order\Pdf\Items\Invoice\Defaul
                     } else {
                         $printValue = $this->filterManager->stripTags($option['value']);
                     }
-                    $values = explode(', ', $printValue);
+                    $values = explode(', ', (string)$printValue);
                     foreach ($values as $value) {
                         $lines[][] = ['text' => $this->string->split($value, 30, true, true), 'feed' => 40];
                     }

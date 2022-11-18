@@ -225,7 +225,7 @@ class CreditmemoManagement extends ServiceAbstract
     {
         $data = $this->getRequest()->getParam('creditmemo');
 
-        if (isset($data['shipping_amount']) && !is_nan($data['shipping_amount'])) {
+        if (isset($data['shipping_amount']) && !is_nan((float)$data['shipping_amount'])) {
             $data['shipping_amount'] = $data['shipping_amount'] / $this->getCurrentRate();
         }
 
