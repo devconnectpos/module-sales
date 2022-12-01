@@ -45,6 +45,7 @@ use SM\Payment\Model\RetailPayment;
 use SM\Performance\Helper\RealtimeManager;
 use SM\Product\Helper\ProductHelper;
 use SM\RefundWithoutReceipt\Model\RefundWithoutReceiptTransactionFactory;
+use SM\Sales\Helper\CustomDiscount;
 use SM\Sales\Helper\Data as SalesHelper;
 use SM\Sales\Helper\OrderItemValidator;
 use SM\Sales\Model\FeedbackFactory;
@@ -323,6 +324,10 @@ class OrderManagement extends ServiceAbstract
      * @var PriceCurrencyInterface
      */
     protected $priceCurrency;
+    /**
+     * @var CustomDisCount
+     */
+    protected $customDisCount;
 
     /**
      * OrderManagement constructor.
@@ -417,7 +422,8 @@ class OrderManagement extends ServiceAbstract
         ShippingCarrierAdditionalDataFactory   $carrierAdditionalDataFactory,
         State                                  $state,
         OrderResource                          $orderResource,
-        PriceCurrencyInterface                 $priceCurrency
+        PriceCurrencyInterface                 $priceCurrency,
+        CustomDiscount                         $customDisCount
     )
     {
         $this->retailTransactionFactory = $retailTransactionFactory;
@@ -467,7 +473,7 @@ class OrderManagement extends ServiceAbstract
         $this->state = $state;
         $this->orderResource = $orderResource;
         $this->priceCurrency = $priceCurrency;
-
+        $this->customDisCount = $customDisCount;
         parent::__construct($context->getRequest(), $dataConfig, $storeManager);
     }
 
@@ -479,7 +485,10 @@ class OrderManagement extends ServiceAbstract
     public function loadOrderData()
     {
         $data = $this->getRequest()->getParams();
-
+        $newItemsApplyDiscount = $this->customDisCount->handleCustomDiscountApplication($data['items']);
+        if (!empty($newItemsApplyDiscount)){
+            $data['items'] = $newItemsApplyDiscount;
+        }
         if (!$this->canSplitOrder($data)) {
             return $this->processLoadOrderData(false, $data);
         }
@@ -678,7 +687,10 @@ class OrderManagement extends ServiceAbstract
         try {
             $this->clear();
             $data = $this->getRequest()->getParams();
-
+            $newItemsApplyDiscount = $this->customDisCount->handleCustomDiscountApplication($data['items']);
+            if (!empty($newItemsApplyDiscount)){
+                $data['items'] = $newItemsApplyDiscount;
+            }
             //save origin payment data to local variable
             $paymentData = $data['order']['payment_data'] ?? [];
 
@@ -1702,6 +1714,7 @@ class OrderManagement extends ServiceAbstract
     private function getOutputLoadData()
     {
         $data = [];
+
         if ($this->getQuote()->isVirtual()) {
             $address = $this->getQuote()->getBillingAddress();
             $totals = $this->getQuote()->getBillingAddress()->getTotals();
