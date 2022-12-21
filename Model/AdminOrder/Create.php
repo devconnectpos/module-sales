@@ -158,10 +158,10 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 				);
 			}
 		}
+        $item = $this->quoteInitializer->init($this->getQuote(), $product, $config);
+
 		$this->attachDataSupportSplitItem($product);
 		$this->attachCustomSaleData($product, $config);
-
-		$item = $this->quoteInitializer->init($this->getQuote(), $product, $config);
 
 		if (is_string($item)) {
 			throw new LocalizedException(__($item));
