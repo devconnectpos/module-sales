@@ -53,7 +53,7 @@ class AddOutletPaymentMethod implements ObserverInterface
             return $this;
         }
 
-        $splitData = json_decode($paymentJsonData, true);
+        $splitData = json_decode((string)$paymentJsonData, true);
         $outletPaymentMethod = [];
 
         foreach ($splitData as $payment) {
