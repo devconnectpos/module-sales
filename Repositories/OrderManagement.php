@@ -1370,13 +1370,9 @@ class OrderManagement extends ServiceAbstract
                 $this->metadataPool->getMetadata('Aheadworks\RewardPoints\Api\Data\TransactionInterface')
                     ->getEntityConnectionName()
             );
-            $select_transaction_id = $connection->select()
-                ->from(
-                    $this->resourceConnection->getTableName('aw_rp_transaction_entity')
-                )
-                ->where('entity_id =' . $orderData->getId());
 
-            $transaction_id = $connection->fetchOne($select_transaction_id, ['transaction_id']);
+            $awQuery = "SELECT `transaction_id` FROM {$this->resourceConnection->getTableName('aw_rp_transaction_entity')} WHERE `entity_id` = {$orderData->getId()}";
+            $transaction_id = $connection->fetchOne($awQuery);
 
             $balance = $this->rpIntegrateManagement->getTransactionByOrder($transaction_id);
             if ($balance > 0) {
