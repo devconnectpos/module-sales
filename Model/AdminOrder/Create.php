@@ -158,6 +158,9 @@ class Create extends \Magento\Sales\Model\AdminOrder\Create
 				);
 			}
 		}
+        if ($config->getData('custom_sale') !== null) {
+            $product->setName($config->getData('custom_sale')["name"]);
+        }
         $item = $this->quoteInitializer->init($this->getQuote(), $product, $config);
 
 		$this->attachDataSupportSplitItem($product);

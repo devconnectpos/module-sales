@@ -101,7 +101,9 @@
     <type name="Magento\Reward\Observer\CreditmemoRefund">
         <plugin name="connectpos-fix-magento-rp-refund-status" type="SM\Sales\Plugin\FixMagentoRewardPointRefundStatus" sortOrder="99" />
     </type>
-
+    <type name="Magento\Framework\Data\Collection">
+        <plugin name="connectpos-fix-magento-rp-refund-status" type="SM\Sales\Plugin\CollectionPlugin" />
+    </type>
     <!-- Commands -->
     <type name="Magento\Framework\Console\CommandList">
         <arguments>

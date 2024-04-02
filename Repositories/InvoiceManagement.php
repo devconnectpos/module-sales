@@ -111,28 +111,34 @@ class InvoiceManagement extends ServiceAbstract
     protected $state;
 
     /**
+     * @var OrderResource
+     */
+    protected $orderResource;
+
+    /**
      * InvoiceManagement constructor.
      *
-     * @param RequestInterface                            $requestInterface
-     * @param DataConfig                                  $dataConfig
-     * @param Data                                        $retailHelper
-     * @param StoreManagerInterface                       $storeManager
-     * @param ObjectManagerInterface                      $objectManager
-     * @param InvoiceService                              $invoiceService
-     * @param Registry                                    $registry
-     * @param InvoiceSender                               $invoiceSender
-     * @param ShipmentSender                              $shipmentSender
-     * @param OrderFactory                                $orderFactory
-     * @param OrderHistoryManagement                      $orderHistoryManagement
-     * @param RetailTransactionFactory                    $retailTransactionFactory
-     * @param ShiftHelper                                 $shiftHelper
-     * @param IntegrateHelper                             $integrateHelper
-     * @param Loader                                      $configLoader
-     * @param CustomerFactory                             $customerFactory
-     * @param ScopeConfigInterface                        $scopeConfig
-     * @param Currency                                    $currencyModel
+     * @param RequestInterface $requestInterface
+     * @param DataConfig $dataConfig
+     * @param Data $retailHelper
+     * @param StoreManagerInterface $storeManager
+     * @param ObjectManagerInterface $objectManager
+     * @param InvoiceService $invoiceService
+     * @param Registry $registry
+     * @param InvoiceSender $invoiceSender
+     * @param ShipmentSender $shipmentSender
+     * @param OrderFactory $orderFactory
+     * @param OrderHistoryManagement $orderHistoryManagement
+     * @param RetailTransactionFactory $retailTransactionFactory
+     * @param ShiftHelper $shiftHelper
+     * @param IntegrateHelper $integrateHelper
+     * @param Loader $configLoader
+     * @param CustomerFactory $customerFactory
+     * @param ScopeConfigInterface $scopeConfig
+     * @param Currency $currencyModel
      * @param OrderRepositoryInterface $orderRepository
-     * @param State                                       $state
+     * @param State $state
+     * @param OrderResource $orderResource
      */
     public function __construct(
         RequestInterface $requestInterface,
