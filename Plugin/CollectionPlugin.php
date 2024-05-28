@@ -33,9 +33,9 @@ class CollectionPlugin
         }
         if (!strpos("xretail/load-order-data", $this->request->getRequestUri())
             || !strpos("xretail/save-order", $this->request->getRequestUri())) {
-            foreach ($subject->load() as $item) {
-                if ($item->getData("sku") == "custom_sales_product_for_retail") {
-                    return [];
+            foreach ($result as $index => $item) {
+                if (!empty($item->getData("custom_price"))) {
+                    unset($result[$index]);
                 }
             }
         }
